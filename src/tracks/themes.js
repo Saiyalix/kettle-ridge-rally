@@ -3,10 +3,10 @@
     const trees = scatter(rng, 2600, 12000, (x, z, d, y, s0) => {
       if (d < half + 5) return false;
       if (rng() > (d < 30 ? 0.75 : d < 90 ? 0.45 : 0.18)) return false;
-      return { snow: s0 > ST.snowFrom - 40 };
+      return nearHouse(x, z) ? false : { snow: s0 > ST.snowFrom - 40 };
     });
     conifers(trees, (c, t) => t.snow ? c.setRGB(0.80 + rng() * 0.1, 0.88 + rng() * 0.08, 0.95) : c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
-    rocks(rng, roadsideRocks(rng, 320));
+    rocks(rng, roadsideRocks(rng, 320).filter(r => !nearHouse(r.x, r.z)));
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 
@@ -21,18 +21,8 @@
     const wallRocks = roadsideRocks(rng, 160, (p, side) => (side > 0 ? p.upR : p.upL) > 0.6).map(r => Object.assign(r, { size: r.size * 1.6 }));
     const scree = scatter(rng, 420, 9000, (x, z, d, y) => d > half + 6 && slopeAt(x, z) > 0.55 ? { size: 0.4 + rng() * 1.4, solid: false } : false);
     rocks(rng, wallRocks.concat(scree), [0.60, 0.55, 0.62]);
-    // drop-side marker posts (white with a red top) and low stone walls on corners with a drop outside
-    const markers = [], blocks = [];
-    for (let s = 10; s < track.length; s += 6) {
-      const p = sampleAt(s);
-      for (const side of [-1, 1]) if ((side > 0 ? p.upR : p.upL) < 0.4) { const [x, z] = sideXZ(p, side * (half + 0.9)); markers.push({ x, z, y: terrain.heightAt(x, z) }); }
-    }
-    const walls = cliffBarriers(track, half);
-    for (const b of walls.blocks) { b.y = terrain.heightAt(b.x, b.z); blocks.push(b); }
-    for (const sg of walls.segs) obstacles.push(sg);
-    instanced(new THREE.BoxGeometry(0.16, 1.0, 0.16).translate(0, 0.5, 0), lit({ color: 0xf2f2ee }), markers, (o, m) => { o.position.set(m.x, m.y, m.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
-    instanced(new THREE.BoxGeometry(0.17, 0.25, 0.17).translate(0, 0.9, 0), lit({ color: 0xe0392b }), markers, (o, m) => { o.position.set(m.x, m.y, m.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
-    instanced(new THREE.BoxGeometry(1.0, 0.7, 2.0).translate(0, 0.3, 0), lit({ color: 0x9a9184, map: TEX.rock, flatShading: true }), blocks, (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.th, 0); o.scale.setScalar(1); });
+    // drop-side walls and rock faces: see buildRoadside() in scenery.js. The old corner collision stays underneath as a safety layer.
+    for (const sg of cliffBarriers(track, half).segs) obstacles.push(sg);
     distantPeaks(rng, 20, 0x9aa6d0, 0xf4f7ff, { dist: 1350, y: -60 });
   }
 
@@ -44,14 +34,14 @@
     const sakura = scatter(rng, 700, 9000, (x, z, d, y, s0) => {
       if (d < half + 4.5 || s0 > city0 - 40 || (s0 > 700 && s0 < city0 - 300 && rng() < 0.85)) return false;
       if (s0 < 560 && d > half + 7 && d < 170 && slopeAt(x, z) < 0.14) return false;     // keep paddies open
-      return rng() < (d < 25 ? 0.6 : d < 80 ? 0.3 : 0.08) ? { s: 0.8 + rng() * 0.5 } : false;
+      return rng() < (d < 25 ? 0.6 : d < 80 ? 0.3 : 0.08) && !nearHouse(x, z) ? { s: 0.8 + rng() * 0.5 } : false;
     });
     billboards(sakura, 'sakura', 7, 7.5);
     for (const t of sakura) if (t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
       if (d < half + 5 || s0 < 690 || s0 > city0 - 60 || inTunnel(s0)) return false;
-      return rng() < (d < 50 ? 0.7 : d < 150 ? 0.4 : 0.15) ? { s: 0.9 + rng() * 0.5 } : false;
+      return rng() < (d < 50 ? 0.7 : d < 150 ? 0.4 : 0.15) && !nearHouse(x, z) ? { s: 0.9 + rng() * 0.5 } : false;
     });
     conifers(cedars, (c) => c.setRGB(0.10 + rng() * 0.04, 0.34 + rng() * 0.08, 0.26 + rng() * 0.05), { tall: 1.6, wide: 0.7 });
     rocks(rng, roadsideRocks(rng, 90, p => p.s > 700 && p.s < city0 - 60));

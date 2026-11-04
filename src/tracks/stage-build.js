@@ -27,7 +27,7 @@
     const { nx, nz, cell, minX, minZ, h, dist, nearS } = terrain;
     const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
-    const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3);
+    const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), soil = new Float32Array(nx * nz);
     for (let iz = 0, k = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++, k++) {
       const x = minX + ix * cell, z = minZ + iz * cell, d = dist[k], s0 = nearS[k];
       pos[k * 3] = x; pos[k * 3 + 1] = h[k]; pos[k * 3 + 2] = z;
@@ -60,6 +60,7 @@
       const shoulder = 1 - smoothstep(clamp((d - half) / 3.5, 0, 1));
       if (shoulder > 0 && !city) c = mixc(c, sb > 0.5 ? mixc(L.snow, [0, 0, 0], 0.08) : L.dirt, shoulder * 0.8);
       col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
+      soil[k] = city ? 0 : shoulder;                                    // how much soil texture to blend in (art/textures.js)
     }
     const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
     let q = 0;
@@ -70,47 +71,49 @@
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('soil', new THREE.BufferAttribute(soil, 1));
     const uvs = new Float32Array(nx * nz * 2);
     for (let k = 0; k < nx * nz; k++) { uvs[k * 2] = pos[k * 3] / 11; uvs[k * 2 + 1] = pos[k * 3 + 2] / 11; }
     geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, lit({ vertexColors: true, map: TEX.ground }));
+    const mesh = new THREE.Mesh(geo, groundMaterial(true));
     mesh.position.y = -0.07;
     mesh.receiveShadow = true;
     add(mesh);
   }
 
-  /* ---------- road ribbon: 8 points across, coloured per surface ---------- */
-  const ROAD_PAL = {
-    tarmac: [[0.98, 0.98, 0.96], [0.46, 0.46, 0.48], [0.42, 0.42, 0.45], [0.46, 0.46, 0.48]],
-    gravel: [[0.84, 0.72, 0.55], [0.88, 0.76, 0.58], [0.84, 0.72, 0.55], [0.90, 0.78, 0.60]],
-    snow: [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [0.93, 0.95, 1.0], [1.0, 1.0, 1.0]],
-    dirt: [[0.70, 0.54, 0.38], [0.74, 0.57, 0.40], [0.68, 0.52, 0.36], [0.76, 0.58, 0.41]],
-  };
+  /* ---------- road ribbon: one texture per surface (art/textures.js), loose spill past the edge ---------- */
+  const ROAD_TINT = { tarmac: 1, gravel: 1, snow: 1, dirt: 1 };      // the textures carry the colour; this only dims or brightens a surface
   function buildRoad() {
-    const across = [-1, -0.95, -0.55, -0.3, 0.3, 0.55, 0.95, 1];
+    const across = [-ROAD_EXT, -1, -0.7, -0.35, 0.35, 0.7, 1, ROAD_EXT];
     const n = P.length, A = across.length;
     const pos = new Float32Array(n * A * 3), col = new Float32Array(n * A * 3), uv = new Float32Array(n * A * 2);
     for (let i = 0; i < n; i++) {
-      const p = P[i], pc = ROAD_PAL[p.surface];
-      for (let j = 0; j < A; j++) { uv[(i * A + j) * 2] = (across[j] + 1) / 2; uv[(i * A + j) * 2 + 1] = p.s / 10; }
+      const p = P[i], tint = ROAD_TINT[p.surface] || 1;
       for (let j = 0; j < A; j++) {
-        const [x, z] = sideXZ(p, across[j] * half), k = (i * A + j) * 3;
-        pos[k] = x; pos[k + 1] = terrain.heightAt(x, z) + 0.03; pos[k + 2] = z;
-        const c = pc[[0, 1, 2, 3, 3, 2, 1, 0][j]];
-        col[k] = c[0]; col[k + 1] = c[1]; col[k + 2] = c[2];
+        const k = i * A + j, [x, z] = sideXZ(p, across[j] * half), shade = tint * (Math.abs(across[j]) > 1 ? 0.92 : 1);
+        uv[k * 2] = (across[j] + ROAD_EXT) / (2 * ROAD_EXT); uv[k * 2 + 1] = p.s / ROAD_TILE;
+        pos[k * 3] = x; pos[k * 3 + 1] = terrain.heightAt(x, z) + 0.03; pos[k * 3 + 2] = z;
+        col[k * 3] = shade; col[k * 3 + 1] = shade; col[k * 3 + 2] = shade;
       }
     }
-    const idx = [];
-    for (let i = 0; i < n - 1; i++) for (let j = 0; j < A - 1; j++) { const a = i * A + j, b = a + 1, c = a + A, d = c + 1; idx.push(a, b, c, b, d, c); }
+    const idx = [], kinds = [], groups = [];
+    for (let i = 0; i < n - 1; i++) {
+      const kind = P[i].surface;
+      if (!groups.length || groups[groups.length - 1].kind !== kind) groups.push({ kind, start: idx.length, count: 0 });
+      for (let j = 0; j < A - 1; j++) { const a = i * A + j, b = a + 1, c = a + A, d = c + 1; idx.push(a, b, c, b, d, c); }
+      groups[groups.length - 1].count = idx.length - groups[groups.length - 1].start;
+    }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    const road = new THREE.Mesh(geo, lit({ vertexColors: true, map: TEX.road, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    const mats = {};
+    for (const g of groups) { if (!mats[g.kind]) { mats[g.kind] = kinds.length; kinds.push(lit({ vertexColors: true, map: roadTex(g.kind), alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); } geo.addGroup(g.start, g.count, mats[g.kind]); }
+    const road = new THREE.Mesh(geo, kinds);
     road.receiveShadow = true;
     add(road);
     // dashed centre line on tarmac

@@ -20,24 +20,7 @@
   const trng = mulberry32(99);
   const wrapDraw = (g, w, h, x, y, fn) => { for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) fn(x + dx, y + dy); };   // seamless tiling
   const TEX = {
-    // light, slightly varied ground detail; the vertex colours give it its hue
-    ground: makeTex(256, 256, (g, w, h) => {
-      g.fillStyle = '#e4e4e4'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 26; i++) { const x = trng() * w, y = trng() * h, r = 14 + trng() * 30, v = trng() < 0.5 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'; wrapDraw(g, w, h, x, y, (X, Y) => { g.fillStyle = v; g.beginPath(); g.arc(X, Y, r, 0, 7); g.fill(); }); }
-      for (let i = 0; i < 2600; i++) { const x = trng() * w, y = trng() * h, l = 2 + trng() * 4, d = trng() < 0.55; g.strokeStyle = d ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.22)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (trng() - 0.5) * 2, y - l); g.stroke(); }
-    }),
-    // road surface: loose stones with two darker, packed tyre tracks
-    road: makeTex(256, 512, (g, w, h) => {
-      g.fillStyle = '#dedede'; g.fillRect(0, 0, w, h);
-      for (const u of [0.29, 0.71]) { const grd = g.createLinearGradient((u - 0.09) * w, 0, (u + 0.09) * w, 0); grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(0.5, 'rgba(0,0,0,0.2)'); grd.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = grd; g.fillRect((u - 0.09) * w, 0, 0.18 * w, h); }
-      for (let i = 0; i < 3200; i++) {
-        const x = trng() * w, y = trng() * h, u = x / w, inTrack = Math.abs(u - 0.29) < 0.06 || Math.abs(u - 0.71) < 0.06;
-        if (inTrack && trng() < 0.75) continue;
-        const r = 0.6 + trng() * (u < 0.08 || u > 0.92 ? 2.4 : 1.6);
-        wrapDraw(g, w, h, x, y, (X, Y) => { g.fillStyle = trng() < 0.5 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(X, Y, r, r * 0.75, trng() * 3, 0, 7); g.fill(); });
-      }
-      for (const [a, b] of [[0, 0.05], [0.95, 1]]) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(a * w, 0, (b - a) * w, h); }
-    }),
+    // ground and road textures are generated per surface in art/textures.js
     rock: makeTex(128, 128, (g, w, h) => {
       g.fillStyle = '#d8d8d8'; g.fillRect(0, 0, w, h);
       for (let i = 0; i < 500; i++) { g.fillStyle = trng() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)'; g.fillRect(trng() * w, trng() * h, 1 + trng() * 4, 1 + trng() * 2); }
