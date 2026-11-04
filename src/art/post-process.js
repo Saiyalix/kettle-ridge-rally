@@ -1,0 +1,54 @@
+  /* ---------- post-process, console style ----------
+     The scene renders at a lower internal resolution and is scaled up, with a soft bloom on bright areas,
+     a little extra saturation and contrast, a vignette, and radial motion blur at high speed. */
+  const RENDER_SCALE = 0.72;
+  const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const postMat = new THREE.ShaderMaterial({
+    uniforms: { tColor: { value: rtColor.texture }, res: { value: new THREE.Vector2(1, 1) }, blur: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `
+      uniform sampler2D tColor; uniform vec2 res; uniform float blur; varying vec2 vUv;
+      void main(){
+        vec2 dir = vUv - 0.5;
+        vec3 c = texture2D(tColor, vUv).rgb;
+        if (blur > 0.001) {
+          vec3 acc = c;
+          for (int i = 1; i < 7; i++) acc += texture2D(tColor, vUv - dir * (float(i) / 7.0) * blur * 0.07).rgb;
+          c = mix(c, acc / 7.0, smoothstep(0.12, 0.5, length(dir)));
+        }
+        vec2 o = 2.5 / res; vec3 b = vec3(0.0);
+        b += max(texture2D(tColor, vUv + vec2(o.x, o.y)).rgb - 0.86, 0.0);
+        b += max(texture2D(tColor, vUv + vec2(-o.x, o.y)).rgb - 0.86, 0.0);
+        b += max(texture2D(tColor, vUv + vec2(o.x, -o.y)).rgb - 0.86, 0.0);
+        b += max(texture2D(tColor, vUv + vec2(-o.x, -o.y)).rgb - 0.86, 0.0);
+        c += b * 0.4;
+        float l = dot(c, vec3(0.299, 0.587, 0.114));
+        c = mix(vec3(l), c, 1.14);
+        c = (c - 0.5) * 1.05 + 0.5;
+        c *= 1.0 - 0.32 * dot(dir, dir);
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+    depthWrite: false, depthTest: false,
+  });
+  postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+  function renderFrame(dt) {
+    const kmh = car.speed * 3.6;
+    postMat.uniforms.blur.value = state === 'menu' ? 0 : clamp((kmh - 100) / 70, 0, 1) * (camMode === 3 ? 0.6 : 1);
+    renderer.setRenderTarget(rtColor); renderer.render(scene, camera);
+    renderer.setRenderTarget(null); renderer.render(postScene, postCam);
+  }
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    if (isTouch && h > w && state === 'running') togglePause();          // turned to portrait mid-stage
+    renderer.setSize(w, h, false);
+    const sc = (quality === 'low' ? 0.55 : RENDER_SCALE) * Math.min(window.devicePixelRatio || 1, 1.5), W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
+    rtColor.setSize(W, Hh);
+    postMat.uniforms.res.value.set(W, Hh);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    pMat.uniforms.uScale.value = Hh * 0.5;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+

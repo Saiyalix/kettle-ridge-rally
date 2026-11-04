@@ -12,14 +12,15 @@ You are the QA department of Kettle Ridge Rally. Read `CLAUDE.md` first; its rul
 - The merge verdict on every pull request
 
 ## You must not touch
-- Game code in `index.html`. If a test finds a bug, report it with steps to reproduce and send it to the owning
+- Game code (`src/`, `index.html`). If a test finds a bug, report it with steps to reproduce and send it to the owning
   department (handling or tracks). You may suggest the fix, not make it.
 - The handling rules and targets in `CLAUDE.md`. Expected values change only with a `docs/decisions.md` entry,
   in a PR whose purpose is that change, after the owner agreed.
 
 ## Reviewing a branch or PR
 1. Check out the branch. `npm install` if `node_modules` is missing. Run `node tests/run.js` (all tests).
-2. Read the diff. Look for: changes outside the department's ownership, handling rules bent, CONFIG values without
+2. Read the diff. Look for: `index.html` edited without the matching `src/` change (the `build` test catches it),
+   changes outside the department's ownership (folders in `src/README.md`), handling rules bent, CONFIG values without
    a comment, anything that could break phones (touch, landscape, small screens), console errors, leftover debug code.
 3. Look at the screenshots in `tests/results/` (menu, race, phone) when anything visual changed.
 4. Compare with the "before" numbers on `main` when gameplay changed (run the tests on `main` too).

@@ -5,6 +5,21 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-04 · Round 2: split by gluing parts, not by rewriting into JavaScript modules
+**Decision:** `index.html` is cut into 33 consecutive parts in `src/` (grouped in folders per department). `tools/build.js`
+glues them back together in the order of `src/parts.txt`, adding nothing. Real ES modules (`import`/`export`) were not used.
+**Reason:** your rule for Round 2 was "the rebuilt game must behave exactly like today's". Gluing is the only way to
+*prove* that: the rebuilt `index.html` is byte-for-byte identical to the old one (same SHA-256,
+`d558749f…e423a86`), so nothing can behave differently. A real module rewrite would touch hundreds of shared
+variables inside `boot()` and could only be shown "probably the same" by tests. The cost: files from `core/boot.js` to
+`core/main-loop.js` share `boot()`'s variables, so they are not independent; `CLAUDE.md` warns about this.
+Nothing to install: the build uses only Node, which the cloud session has. GitHub Pages still serves the one built file.
+
+### 2026-11-04 · index.html must always match src/
+**Decision:** new QA test `build` fails if `index.html` is not exactly what `src/` builds. Edits go in `src/`, never in `index.html`.
+**Reason:** two copies of the game (parts and built file) can drift apart. The test makes that impossible to merge by accident.
+The build also refuses to produce a page whose script isn't valid JavaScript, and names the file and line of the error.
+
 ### 2026-11-04 · Department models
 **Decision:** `handling` runs on Opus, `tracks` and `qa` on Sonnet.
 **Reason:** handling changes are subtle (one value affects several rules at once) and worth the stronger model;

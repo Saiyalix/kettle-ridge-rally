@@ -1,0 +1,41 @@
+# Build order for index.html. tools/build.js glues these files together, top to bottom, exactly as they are.
+# Each file is one consecutive piece of the game. The .js files from core/boot.js down to core/main-loop.js
+# are all inside one function (boot), so they only make sense glued together: they share variables.
+# Moving a line between files is fine as long as the glued result stays the same order.
+
+page/head.html            # <head>, fonts, opening <style>
+page/style.css            # all CSS: HUD, menu, touch controls, phone layout
+page/body.html            # HUD / menu / touch-button HTML, three.js <script> tag, opening <script>
+
+handling/config.js        # CONFIG: every tunable number (arcade driving model, cars, surfaces, camera)
+core/helpers.js           # small helpers: clamp, random, time format
+tracks/stages.js          # STAGES: routes, surfaces, checkpoints, clock, terrain height functions
+tracks/track.js           # road spline, pace-note text, terrain grid, ground/surface queries
+handling/car.js           # class Car: suspension, arcade driving forces
+tracks/collisions.js      # car vs obstacles, cliff barriers
+
+core/boot.js              # starts the game; ---- everything below runs inside boot() ----
+art/renderer.js           # renderer, scene, lights, sky and fog per stage
+tracks/stage-build.js     # building helpers, ground mesh, road ribbon
+tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
+tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs
+tracks/stage-load.js      # start/checkpoint/finish gates, minimap shape, loadStage()
+art/car-model.js          # the car model, livery, cockpit interior
+art/effects.js            # dust particles, hit effects (sparks, shake)
+tracks/rivals.js          # the 14 rival crews: pace, start gaps, positions, bumping
+ui/hud.js                 # lens flare, rev counter, HUD element references
+audio/audio.js            # synthesized engine, tyres, wind, impacts, UI beeps
+ui/input.js               # keyboard, touch buttons, tilt steering, auto gas
+core/game-flow.js         # game state, co-driver voice, start/rescue/menu/championship flow
+ui/menu.js                # main menu: stage cards, car pick
+ui/results.js             # messages, splits, finish screen, game over
+tracks/checkpoints.js     # progress along the road, checkpoints, finish, obstacle lookup
+core/debug-replay.js      # F1 debug overlay, run recording, replay viewer
+ui/pause.js               # pause menu, restart, graphics quality
+handling/physics-step.js  # fixed 120 Hz physics step: input → car
+art/camera.js             # chase, rally, bonnet, cockpit cameras
+ui/visuals-hud.js         # per-frame visuals: car pose, dust, HUD, pace notes, minimap, stuck hint
+art/post-process.js       # console-style post-processing, render, resize
+core/main-loop.js         # main loop; ---- end of boot() ----
+
+page/end.html             # closing </script>, </body>, </html>

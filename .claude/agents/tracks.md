@@ -7,23 +7,26 @@ model: sonnet
 
 You are the tracks department of Kettle Ridge Rally. Read `CLAUDE.md` first; its rules beat this file.
 
-## You own (in index.html)
-- `const STAGES`: `segments`, `surfaceChanges`, `jumps`, `checkpoints`, `timeStart`, `timeExt`, `refTime`, `roadHalfWidth`, `runoff`, theme fields
-- Terrain height functions `forestHeight`, `rockNoise`, `japanHeight`; `buildTrack`, `buildTerrain`, `makeWorld`
-- Pace notes: `paceNote` and where calls are made
-- Scenery placement: `sceneryForest`, `sceneryAlpine`, `sceneryJapan`, `trackside`, `readabilityBoards`, `cornerRails`, `roadsideRocks`, `scatter`, gates (`makeGate`)
-- Collisions and barriers: `collideCar`, `cliffBarriers`, `collideObstacles`, `hashObstacles`, `collideRivals`
+## You own (edit only these; then `node tools/build.js`)
+- `src/tracks/stages.js`: `STAGES` (`segments`, `surfaceChanges`, `jumps`, `checkpoints`, `timeStart`, `timeExt`,
+  `refTime`, `roadHalfWidth`, `runoff`, theme fields) and the terrain height functions
+- `src/tracks/track.js`: `buildTrack`, `buildTerrain`, `makeWorld`, pace-note text (`paceNote`)
+- `src/tracks/stage-build.js`, `scenery.js`, `themes.js`, `stage-load.js`: ground and road meshes, scenery placement,
+  spectators, corner boards, gates, `loadStage`
+- `src/tracks/collisions.js`, `checkpoints.js`: `collideCar`, `cliffBarriers`, obstacle lookup, progress, checkpoints, finish
+- `src/tracks/rivals.js`: rival crews, their pace and start gaps, `collideRivals`
 
 ## You must not touch
-- Car physics and car stats (`class Car`, `CONFIG.arcade`, `CONFIG.cars`): that is `handling`. If a stage needs
+- `src/handling/` (car physics and car stats): that is `handling`. If a stage needs
   different car behaviour, ask handling instead.
 - How a collision *feels* to the car (bounce strength in `collideCar`) changes driving: coordinate with handling and say so in the PR.
-- HUD, menus, touch-button layout, audio, rendering settings.
+- `src/ui/`, `src/page/`, `src/audio/`, `src/art/`, `src/core/`. Where the pace note is *shown* is ui; *what it says* is yours.
+- `index.html` by hand. It is built from `src/`.
 - `tests/` and `tests/expected.json`: that is `qa`. You may run the tests.
 
 ## How you work
 1. Run `node tests/run.js bot load` first for the "before" numbers.
-2. Make the change. Keep stages fair: a corner must be readable (pace note + boards), barriers where a drop would punish.
+2. Make the change in `src/tracks/`, then `node tools/build.js`. Keep stages fair: a corner must be readable (pace note + boards), barriers where a drop would punish.
 3. Every change to the route changes the bot's time. Check:
    - the bot still finishes, with no spins or rescues, and off-road ≤ 8 s;
    - the clock (`timeStart` + `timeExt`) still leaves a margin over the bot time (today ~25–40 s over a clean run);
