@@ -6,12 +6,13 @@ description: Finish a piece of work on Kettle Ridge Rally and hand it to the own
 # Ship a build
 
 1. **Branch check.** You are on a task branch, not `main`. `git status` is clean apart from the intended changes.
-2. **Tests.** `npm install` if `node_modules` is missing, then `node tests/run.js`. If anything is FAIL, stop and fix it
+2. **Build and test.** `node tools/build.js` (rebuilds `index.html` from `src/`), `npm install` if `node_modules` is missing,
+   then `node tests/run.js`. If anything is FAIL, stop and fix it
    (or send it back to the owning department). Do not open the PR with a FAIL.
 3. **QA verdict.** Ask the `qa` department to review the branch. It writes `READY TO MERGE` or `NOT READY`.
    If NOT READY, fix and repeat from step 2.
 4. **Docs.** Roadmap item moved? Update `docs/roadmap.md`. Rule, target or expected value changed? Entry in `docs/decisions.md`.
-5. **Commit and push** with a clear message, `git push -u origin <branch>`.
+5. **Commit `src/` and `index.html` together** and push with a clear message, `git push -u origin <branch>`.
 6. **Open the PR** with this description (fill every part, keep it short, no jargon):
 
 ```markdown

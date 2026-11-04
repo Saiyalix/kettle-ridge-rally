@@ -1,0 +1,126 @@
+</style>
+</head>
+<body>
+
+
+<canvas id="scene" tabindex="0"></canvas>
+
+<div class="hud" id="timing">
+  <div class="lbl" id="stageLbl">SS1 · Kettle Ridge</div>
+  <div class="posrow" title="Your position on time"><span class="poslbl">POS</span><span id="pos">15</span><span class="posof">/15</span></div>
+  <div class="stime"><span class="lbl">Stage</span><span id="time">0:00.00</span></div>
+  <ul id="splits"></ul>
+</div>
+
+<div class="hud" id="clock" aria-live="off"><div class="clbl">TIME</div><div id="timeLeft">30</div></div>
+<div class="hud" id="banner" hidden></div>
+
+<div class="hud" id="mapwrap">
+  <canvas id="minimap" width="340" height="340"></canvas>
+  <div class="lbl"><span id="distDone">0.00 km</span><span id="distLeft"></span></div>
+</div>
+
+<div class="hud" id="pace" hidden>
+  <svg viewBox="0 0 48 48" aria-hidden="true"><path id="paceArrowBack" d="" fill="none" stroke="#0d1216" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><path id="paceArrow" d="" fill="none" stroke="#ffd21f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div>
+    <div id="paceText">Left 3</div>
+    <div id="paceSub">120 m</div>
+    <div id="paceThen"></div>
+  </div>
+</div>
+
+<div class="hud" id="dash">
+  <canvas id="tacho" width="440" height="440"></canvas>
+  <div id="speedBox"><span id="speed">0</span><span class="unit">km/h</span></div>
+  <div id="gearBox"><span id="gear">1</span></div>
+  <div id="surfaceTag"><span id="surf">Tarmac</span><span id="rpmNum" hidden>0</span></div>
+  <div id="rpm" hidden></div>
+</div>
+
+<div class="hud" id="keys">
+  <div><kbd>W</kbd><kbd>S</kbd> throttle / brake · <kbd>A</kbd><kbd>D</kbd> steer</div>
+  <div><kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>C</kbd> camera · <kbd>M</kbd> sound · <kbd>V</kbd> voice</div>
+  <div><kbd>Esc</kbd> pause · <kbd>⌫</kbd> restart · <kbd>F1</kbd> debug</div>
+</div>
+
+<div class="hud" id="msg" hidden></div>
+<div id="touch" aria-hidden="true">
+  <div class="tc-left"><button class="tc-steer" data-key="left">◀</button><button class="tc-steer" data-key="right">▶</button></div>
+  <div class="tc-right"><button class="tc-hb" data-key="hb">HB</button><button class="tc-brake" data-key="down">BRAKE</button><button class="tc-gas" data-key="up">GAS</button></div>
+  <div class="tc-top"><button class="tc-mini" id="tcReset" aria-label="Back on the road">↺</button><button class="tc-mini" id="tcCam" aria-label="Camera">CAM</button><button class="tc-mini" id="tcPause" aria-label="Pause">II</button></div>
+</div>
+<div id="rotate"><div><span>📱</span>Turn your phone sideways to race</div></div>
+<div id="fade"></div>
+<div id="debug" hidden><canvas id="dbgGraph" width="360" height="60"></canvas><pre id="dbgText"></pre></div>
+<div class="overlay" id="pauseMenu" hidden>
+  <div class="card pause">
+    <div class="eyebrow">Paused</div>
+    <div class="pause-list">
+      <button class="go" id="resumeBtn">Resume</button>
+      <button class="ghost" id="restartBtn">Restart stage <kbd class="key-only">⌫</kbd></button>
+      <button class="ghost" id="qualityBtn">Graphics: High</button>
+      <button class="ghost touch-only" id="autoGasBtn2">Auto gas: On</button>
+      <button class="ghost touch-only" id="tiltBtn2">Steering: Buttons</button>
+      <button class="ghost" id="debugBtn">Debug overlay: Off</button>
+      <button class="ghost" id="quitBtn">Stage select</button>
+    </div>
+  </div>
+</div>
+<div id="replayBar" hidden>
+  <div class="rp-top"><span class="rp-tag">REPLAY</span><span id="rpTime">0:00.00</span><span id="rpTele"></span></div>
+  <div class="rp-track"><div id="rpFill"></div></div>
+  <div class="rp-inputs"><span id="rpL" class="key">◀</span><span id="rpR" class="key">▶</span><span class="gas"><i id="rpGas"></i></span><span id="rpBrake" class="key">BRAKE</span><span id="rpHb" class="key">HANDBRAKE</span></div>
+  <div class="rp-btns"><button id="rpPlay">Play / pause</button><button id="rpSlow">Slower</button><button id="rpFast">Faster</button><button id="rpCam">Camera</button><button id="rpBack">Back</button></div>
+  <div class="rp-help"><kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> step · <kbd>↑</kbd><kbd>↓</kbd> speed · <kbd>C</kbd> camera · <kbd>Esc</kbd> back</div>
+</div>
+<div id="flare" aria-hidden="true"><i class="sun"></i><i class="g1"></i><i class="g2"></i><i class="g3"></i><i class="g4"></i></div>
+
+<div class="menu" id="menu">
+  <div class="menu-panel">
+    <div class="logo" aria-label="Kettle Ridge Rally"><span class="l1">KETTLE RIDGE</span><span class="l2">RALLY</span></div>
+    <h1>Select stage</h1>
+    <div class="stage-list" id="stageList" role="listbox" aria-label="Stages"></div>
+    <p class="blurb" id="stageBlurb"></p>
+    <div class="pick-row"><span class="pick-lbl">Car</span><div class="car-pick" id="carPick" role="radiogroup" aria-label="Car"></div></div>
+    <p class="carblurb" id="carBlurb"></p>
+    <div class="menu-actions">
+      <button class="go" id="startBtn">Race</button>
+      <button class="ghost" id="champBtn">Championship</button>
+      <span class="menu-status" id="menuStatus" role="status"></span>
+    </div>
+    <label class="toggle"><input type="checkbox" id="voiceToggle" checked> Co-driver voice</label>
+    <p class="tip">Beat the clock: every checkpoint extends your time, and 14 crews are out there to pass. Holding a steer key always takes the tightest line the grip allows; too fast just means a wider line. To drift, tap the brake mid-corner or pull the handbrake while steering: steer harder to tighten the slide, let go of the key to straighten up.</p>
+    <dl class="ctrl">
+      <dt><kbd>W</kbd><kbd>↑</kbd></dt><dd>Throttle</dd>
+      <dt><kbd>S</kbd><kbd>↓</kbd></dt><dd>Brake, hold when stopped to reverse</dd>
+      <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>Steer</dd>
+      <dt><kbd>Space</kbd></dt><dd>Handbrake</dd>
+      <dt><kbd>R</kbd> <kbd>C</kbd> <kbd>M</kbd> <kbd>V</kbd></dt><dd>Reset · camera · sound · co-driver voice</dd>
+      <dt><kbd>Esc</kbd> <kbd>⌫</kbd></dt><dd>Pause · instant restart</dd>
+      <dt><kbd>F1</kbd></dt><dd>Debug overlay (frame rate, slide, grip)</dd>
+    </dl>
+    <div class="touch-only touchhelp">
+      <p class="tip" style="display:block">Left thumb: ◀ ▶ to steer. Right thumb: gas, brake and HB (handbrake). Tap brake or HB while steering to drift. Pause, camera and reset are top right.</p>
+      <div class="menu-actions"><button class="ghost" id="fsBtn">Full screen</button><button class="ghost" id="autoGasBtn">Auto gas: On</button><button class="ghost" id="tiltBtn">Steering: Buttons</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="finishScreen" hidden>
+  <div class="card">
+    <div class="eyebrow" id="resEyebrow">Stage complete</div>
+    <div class="big pos" id="resPos">1st</div>
+    <div class="ftime" id="finalTime">0:00.00</div>
+    <p id="bestLine"></p>
+    <div class="result" id="resultTable"></div>
+    <div class="menu-actions">
+      <button class="go" id="nextBtn" hidden>Next stage</button>
+      <button class="go" id="againBtn">Race again</button>
+      <button class="ghost" id="replayBtn">Watch replay</button>
+      <button class="ghost" id="menuBtn">Stage select</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>

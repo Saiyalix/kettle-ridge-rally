@@ -4,7 +4,8 @@ Every department (subagent) follows this file. If a department file and this fil
 
 ## The game
 
-- 3D arcade rally game in the browser. One self-contained file: `index.html` (~256 KB). three.js r128 from cdnjs. No build step.
+- 3D arcade rally game in the browser. Players get one self-contained file, `index.html` (~256 KB), with three.js r128 from cdnjs.
+  Since Round 2 that file is **built** from the parts in `src/` by `tools/build.js` (plain gluing, no tools to install).
 - Live on GitHub Pages from the `main` branch root: https://saiyalix.github.io/kettle-ridge-rally/
   **Whatever lands on `main` is live for players.**
 - 3 stages (SS1 Kettle Ridge, SS2 Vulture Ledge, SS3 Sakura Touge), 2 cars (Kestrel GT4, Strada HF),
@@ -37,7 +38,9 @@ Measured targets (checked by `tests/handling.test.js` and `tests/bot.test.js`):
 
 | Path | What |
 |---|---|
-| `index.html` | The whole game: CSS, HUD/menu HTML, and one script. Changing it changes the live game once merged. |
+| `src/` | **The game's source, in parts.** Edit here. Map and ownership: `src/README.md`. Order: `src/parts.txt`. |
+| `index.html` | The built game that GitHub Pages serves. **Never edit it by hand**: run `node tools/build.js`. |
+| `tools/build.js` | Glues `src/` into `index.html`. `--check` = is it up to date, `--where N` = which src file is line N. |
 | `CLAUDE.md` | This rulebook. |
 | `.claude/agents/` | Departments: `handling`, `tracks`, `qa`. |
 | `.claude/skills/` | `ship-a-build`, `handling-check`. |
@@ -46,19 +49,35 @@ Measured targets (checked by `tests/handling.test.js` and `tests/bot.test.js`):
 | `tests/` | QA test kit (owned by qa). `expected.json` holds every expected value. |
 | `package.json` | Test-only: pins three 0.128.0 so tests run when cdnjs is blocked. The game never uses `node_modules`. |
 
-Inside `index.html` (search for these names, line numbers drift):
+## Changing the game: edit, build, test
 
-| Area | Names |
-|---|---|
-| Tunables | `const CONFIG` → `arcade` (the live driving model), `cars`, `surfaces`, `camera`; older sim sections (`tyre`, `engine`, `drivetrain`, …) |
-| Stages | `const STAGES` (segments, `surfaceChanges`, `checkpoints`, `timeStart`, `timeExt`, `refTime`, `jumps`), height functions `forestHeight`, `rockNoise`, `japanHeight` |
-| Track | `buildTrack`, `buildTerrain`, `makeWorld`, `paceNote` |
-| Physics | `class Car` → `step`, `arcadeForces`; `physicsStep` (inside `boot`) |
-| Collisions | `collideCar`, `cliffBarriers`, `collideObstacles`, `hashObstacles`, `collideRivals` |
-| Inside `boot()` | scenery (`sceneryForest`, `sceneryAlpine`, `sceneryJapan`, `trackside`, `readabilityBoards`), `loadStage`, car model and livery, particles, rivals (`simulateRival`, `setupRivals`, `updateRivals`), audio (`initAudio`, `updateAudio`), input (`KEYMAP`, touch pad), game flow (`startStage`, `finishStage`, `gameOver`, championship), replay, debug overlay (F1), camera, `updateVisuals`, `renderFrame`, `frame` |
+1. Edit the file(s) in `src/` that own the thing you change (see `src/README.md`).
+2. `node tools/build.js`. It refuses to build if the glued script isn't valid JavaScript and tells you which file and line.
+3. `node tests/run.js`.
+4. Commit `src/` **and** `index.html` together. The `build` test fails if they don't match.
 
-Department ownership is in each `.claude/agents/*.md` file. Round 2 will split `index.html` into module files and give
-each department its own files.
+The files from `src/core/boot.js` to `src/core/main-loop.js` all live inside one function, `boot()`, and share its
+variables (`car`, `track`, `P`, `state`, `keys`, …). A file there is not a standalone module: a variable used in one file
+may be declared in another. Search all of `src/` before renaming or removing anything. Keep the order in `parts.txt`
+unless you mean to change when code runs.
+
+Where things are (search for these names in `src/`):
+
+| Area | File | Names |
+|---|---|---|
+| Tunables | `handling/config.js` | `CONFIG` → `arcade` (live driving model), `cars`, `surfaces`, `camera`; older sim sections (`tyre`, `engine`, …) |
+| Stages | `tracks/stages.js` | `STAGES` (segments, `surfaceChanges`, `checkpoints`, `timeStart`, `timeExt`, `refTime`, `jumps`), `forestHeight`, `rockNoise`, `japanHeight` |
+| Track | `tracks/track.js` | `paceNote`, `buildTrack`, `buildTerrain`, `makeWorld` |
+| Physics | `handling/car.js`, `handling/physics-step.js` | `class Car` → `step`, `arcadeForces`; `physicsStep` |
+| Collisions | `tracks/collisions.js`, `tracks/checkpoints.js`, `tracks/rivals.js` | `collideCar`, `cliffBarriers`; `collideObstacles`, `hashObstacles`; `collideRivals` |
+| Scenery | `tracks/scenery.js`, `tracks/themes.js`, `tracks/stage-load.js` | `conifers`, `rocks`, `cornerRails`; `sceneryForest/Alpine/Japan`, `trackside`, `readabilityBoards`; `makeGate`, `loadStage` |
+| Rivals | `tracks/rivals.js` | `simulateRival`, `setupRivals`, `updateRivals`, `racePosition` |
+| Look | `art/*.js` | `applyLook`, car model + `applyLivery`, particles `emit`, `onCarHit`, `updateCamera`, `renderFrame`, `resize` |
+| Sound | `audio/audio.js` | `initAudio`, `updateAudio`, `cue` |
+| Controls & HUD | `ui/*.js`, `page/*` | `KEYMAP`, touch pad, tilt, `renderMenu`, `finishStage`, `gameOver`, pause menu, `updateVisuals`, all CSS and HTML |
+| Game flow | `core/game-flow.js`, `core/main-loop.js` | `state`, `startStage`, `rescue`, championship, `frame` |
+
+Department ownership is in each `.claude/agents/*.md` file and in `src/README.md`.
 
 ## How to test
 
@@ -66,7 +85,7 @@ Run in the cloud session (never ask the owner to run anything):
 
 ```bash
 npm install          # once per session: three 0.128.0 for the test browser
-node tests/run.js    # everything, ~2 minutes. Or pick: node tests/run.js handling bot
+node tests/run.js    # everything, ~2 minutes. Or pick: node tests/run.js build handling bot
 ```
 
 Prints PASS / FAIL per check and writes `tests/results/report.md` plus screenshots. Exit code 1 = something failed.
@@ -74,13 +93,14 @@ Prints PASS / FAIL per check and writes `tests/results/report.md` plus screensho
 
 | Test | Checks |
 |---|---|
+| `build` | `index.html` is exactly what `src/` builds (nobody edited it by hand or forgot to build) |
 | `load` | Menu loads, a stage starts and drives, no console errors, the test probe still attaches |
 | `bot` | Autopilot drives each stage with each car: finishes, time inside ±3% of the recorded time, beats the clock, off-road ≤ 8 s, no spins / rescues / unrequested drifts |
 | `handling` | Flat skid pad per surface, both cars, 50–140 km/h: held-key slide, turn-in time, turn-in equal across surfaces, no drift from steering |
 | `mobile` | 800×360 touch screen: menu items don't overlap and Start is reachable; touch controls present, on screen, ≥ 40 px, not overlapping each other or the HUD |
 
 The tests never change `index.html`: `tests/lib/game.js` adds a probe to a temporary copy just before the line
-`loadStage(0).then(() => requestAnimationFrame(frame));`. If that line changes, the `load` test says so; update `PROBE_ANCHOR`.
+`loadStage(0).then(() => requestAnimationFrame(frame));` (in `src/core/main-loop.js`). If that line changes, the `load` test says so; update `PROBE_ANCHOR`.
 
 Changing an expected value: only in a PR whose purpose is that change, with a `docs/decisions.md` entry.
 Bot times after an intended handling or track change: `node tests/run.js bot --record`.
@@ -102,6 +122,7 @@ Bot times after an intended handling or track change: `node tests/run.js bot --r
 ## Definition of done
 
 A change is done when all of these hold:
+- [ ] Changes are in `src/`, `index.html` was rebuilt with `node tools/build.js`, and both are committed (`build` test).
 - [ ] The game loads with no console errors (`load` test).
 - [ ] It plays on a phone-sized screen: touch controls work and nothing new overlaps (`mobile` test).
 - [ ] Handling targets still hold (`handling` and `bot` tests), or the owner approved the change and `docs/decisions.md` says so.

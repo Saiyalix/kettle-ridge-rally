@@ -1,0 +1,67 @@
+  /* ---------- gates: start, checkpoints, finish ---------- */
+  function labelTexture(text, bg, fg, checker) {
+    return canvasTex(512, 64, (g) => {
+      if (checker) { for (let x = 0; x < 32; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#f5f5f5'; g.fillRect(x * 16, y * 16, 16, 16); } }
+      else { g.fillStyle = bg; g.fillRect(0, 0, 512, 64); }
+      if (text) {
+        g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        if (checker) { g.fillStyle = 'rgba(0,0,0,.75)'; g.fillRect(150, 6, 212, 52); }
+        g.fillStyle = fg; g.fillText(text, 256, 34);
+      }
+    });
+  }
+  function makeGate(s, text, bg, fg, checker) {
+    const p = sampleAt(s), g = new THREE.Group(), w = half * 2 + 3.4;
+    const postMat = lit({ color: 0x2b2f33 });
+    for (const sx of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.32, 5.6, 0.32), postMat); post.position.set(sx * w / 2, 2.8, 0); post.castShadow = true; g.add(post); }
+    const mat = new THREE.MeshBasicMaterial({ map: labelTexture(text, bg, fg, checker), side: THREE.FrontSide, fog: true });
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, (w + 0.3) / 8), mat); front.position.set(0, 5.0, 0.02);
+    const back = front.clone(); back.rotation.y = Math.PI; back.position.z = -0.02;
+    g.add(front, back);
+    g.position.set(p.x, terrain.heightAt(p.x, p.z), p.z); g.rotation.y = p.th;
+    add(g);
+  }
+
+  /* ---------- minimap ---------- */
+  function buildMinimap() {
+    let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+    for (const p of P) { a = Math.min(a, p.x); b = Math.max(b, p.x); c = Math.min(c, p.z); d = Math.max(d, p.z); }
+    const sc = 300 / Math.max(b - a, d - c);
+    mmX = x => 170 - (x - (a + b) / 2) * sc;   // mirror x so the map matches driving view (right = -x)
+    mmY = z => 170 - (z - (c + d) / 2) * sc;
+    const g = mmBase.getContext('2d');
+    g.clearRect(0, 0, 340, 340);
+    const surfCol = { tarmac: '#7d848a', gravel: '#c49a62', snow: '#e8eef4', dirt: '#a8754a' };
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 9; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(mmX(p.x), mmY(p.z)) : g.moveTo(mmX(p.x), mmY(p.z))); g.stroke();
+    g.lineWidth = 5;
+    for (let i = 1; i < P.length; i++) { g.strokeStyle = surfCol[P[i].surface]; g.beginPath(); g.moveTo(mmX(P[i - 1].x), mmY(P[i - 1].z)); g.lineTo(mmX(P[i].x), mmY(P[i].z)); g.stroke(); }
+    const dot = (s, col, r) => { const p = sampleAt(s); g.fillStyle = col; g.beginPath(); g.arc(mmX(p.x), mmY(p.z), r, 0, 7); g.fill(); };
+    dot(0, '#1f8a4c', 9); ST.checkpoints.forEach(s => dot(s, '#ffc928', 6)); dot(track.finishS, '#ff4b3e', 9);
+  }
+
+  /* ---------- load a stage: tear down the old world, build the new one ---------- */
+  async function loadStage(i) {
+    if (loading || i === stageIdx) return;
+    loading = true; setMenuBusy(true);
+    await new Promise(r => setTimeout(r, 40));        // let the "building" label paint first
+    if (STAGES[i].theme === 'japan') await fontReady;
+    stageIdx = i; ST = STAGES[i]; CONFIG.stage = ST; half = ST.roadHalfWidth;
+    if (stageGroup) { scene.remove(stageGroup); disposeTree(stageGroup); }
+    stageGroup = new THREE.Group(); scene.add(stageGroup);
+    track = buildTrack(ST); terrain = buildTerrain(track, ST); world = makeWorld(track, terrain, ST); P = track.samples;
+    obstacles = [];
+    const rng = mulberry32(ST.seed);
+    buildGround(rng); buildRoad();
+    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else sceneryForest(rng);
+    trackside(rng);
+    makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff');
+    ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216'));
+    makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true);
+    hashObstacles();
+    buildMinimap();
+    applyLook(ST.look);
+    onStageLoaded();
+    loading = false; setMenuBusy(false);
+  }
+

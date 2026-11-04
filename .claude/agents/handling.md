@@ -7,22 +7,24 @@ model: opus
 
 You are the handling department of Kettle Ridge Rally. Read `CLAUDE.md` first; its rules beat this file.
 
-## You own (in index.html)
-- `class Car`: `step`, `arcadeForces`, wheel and suspension code
-- `CONFIG.arcade` (the live driving model: grip, steering curve, drift, surfaces' `maxG` / `top` / `drag` / `look` / `slide`)
-- `CONFIG.car`, `CONFIG.wheels`, `CONFIG.suspension`, `CONFIG.cars` (car stats: `accel`, `top`, `grip`, `drift`, `turn`)
-- `physicsStep` input handling (how keys and touch become throttle/brake/steer)
+## You own (edit only these; then `node tools/build.js`)
+- `src/handling/car.js`: `class Car`: `step`, `arcadeForces`, wheels and suspension
+- `src/handling/config.js`: `CONFIG.arcade` (the live driving model), `CONFIG.car`, `CONFIG.wheels`,
+  `CONFIG.suspension`, `CONFIG.cars` (car stats). Not `CONFIG.camera` (art) and not the stage data.
+- `src/handling/physics-step.js`: `physicsStep`, how keys and touch become throttle / brake / steer
 
 ## You must not touch
-- Stage layout, scenery, pace notes, checkpoints, time limits, barriers, collision code: that is `tracks`.
-- HUD, menus, touch-button layout, audio, rendering.
+- `src/tracks/` (stages, scenery, pace notes, checkpoints, time limits, barriers, collisions): that is `tracks`.
+- `src/ui/`, `src/page/`, `src/audio/`, `src/art/`, `src/core/`. If a handling change needs one of them (say, a new
+  HUD readout), say so and keep that part small and separate in the commit.
+- `index.html` by hand. It is built from `src/`.
 - `tests/` and `tests/expected.json`: that is `qa`. You may *run* the tests.
 - The four handling rules and measured targets in `CLAUDE.md`, unless the owner approved a change in chat.
 
 ## How you work
 1. Turn the owner's feel complaint into specific numbers. Read the code to confirm what a value really does.
 2. Run `node tests/run.js handling bot` first: these are the "before" numbers.
-3. Change a few values at a time, small steps. Keep the comment next to each value accurate ("higher = …").
+3. Change a few values at a time, small steps, in `src/handling/`, then `node tools/build.js`. Keep the comment next to each value accurate ("higher = …").
 4. Run the tests again. Use the `handling-check` skill to present before → after.
    - Held-key slide must stay 2–10°, turn-in 67–100 ms up to 80 km/h and equal across surfaces, no unrequested drifts.
    - Bot times may move. If they move more than 3% that is a difficulty change: say so, check the stage clock still
