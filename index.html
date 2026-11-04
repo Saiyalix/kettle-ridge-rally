@@ -3728,8 +3728,8 @@ function boot() {
     updateCockpit();
     updateAudio(dt);
 
-    // stuck / flipped hint
-    if (state === 'running') {
+    // stuck / flipped hint (the test hook's simRun does its own rescues)
+    if (state === 'running' && !(TEST && TEST.hold)) {
       const dRoad = terrain.distAt(car.pos.x, car.pos.z), dropBelow = P[progIdx].y - car.pos.y;
       if (dRoad < half + 0.4 && car.grounded > 0 && car.up.y > 0.8 && Math.abs(dropBelow) < 2) { lastGoodS = P[progIdx].s; lastGoodSpeed = Math.max(0, car.vForward); }
       if (dropBelow > 4.5 && dRoad > half - 0.5) fallTimer += dt; else fallTimer = 0;     // went over the edge
@@ -3807,7 +3807,73 @@ function boot() {
   dbgEl.hidden = !debugOn;
   if (quality === 'low') setQuality('low');
   let raceOn = null;
+
+  /* ---------- test hook: only with ?test in the URL (used by tools/playtest.mjs, invisible to players) ---------- */
+  const TEST = /[?&]test\b/.test(location.search) ? { hold: false, bot: false, frameMs: [], workMs: [] } : null;
+  if (TEST) {
+    // Autopilot: aims at a point down the road and picks a speed from the curvature ahead, pressing the same
+    // keys a player would. Deliberately simple and fixed, so a change in its stage time means the car changed.
+    const botKeys = () => {
+      const p = P[progIdx], th = Math.atan2(car.fwd.x, car.fwd.z), v = car.speed;
+      const ahead = Math.min(P.length - 1, progIdx + Math.round((5 + v * 0.45) / track.step)), t = P[ahead];
+      let err = Math.atan2(t.x - car.pos.x, t.z - car.pos.z) - th;
+      err = Math.atan2(Math.sin(err), Math.cos(err));
+      let km = 0; const reach = Math.round((12 + v * 1.6) / track.step);
+      for (let j = progIdx; j < Math.min(P.length, progIdx + reach); j++) km = Math.max(km, Math.abs(curvS[j]));
+      const SA = CONFIG.arcade.surfaces[p.surface] || CONFIG.arcade.surfaces.gravel;
+      const target = km > 1e-4 ? Math.sqrt(SA.maxG * 9.81 * 0.85 / km) : 99;
+      keys.left = err > 0.035; keys.right = err < -0.035;      // heading angle grows towards the car's left
+      keys.up = v < target; keys.down = v > target + 4; keys.hb = false;
+    };
+    const lateral = () => { const p = P[progIdx]; return (car.pos.x - p.x) * -Math.cos(p.th) + (car.pos.z - p.z) * Math.sin(p.th); };
+    TEST.snapshot = () => ({
+      state, stage: stageIdx, stageName: ST.name, s: P[progIdx].s, finishS: track.finishS, raceTime, timeLeft,
+      kmh: car.speed * 3.6, slideDeg: car.beta * 57.3, drift: !!car.dbg.drift, surface: P[progIdx].surface,
+      lateral: lateral(), roadHalf: half, quality, splits: splits.slice(),
+    });
+    TEST.ready = () => !!track && !loading;
+    TEST.stageCount = STAGES.length;
+    TEST.loadStage = i => loadStage(i);
+    TEST.start = () => { champ = null; startStage(null); countdown = 0.6; };   // skip the 3-2-1
+    TEST.setQuality = q => setQuality(q);
+    TEST.menu = () => goMenu();
+    TEST.botKeys = botKeys;
+    // Drive a whole stage at the fixed physics rate, as fast as the CPU allows. Same input → same result.
+    TEST.simRun = async (maxSeconds = 400) => {
+      // Own seeded random numbers while stepping (rival pace, contact kicks), swapped out whenever frames run,
+      // because particles and sound draw random numbers at a rate that depends on the frame rate
+      const sysRandom = Math.random, simRandom = mulberry32(1000 + stageIdx);
+      Math.random = simRandom;
+      TEST.hold = true; startStage(null); state = 'running'; countdown = -1; timeLeft = 1e9;
+      const out = { offRoadS: 0, driftS: 0, maxKmh: 0, sumSlide: 0, spins: 0, rescues: 0, steps: 0, timedOut: false };
+      let goodS = startS, stuck = 0, spun = false;
+      while (state === 'running') {
+        for (let k = 0; k < 600 && state === 'running'; k++) {
+          botKeys(); physicsStep(); out.steps++;
+          const lat = Math.abs(lateral()), sl = Math.abs(car.beta * 57.3);
+          if (lat > half + 0.5) out.offRoadS += H; else if (car.grounded > 0) goodS = P[progIdx].s;
+          if (car.dbg.drift) out.driftS += H;
+          out.maxKmh = Math.max(out.maxKmh, car.speed * 3.6); out.sumSlide += sl * H;
+          if (sl > 90 && !spun) { out.spins++; spun = true; } else if (sl < 30) spun = false;
+          stuck = (car.speed < 1.5 || car.up.y < 0.35 || lat > half + 8) ? stuck + H : 0;
+          if (stuck > 2.5 || car.pos.y < P[progIdx].y - 6) { placeAt(Math.max(startS, goodS - 4), 8); out.rescues++; stuck = 0; }
+          if (raceTime > maxSeconds) { out.timedOut = true; state = 'gameover'; }
+        }
+        Math.random = sysRandom; await new Promise(r => setTimeout(r, 0)); Math.random = simRandom;
+      }
+      Math.random = sysRandom;
+      for (const kk in keys) keys[kk] = false;
+      const res = Object.assign(TEST.snapshot(), out, { time: raceTime, avgSlideDeg: out.sumSlide / Math.max(raceTime, 1e-6),
+        refTime: ST.refTime, timeBudget: ST.timeStart + ST.timeExt.reduce((a, b) => a + b, 0) });
+      TEST.hold = false; goMenu();
+      return res;
+    };
+    window.__rally = TEST;
+  }
+
   function frame(now) {
+    const t0 = TEST ? performance.now() : 0;
+    if (TEST && TEST.bot && state === 'running') TEST.botKeys();
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const on = state === 'running' || state === 'countdown';                 // on-screen controls only while racing
     if (on !== raceOn) { raceOn = on; document.body.classList.toggle('race-on', on); }
@@ -3822,7 +3888,7 @@ function boot() {
     if (!track) { requestAnimationFrame(frame); return; }
     let steps = 0;
     if (state === 'replay') { stepReplay(dt); updateViewPose(1); }
-    else if (state === 'paused') { updateViewPose(1); }
+    else if (state === 'paused' || (TEST && TEST.hold)) { updateViewPose(1); }
     else {
       acc += dt;
       while (acc >= H && steps < 12) { physicsStep(); acc -= H; steps++; }
@@ -3834,6 +3900,7 @@ function boot() {
     updateVisuals(dt);
     clouds.position.set(camera.position.x, 0, camera.position.z);
     renderFrame(dt);
+    if (TEST && state === 'running' && !TEST.hold) { TEST.frameMs.push(dt * 1000); TEST.workMs.push(performance.now() - t0); }
     requestAnimationFrame(frame);
   }
   loadStage(0).then(() => requestAnimationFrame(frame));

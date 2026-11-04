@@ -1,0 +1,13 @@
+{
+  "name": "kettle-ridge-rally",
+  "private": true,
+  "description": "Arcade rally game. The game itself needs no build: open index.html. These packages are only for the automated playtest.",
+  "scripts": {
+    "playtest": "node tools/playtest.js",
+    "playtest:quick": "node tools/playtest.js --quick",
+    "baseline": "node tools/playtest.js --save-baseline"
+  },
+  "devDependencies": {
+    "three": "0.128.0"
+  }
+}

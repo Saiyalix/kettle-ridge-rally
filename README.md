@@ -13,3 +13,7 @@ It runs in any modern browser: keyboard on a computer, touch controls on a phone
 - SS1 Kettle Ridge: forest roads, tarmac, gravel and snow
 - SS2 Vulture Ledge: gravel and dirt along mountain cliffs
 - SS3 Sakura Touge: Japan, torii tunnel, mountain pass and a neon town
+
+## Development
+Changes are made by an AI development agent working with the owner. See `CLAUDE.md` for the brief, rules and plan,
+and `tools/playtest.js` for the automated playtest (`npm install`, then `node tools/playtest.js --quick`).
