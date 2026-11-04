@@ -151,9 +151,9 @@
   // all roadside pieces keep away from the gates, boards, jumps, the torii tunnel, and the outside of tight corners (chevrons)
   function frameKeepOut() {
     const all = [[0, 135], [track.finishS - 78, track.length]];
-    if (ST.theme === 'alpine') { all.length = 0; all.push([8, 24], [track.finishS - 8, track.finishS + 8]); for (const cp of ST.checkpoints) all.push([cp - 8, cp + 8]); }
+    if (ST.theme === 'alpine') { all.length = 0; all.push([13.5, 18.5], [track.finishS - 2.5, track.finishS + 2.5]); for (const cp of ST.checkpoints) all.push([cp - 2.5, cp + 2.5]); }   // gate posts only
     else for (const cp of ST.checkpoints) all.push([cp - 28, cp + 16]);
-    for (const [js] of ST.jumps) all.push([js - 20, js + 30]);
+    if (ST.theme !== 'alpine') for (const [js] of ST.jumps) all.push([js - 20, js + 30]);
     if (ST.toriiTunnel) all.push([ST.toriiTunnel[0] - 12, ST.toriiTunnel[1] + 12]);
     const sd = { '-1': [], '1': [] }, lim = ST.theme === 'japan' ? 80 : 60;
     if (ST.theme !== 'alpine') for (const t of track.turns) if (t.r <= lim) sd[t.dir === 'R' ? -1 : 1].push([t.s0 - 12, t.s1 + 12]);
@@ -162,10 +162,10 @@
   // points along one side of the road at `off` m beyond the road edge; split into pieces where the ground is wrong or the spot is kept clear
   function framePath(a, b, side, off, keep, opt = {}) {
     const pieces = []; let cur = [];
-    const flush = () => { if (cur.length >= 3) pieces.push(cur); cur = []; };
+    const flush = () => { if (cur.length >= (opt.min || 3)) pieces.push(cur); cur = []; };
     for (let s = a; s <= b + 0.01; s += opt.step || 3) {
       const p = sampleAt(s), [x, z] = sideXZ(p, side * (half + off)), g = terrain.heightAt(x, z);
-      const ok = !keep(s, side) && terrain.distAt(x, z) > half + off - 0.9 && (opt.any || Math.abs(g - p.y) < (opt.dy || 2.4));
+      const ok = !keep(s, side) && (opt.any && opt.noDist || terrain.distAt(x, z) > half + off - 0.9) && (opt.any || Math.abs(g - p.y) < (opt.dy || 2.4));
       if (!ok) { flush(); continue; }
       cur.push({ x, y: opt.follow ? Math.max(g, p.y - 0.3) : g, z, s });
     }
@@ -215,9 +215,9 @@
     const wallOpt = () => ({ height: 0.9 + rng() * 0.4, thick: 0.6, warm: rng() < 0.45, tint: [0.9 + rng() * 0.1, 0.9 + rng() * 0.1, 0.9 + rng() * 0.1] });
 
     if (ST.id === 'kettle') {
-      for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 135, track.finishS - 80, 40, 110, 4, 14)) {
-        const village = a > 140 && b < 470, snow = a > ST.snowFrom - 20, pick = rng();
-        if (village) { if (rng() < 0.12) continue; stone(framePath(a, b, side, 2.4, keep), wallOpt(), 0.33); continue; }
+      for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, 470, 90, 160, 3, 6).concat(chunksOf(rng, 470, track.finishS - 80, 40, 110, 4, 14))) {
+        const village = b <= 470, snow = a > ST.snowFrom - 20, pick = rng();
+        if (village) { stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), Object.assign(wallOpt(), { sink: 1.2 }), 0.33); continue; }
         if (pick < 0.15) continue;
         if (pick < 0.4) { const o = wallOpt(); if (snow) o.tint = [0.88, 0.94, 1]; stone(framePath(a, b, side, 2.4, keep), o, 0.33); }
         else fence(framePath(a, b, side, 2.6, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: snow ? [0.92, 0.96, 1.05] : [1, 1, 1] });
@@ -233,7 +233,7 @@
         }
         runs.forEach(r => {
           if (r.b - r.a < 9) return;
-          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.3, keep, { any: true, follow: true }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
+          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.3, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }

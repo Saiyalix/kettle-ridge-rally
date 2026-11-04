@@ -21,7 +21,8 @@
     const wallRocks = roadsideRocks(rng, 160, (p, side) => (side > 0 ? p.upR : p.upL) > 0.6).map(r => Object.assign(r, { size: r.size * 1.6 }));
     const scree = scatter(rng, 420, 9000, (x, z, d, y) => d > half + 6 && slopeAt(x, z) > 0.55 ? { size: 0.4 + rng() * 1.4, solid: false } : false);
     rocks(rng, wallRocks.concat(scree), [0.60, 0.55, 0.62]);
-    // drop-side walls and rock faces: see buildRoadside() in scenery.js
+    // drop-side walls and rock faces: see buildRoadside() in scenery.js. The old corner collision stays underneath as a safety layer.
+    for (const sg of cliffBarriers(track, half).segs) obstacles.push(sg);
     distantPeaks(rng, 20, 0x9aa6d0, 0xf4f7ff, { dist: 1350, y: -60 });
   }
 
