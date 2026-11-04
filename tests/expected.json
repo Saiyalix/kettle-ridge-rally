@@ -1,0 +1,54 @@
+{
+  "_readme": "Expected values for the QA test kit. Where each number comes from is logged in docs/decisions.md. Change a value only in a PR that means to change it, and log why.",
+  "bot": {
+    "windowPct": 3,
+    "maxOffRoadS": 8,
+    "times": {
+      "Kettle Ridge / Kestrel GT4": 91.51,
+      "Kettle Ridge / Strada HF": 92.55,
+      "Vulture Ledge / Kestrel GT4": 88.81,
+      "Vulture Ledge / Strada HF": 88.34,
+      "Sakura Touge / Kestrel GT4": 87.95,
+      "Sakura Touge / Strada HF": 88.13
+    }
+  },
+  "handling": {
+    "driveSurfaces": [
+      "tarmac",
+      "gravel",
+      "dirt",
+      "snow"
+    ],
+    "offRoadSurfaces": [
+      "grass"
+    ],
+    "speedsKmh": [
+      50,
+      80,
+      110,
+      140
+    ],
+    "offRoadKmh": 50,
+    "slideDeg": [
+      2,
+      10
+    ],
+    "turnInMs": [
+      67,
+      100
+    ],
+    "turnInUpToKmh": 80,
+    "maxWheelSpreadMs": 9,
+    "maxPathSpreadMs": 25
+  },
+  "mobile": {
+    "viewport": {
+      "width": 800,
+      "height": 360
+    },
+    "minTouchPx": 40
+  },
+  "knownIssues": {
+    "race: touch controls do not overlap the HUD": "Minimap distance label overlaps the top of the HB button by ~14 px on 800x360. Logged 2026-11-04 in docs/roadmap.md; remove this entry when fixed."
+  }
+}
