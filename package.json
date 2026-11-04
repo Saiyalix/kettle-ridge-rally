@@ -1,0 +1,11 @@
+{
+  "name": "kettle-ridge-rally",
+  "private": true,
+  "description": "The game needs no build: it is index.html. These packages are only for the QA test kit in tests/.",
+  "scripts": {
+    "test": "node tests/run.js"
+  },
+  "devDependencies": {
+    "three": "0.128.0"
+  }
+}
