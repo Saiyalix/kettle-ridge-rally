@@ -16,8 +16,10 @@ tracks/collisions.js      # car vs obstacles, cliff barriers
 
 core/boot.js              # starts the game; ---- everything below runs inside boot() ----
 art/renderer.js           # renderer, scene, lights, sky and fog per stage
+art/textures.js           # generated textures: road per surface, grass/soil, stone, wood, rock, facades
 tracks/stage-build.js     # building helpers, ground mesh, road ribbon
 tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
+art/roadside.js          # look-builders for tracks: stoneWall, woodFence, buildings, rockFace
 tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs
 tracks/stage-load.js      # start/checkpoint/finish gates, minimap shape, loadStage()
 art/car-model.js          # the car model, livery, cockpit interior

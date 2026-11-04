@@ -25,6 +25,7 @@ The build checks that the glued script is valid JavaScript and says which file a
 | `tracks/track.js`, `collisions.js`, `checkpoints.js`, `stage-build.js` | tracks | Road, terrain, pace-note text, collisions, checkpoints |
 | `tracks/scenery.js`, `themes.js`, `stage-load.js` | tracks + art | Where and how many, what you can hit → tracks. Textures, colours, materials, shapes → art |
 | `tracks/rivals.js` | tracks + art | Rival pace, start gaps, bumping → tracks. Rival car models and colours → art |
+| `art/textures.js`, `art/roadside.js` | art | Generated textures (road per surface, grass/soil, stone, wood, rock, facades) and look-builders for tracks: `stoneWall`, `woodFence`, `buildings`, `rockFace` (argument docs in the file) |
 | `art/*` | art | Lights, sky, fog, car model, effects, cameras, post-processing (high quality) |
 | `audio/audio.js` | audio | All synthesized sound |
 | `core/game-flow.js` | shared | Co-driver voice (`say`, `pickVoice`, `setVoice`) → audio. Game flow (start, rescue, championship) → producer assigns, qa reviews closely |
