@@ -5,6 +5,26 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-04 · Graphics overhaul: plan, style and limits
+**Request (owner):** "I want the graphics to be a lot better. Right now they're very basic and not interesting to look at."
+The owner shared three screenshots of a 1990s arcade rally game as style inspiration: textured world (stone walls, plaster buildings,
+gravel), streaky glossy road with tyre marks, walls / fences / rock faces close to the road, painted skies (clouds, sunset, starry night
+with a lit city), dense colourful autumn trees, bold white livery with colour swooshes and sponsor decals, low close chase camera,
+chunky retro HUD (big yellow countdown, italic numbers, rev dial, progress bar).
+**Owner's answers:**
+- Priorities: all four: road and roadside, skies and lighting, trees and nature, car look.
+- Texture style: smooth and modern (rich detail, smooth and sharp, not pixelated).
+- Phone speed: keep 30 fps on mid-range phones; phones may get a lighter version of the heaviest parts.
+- Camera: ADD lower / closer options, keep the current ones (cockpit, far-away, etc.).
+- HUD: change to a more retro look, comparable to the reference images.
+**Constraint (set by us):** the screenshots are style inspiration only. No real brands (no oil company, tyre or car-maker logos), not the
+reference game's livery or track layouts; every design is original. Textures are generated in code (no image files) so the page stays small.
+**Reason:** copying another game's look or brands is not ours to do and could cause trouble for the live page; a similar mood
+with our own designs gives the owner what they want. Code-made textures keep `index.html` small and the build unchanged.
+**Plan (one PR each, in order, qa checks each):** 1 road and roadside (art, tracks); 2 skies and lighting (art); 3 trees and nature
+(art, tracks); 4 car look (art); 5 new cameras (art); 6 retro HUD (ui-mobile). Handling tests must pass at every step (graphics do not
+change driving); ui-mobile checks phone cost each time. No handling rule or target changes.
+
 ### 2026-11-04 · Round 3: PRs are merged as soon as qa says READY TO MERGE
 **Decision:** the owner asked: "Merge when QA says it's ready." The main session merges right after qa's `READY TO MERGE`
 (merge commit, not squash), checks `main` still builds, and tells the owner. The owner can say "hold" at any time.
