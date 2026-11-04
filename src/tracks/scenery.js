@@ -124,3 +124,151 @@
     instanced(cg, new THREE.MeshBasicMaterial({ color: cap, fog: false }), list, (o, m) => { const f = m.cap || 0.3; o.position.set(m.x, (opts.y || -40) + m.h * (1 - f), m.z); o.rotation.set(0, m.rot, 0); o.scale.set(m.r * f * 1.04, m.h * f, m.r * f * 1.04); }, { shadow: false });
   }
 
+  /* ---------- roadside frame: walls, fences, rock faces and houses close to the road ----------
+     Placement and collision live here (tracks); how the pieces look is in art/roadside.js.
+     Everything comes from its own seeded generator, so a stage looks and plays the same every time,
+     on both graphics qualities. Walls, fences, rock faces and house sides are segment obstacles. */
+  let frameHouses = [];                                              // [{x, z, r}] circles where trees and rocks must not stand
+  const nearHouse = (x, z) => frameHouses.some(h => (x - h.x) * (x - h.x) + (z - h.z) * (z - h.z) < h.r * h.r);
+  // merge several meshes made by the same builder into one (one draw call per type per stage)
+  function mergeMeshes(list, shadow) {
+    list = list.filter(Boolean);
+    if (!list.length) return null;
+    const geo = new THREE.BufferGeometry();
+    for (const [a, size] of [['position', 3], ['normal', 3], ['uv', 2], ['color', 3]]) {
+      const arr = new Float32Array(list.reduce((n, m) => n + m.geometry.attributes[a].array.length, 0)); let o = 0;
+      for (const m of list) { arr.set(m.geometry.attributes[a].array, o); o += m.geometry.attributes[a].array.length; }
+      geo.setAttribute(a, new THREE.BufferAttribute(arr, size));
+    }
+    const ix = new Uint32Array(list.reduce((n, m) => n + m.geometry.index.array.length, 0)); let o = 0, base = 0;
+    for (const m of list) { const src = m.geometry.index.array; for (let k = 0; k < src.length; k++) ix[o++] = src[k] + base; base += m.geometry.attributes.position.count; }
+    geo.setIndex(new THREE.BufferAttribute(ix, 1));
+    const out = new THREE.Mesh(geo, list[0].material); out.castShadow = !!shadow; out.receiveShadow = true;
+    list.forEach((m, i) => { stageGroup.remove(m); m.geometry.dispose(); if (i) m.material.dispose(); });
+    add(out); return out;
+  }
+  const wallSegs = (pts, r, mu, h) => { for (let i = 0; i < pts.length - 1; i++) obstacles.push({ ax: pts[i].x, az: pts[i].z, bx: pts[i + 1].x, bz: pts[i + 1].z, r, mu, h: h || 2.5 }); };
+  // all roadside pieces keep away from the gates, boards, jumps, the torii tunnel, and the outside of tight corners (chevrons)
+  function frameKeepOut() {
+    const all = [[0, 135], [track.finishS - 78, track.length]];
+    if (ST.theme === 'alpine') { all.length = 0; all.push([8, 24], [track.finishS - 8, track.finishS + 8]); for (const cp of ST.checkpoints) all.push([cp - 8, cp + 8]); }
+    else for (const cp of ST.checkpoints) all.push([cp - 28, cp + 16]);
+    for (const [js] of ST.jumps) all.push([js - 20, js + 30]);
+    if (ST.toriiTunnel) all.push([ST.toriiTunnel[0] - 12, ST.toriiTunnel[1] + 12]);
+    const sd = { '-1': [], '1': [] }, lim = ST.theme === 'japan' ? 80 : 60;
+    if (ST.theme !== 'alpine') for (const t of track.turns) if (t.r <= lim) sd[t.dir === 'R' ? -1 : 1].push([t.s0 - 12, t.s1 + 12]);
+    return (s, side) => all.some(r => s >= r[0] && s <= r[1]) || sd[side].some(r => s >= r[0] && s <= r[1]);
+  }
+  // points along one side of the road at `off` m beyond the road edge; split into pieces where the ground is wrong or the spot is kept clear
+  function framePath(a, b, side, off, keep, opt = {}) {
+    const pieces = []; let cur = [];
+    const flush = () => { if (cur.length >= 3) pieces.push(cur); cur = []; };
+    for (let s = a; s <= b + 0.01; s += opt.step || 3) {
+      const p = sampleAt(s), [x, z] = sideXZ(p, side * (half + off)), g = terrain.heightAt(x, z);
+      const ok = !keep(s, side) && terrain.distAt(x, z) > half + off - 0.9 && (opt.any || Math.abs(g - p.y) < (opt.dy || 2.4));
+      if (!ok) { flush(); continue; }
+      cur.push({ x, y: opt.follow ? Math.max(g, p.y - 0.3) : g, z, s });
+    }
+    flush(); return pieces;
+  }
+  const chunksOf = (rng, a, b, minLen, maxLen, gapMin, gapMax) => { const out = []; let s = a; while (s < b) { const len = minLen + rng() * (maxLen - minLen); out.push([s, Math.min(b, s + len)]); s += len + gapMin + rng() * (gapMax - gapMin); } return out; };
+
+  // houses: planned first (trees and rocks keep out of them), built later with the other pieces
+  let frameHouseList = [];
+  function planHouses(rng) {
+    frameHouses = []; frameHouseList = [];
+    const gates = [16, ...ST.checkpoints, track.finishS];
+    const TINTS = [[1, 0.92, 0.78], [1, 0.84, 0.8], [0.88, 0.92, 1], [0.96, 0.96, 0.9], [1, 0.9, 0.7], [0.92, 0.86, 0.8]];
+    const row = (s0, s1, gapMin, gapMax, skip, opt = {}) => {
+      for (const side of [-1, 1]) {
+        let s = s0;
+        while (s < s1) {
+          const w = 7 + rng() * 7, d = 6 + rng() * 3, h = 6.5 + rng() * 2.5, sc = s + w / 2, gap = gapMin + rng() * (gapMax - gapMin);
+          const style = rng() < (opt.stone != null ? opt.stone : 0.35) ? 'stone' : 'plaster', tint = TINTS[Math.floor(rng() * TINTS.length)], flat = !!opt.flat && rng() < 0.4, skipIt = rng() < skip;
+          s += w + 0.8 + rng() * 2.5;
+          if (skipIt || sc > s1 || gates.some(g => Math.abs(sc - g) < w / 2 + 16)) continue;
+          const p = sampleAt(sc), [cx, cz] = sideXZ(p, side * (half + gap + d / 2)), yaw = facingYaw(cx, cz, p.x, p.z);
+          const c = Math.cos(yaw), sn = Math.sin(yaw), at = (lx, lz) => [cx + lx * c + lz * sn, cz - lx * sn + lz * c];
+          const cs = [at(-w / 2, d / 2), at(w / 2, d / 2), at(w / 2, -d / 2), at(-w / 2, -d / 2)];
+          let ok = true, y = 1e9, yMax = -1e9;
+          for (const q of cs.concat([at(0, d / 2), at(0, -d / 2), at(-w / 4, d / 2), at(w / 4, d / 2), at(0, 0)])) {
+            if (terrain.distAt(q[0], q[1]) < half + gapMin - 0.6) ok = false;
+            const g = terrain.heightAt(q[0], q[1]); y = Math.min(y, g); yMax = Math.max(yMax, g);
+          }
+          if (!ok || yMax - y > 3.5 || Math.abs(y - p.y) > 3) continue;
+          frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
+          frameHouses.push({ x: cx, z: cz, r: Math.hypot(w, d) / 2 + 2.5 });
+          for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
+        }
+      }
+    };
+    if (ST.id === 'kettle') { row(150, 455, 3.8, 6.0, 0.12); row(62, 140, 9, 12, 0.35, { stone: 0.5 }); }
+    if (ST.id === 'sakura') row(1640, track.cityStart - 4, 4.4, 6.5, 0.1, { stone: 0.2, flat: true });
+  }
+
+  function buildRoadside(rng) {
+    const keep = frameKeepOut(), stoneGrey = [], stoneWarm = [], fences = [], faces = [];
+    const stone = (pieces, opt, r) => { for (const pts of pieces) { (opt.warm ? stoneWarm : stoneGrey).push(stoneWall(pts, opt)); wallSegs(pts, r, 0.25, 2.5); } };
+    const fence = (pieces, opt) => { for (const pts of pieces) { fences.push(woodFence(pts, opt)); wallSegs(pts, 0.15, 0.2, 2.5); } };
+    const face = (pieces, opt) => { for (const pts of pieces) { faces.push(rockFace(pts, opt)); wallSegs(pts, 0.55, 0.3, 99); } };
+    const seed = () => 1 + Math.floor(rng() * 9999);
+    const wallOpt = () => ({ height: 0.9 + rng() * 0.4, thick: 0.6, warm: rng() < 0.45, tint: [0.9 + rng() * 0.1, 0.9 + rng() * 0.1, 0.9 + rng() * 0.1] });
+
+    if (ST.id === 'kettle') {
+      for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 135, track.finishS - 80, 40, 110, 4, 14)) {
+        const village = a > 140 && b < 470, snow = a > ST.snowFrom - 20, pick = rng();
+        if (village) { if (rng() < 0.12) continue; stone(framePath(a, b, side, 2.4, keep), wallOpt(), 0.33); continue; }
+        if (pick < 0.15) continue;
+        if (pick < 0.4) { const o = wallOpt(); if (snow) o.tint = [0.88, 0.94, 1]; stone(framePath(a, b, side, 2.4, keep), o, 0.33); }
+        else fence(framePath(a, b, side, 2.6, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: snow ? [0.92, 0.96, 1.05] : [1, 1, 1] });
+      }
+    } else if (ST.id === 'vulture') {
+      // drop side: a continuous low stone wall hugging the road (same line as the old corner walls). Rock side: a layered rock face.
+      for (const side of [-1, 1]) {
+        const up = p => side > 0 ? p.upR : p.upL;
+        let runs = [], cur = null;
+        for (let s = 0; s <= track.finishS + 10; s += 3) {
+          const u = up(sampleAt(s)), kind = u < 0.4 ? 'drop' : u > 0.6 ? 'rock' : null;
+          if (kind && cur && cur.kind === kind) cur.b = s; else { cur = kind ? { kind, a: s, b: s } : null; if (cur) runs.push(cur); }
+        }
+        runs.forEach(r => {
+          if (r.b - r.a < 9) return;
+          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.3, keep, { any: true, follow: true }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
+          else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
+        });
+      }
+    } else {
+      const city = track.cityStart;
+      for (const side of [-1, 1]) {
+        // mountain pass, inside of every corner: a cut bank (rock face) or a tall stone retaining wall
+        const forced = [];
+        for (const t of track.turns) if (t.s0 > 690 && t.s1 < city - 30 && t.dir === (side > 0 ? 'R' : 'L')) {
+          const a = t.s0 - 15, b = t.s1 + 15; forced.push([a, b]);
+          if (rng() < 0.6) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 5 + rng() * 4, lean: 0.4 + rng() * 0.25, rough: 1.0, rows: 4, seed: seed(), tint: [0.95, 0.93, 0.96] });
+          else stone(framePath(a, b, side, 2.6, keep, { any: true, follow: true }), { height: 2.0 + rng() * 0.8, thick: 0.8, warm: rng() < 0.5, sink: 1.2 }, 0.45);
+        }
+        const keepFree = (s, sd) => keep(s, sd) || forced.some(r => s >= r[0] - 6 && s <= r[1] + 6);
+        // the rest of the pass: classify each stretch by the ground beside the road, then rock bank / retaining wall (uphill) or low wall (downhill)
+        const kindAt = s => { const p = sampleAt(s), [x, z] = sideXZ(p, side * (half + 9)), dh = terrain.heightAt(x, z) - p.y; return dh > 1.3 ? 'bank' : dh < -2.5 ? 'drop' : 'flat'; };
+        let cur = null; const runs = [];
+        for (let s = 140; s <= city - 10; s += 6) {
+          const k = kindAt(s);
+          if (cur && cur.kind === k) cur.b = s; else { cur = { kind: k, a: s, b: s }; runs.push(cur); }
+        }
+        for (const r of runs) {
+          if (r.b - r.a < 18) continue;
+          for (const [a, b] of chunksOf(rng, r.a, r.b, 40, 110, 0, 0)) {
+            if (r.kind === 'bank') {
+              if (rng() < 0.55) face(framePath(a, b + 6, side, 3.6, keepFree, { step: 6, any: true }), { side, height: 5 + rng() * 5, lean: 0.35 + rng() * 0.25, rough: 1.0, rows: 4, seed: seed(), tint: [0.95, 0.93, 0.96] });
+              else stone(framePath(a, b, side, 2.6, keepFree, { any: true, follow: true }), { height: 2.0 + rng() * 0.8, thick: 0.8, warm: rng() < 0.5, sink: 1.2 }, 0.45);
+            } else if (r.kind === 'drop') stone(framePath(a, b, side, 2.4, keepFree, { any: true, follow: true }), Object.assign(wallOpt(), { height: 0.9, sink: 1.5 }), 0.33);
+            else if (rng() < 0.6) stone(framePath(a, b, side, 2.2, keepFree), wallOpt(), 0.33);
+          }
+        }
+        // town outskirts: low walls in front of the old houses
+        for (const [a, b] of chunksOf(rng, 1640, city - 4, 25, 45, 8, 14)) stone(framePath(a, b, side, 3.6, keep), wallOpt(), 0.33);
+      }
+    }
+    mergeMeshes(stoneGrey, false); mergeMeshes(stoneWarm, false); mergeMeshes(fences, false); mergeMeshes(faces, false);
+    if (frameHouseList.length) buildings(frameHouseList);
+  }
