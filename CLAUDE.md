@@ -18,7 +18,8 @@ Every department (subagent) follows this file. If a department file and this fil
 - Not a developer. Uses only the browser: GitHub web, claude.ai/code, the GitHub Pages link. **Cannot install or run
   anything locally.** Everything (tests included) must run inside the Claude Code cloud session.
 - Wants plain language, small steps, practical output. No corporate language, no filler.
-- Merges pull requests themselves.
+- Decided 2026-11-04: once qa writes `READY TO MERGE`, the main session merges the PR itself and tells the owner.
+  The owner can say "hold" or "don't merge" in chat at any time; that wins.
 
 ## Handling rules (do not break without the owner's approval)
 
@@ -42,7 +43,7 @@ Measured targets (checked by `tests/handling.test.js` and `tests/bot.test.js`):
 | `index.html` | The built game that GitHub Pages serves. **Never edit it by hand**: run `node tools/build.js`. |
 | `tools/build.js` | Glues `src/` into `index.html`. `--check` = is it up to date, `--where N` = which src file is line N. |
 | `CLAUDE.md` | This rulebook. |
-| `.claude/agents/` | Departments: `handling`, `tracks`, `qa`. |
+| `.claude/agents/` | Departments: `producer`, `handling`, `tracks`, `art`, `audio`, `ui-mobile`, `qa`. |
 | `.claude/skills/` | `ship-a-build`, `handling-check`. |
 | `docs/roadmap.md` | Done / next / ideas. |
 | `docs/decisions.md` | Design decisions with date and reason. Add an entry for every rule, target or expected value you set or change. |
@@ -115,9 +116,15 @@ Bot times after an intended handling or track change: `node tests/run.js bot --r
    - **Test results** (pass / fail / known, plus before → after numbers when gameplay changed).
    - **How to test on your phone**: the link, which stage, what to do, what you should notice.
    - **Risk**: say plainly if you are not sure a change is safe.
-4. Before the owner merges, the `qa` department reviews the PR and writes the verdict: `READY TO MERGE` or `NOT READY` with reasons.
+4. The `qa` department reviews every PR and writes the verdict on it: `READY TO MERGE` or `NOT READY` with reasons.
    Only qa may write `READY TO MERGE`.
-5. Never change the handling rules or targets above without the owner saying yes in the chat.
+5. **Merging:** when qa says `READY TO MERGE`, the main session merges the PR (merge commit, not squash), checks that
+   `main` still passes `node tools/build.js --check`, and tells the owner: the PR link, what to try on the phone, and that
+   the live game updates in about a minute. Never merge with a FAIL, a NOT READY, or when the owner said to hold.
+   Changes to the handling rules or targets are merged only after the owner said yes to that change in chat.
+6. **Undo:** if the owner says something broke after a merge, open a revert PR for that merge right away (qa checks
+   the revert with the tests), merge it, then find the cause on a new branch.
+7. Never change the handling rules or targets above without the owner saying yes in the chat.
 
 ## Definition of done
 
@@ -128,13 +135,28 @@ A change is done when all of these hold:
 - [ ] Handling targets still hold (`handling` and `bot` tests), or the owner approved the change and `docs/decisions.md` says so.
 - [ ] `node tests/run.js` shows no FAIL.
 - [ ] `docs/roadmap.md` updated if a roadmap item moved; `docs/decisions.md` updated if a rule, target or expected value changed.
-- [ ] qa wrote `READY TO MERGE` on the PR.
+- [ ] qa wrote `READY TO MERGE` on the PR, and after merging `main` still passes the `build` check.
 
 ## Routing owner requests
 
 The owner talks in high-level requests ("the Strada feels too twitchy", "make Sakura more interesting").
-1. Pick the department: car feel → `handling`; layout, scenery, pace notes, checkpoints, time limits, barriers → `tracks`.
-   Anything that touches both: handling first, then tracks, same branch.
-2. The department does the work on a branch and runs the tests.
+
+| The request is about… | Department |
+|---|---|
+| How the car drives: grip, drift, steering, speed, car stats | `handling` |
+| The stages: layout, corners, jumps, surfaces, scenery placement, pace-note text, checkpoints, time limits, barriers, rivals | `tracks` |
+| How it looks: car and rival models, colours, scenery textures, lighting, sky, effects, cameras | `art` |
+| What you hear: engine, surfaces, impacts, beeps, co-driver voice | `audio` |
+| Menus, HUD, touch controls, phone layout, graphics quality, frame rate on phones | `ui-mobile` |
+| A bug report or "is this working?" | `qa` reproduces it first, then the owning department fixes it |
+| Vague, big, or more than one of the above; "what's next?" | `producer` breaks it into tasks first |
+
+1. Small and clearly one department: send it there. Otherwise ask `producer` for a task plan first.
+2. Departments work on one branch for the request, in the producer's order, each in its own files, and run the tests.
 3. `qa` reviews and gives the verdict.
-4. One PR to the owner.
+4. One PR to the owner; merge when qa says `READY TO MERGE` (see Pull request rules).
+5. `producer` updates `docs/roadmap.md` and `docs/decisions.md` in the same PR.
+
+Some files are shared, split by *kind* of change (details in `src/README.md`): in the scenery files, *where and how many*
+is tracks and *what it looks like* is art; each stage's `look` block is art; `CONFIG.camera` and car colours are art;
+the co-driver voice is audio; `quality === 'low'` paths are ui-mobile. A change that needs both kinds: both departments, in one PR.

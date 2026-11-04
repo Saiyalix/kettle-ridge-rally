@@ -35,6 +35,11 @@ Phone check for the owner: <2–4 concrete things to try>
 ```
 
 `READY TO MERGE` only if every item in the Definition of done in `CLAUDE.md` holds. If not sure, say NOT READY and why.
+Your verdict is final: on READY TO MERGE the main session merges right away, and the owner first tries it on the live game.
+So be strict about phones and the live page.
+
+Ownership check: use the table in `src/README.md`. In shared files, check each change matches the department's *kind* of
+change (placement vs look, etc.).
 
 ## Looking after the kit
 - A test must print a clear PASS or FAIL with a reason a non-developer can follow.
