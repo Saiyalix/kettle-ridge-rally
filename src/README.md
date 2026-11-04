@@ -17,17 +17,19 @@ The build checks that the glued script is valid JavaScript and says which file a
 
 ## Who owns what
 
-| Folder | Department | Files |
+| Folder / file | Department | Notes |
 |---|---|---|
-| `handling/` | handling | `config.js` (all `CONFIG` tunables; `CONFIG.camera` belongs to art), `car.js` (Car physics), `physics-step.js` (120 Hz step, input → car) |
-| `tracks/` | tracks | `stages.js`, `track.js`, `collisions.js`, `stage-build.js` (ground, road), `scenery.js`, `themes.js`, `stage-load.js`, `rivals.js`, `checkpoints.js` |
-| `art/` | art (Round 3) | `renderer.js` (lights, sky, fog), `car-model.js`, `effects.js` (particles, hit effects), `camera.js`, `post-process.js` |
-| `audio/` | audio (Round 3) | `audio.js` |
-| `ui/` | ui-mobile (Round 3) | `hud.js`, `input.js` (keyboard, touch, tilt), `menu.js`, `results.js`, `pause.js`, `visuals-hud.js` (per-frame HUD, pace-note display, minimap, dust) |
-| `page/` | ui-mobile (Round 3) | `head.html`, `style.css` (all CSS), `body.html` (HUD/menu/touch HTML), `end.html` |
-| `core/` | shared, qa reviews closely | `helpers.js`, `boot.js`, `game-flow.js` (state, start, rescue, championship), `debug-replay.js`, `main-loop.js` |
-
-Until Round 3 creates art, audio and ui-mobile, the main session handles those folders, with a qa review as usual.
+| `handling/config.js` | handling | All `CONFIG` tunables, except: `CONFIG.camera` and car colours in `CONFIG.cars` (`paint`, `stripe`, `skirt`, `number`) → art |
+| `handling/car.js`, `handling/physics-step.js` | handling | Car physics; 120 Hz step, input → car |
+| `tracks/stages.js` | tracks | Except each stage's `look: { … }` block (lighting, colours) → art |
+| `tracks/track.js`, `collisions.js`, `checkpoints.js`, `stage-build.js` | tracks | Road, terrain, pace-note text, collisions, checkpoints |
+| `tracks/scenery.js`, `themes.js`, `stage-load.js` | tracks + art | Where and how many, what you can hit → tracks. Textures, colours, materials, shapes → art |
+| `tracks/rivals.js` | tracks + art | Rival pace, start gaps, bumping → tracks. Rival car models and colours → art |
+| `art/*` | art | Lights, sky, fog, car model, effects, cameras, post-processing (high quality) |
+| `audio/audio.js` | audio | All synthesized sound |
+| `core/game-flow.js` | shared | Co-driver voice (`say`, `pickVoice`, `setVoice`) → audio. Game flow (start, rescue, championship) → producer assigns, qa reviews closely |
+| `ui/*`, `page/*` | ui-mobile | Menus, HUD, touch, CSS, HTML, `setQuality`; plus every `quality === 'low'` path and the low render scale in `art/post-process.js` |
+| `core/helpers.js`, `boot.js`, `debug-replay.js`, `main-loop.js` | shared | Rarely changed. Producer assigns, qa reviews closely |
 
 ## Line sizes (to find your way)
 

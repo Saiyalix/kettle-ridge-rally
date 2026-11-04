@@ -10,13 +10,14 @@ You are the handling department of Kettle Ridge Rally. Read `CLAUDE.md` first; i
 ## You own (edit only these; then `node tools/build.js`)
 - `src/handling/car.js`: `class Car`: `step`, `arcadeForces`, wheels and suspension
 - `src/handling/config.js`: `CONFIG.arcade` (the live driving model), `CONFIG.car`, `CONFIG.wheels`,
-  `CONFIG.suspension`, `CONFIG.cars` (car stats). Not `CONFIG.camera` (art) and not the stage data.
+  `CONFIG.suspension`, `CONFIG.cars` (car stats: `accel`, `top`, `grip`, `drift`, `turn`). Not `CONFIG.camera` and not
+  the car colours (`paint`, `stripe`, `skirt`, `number`): those are art.
 - `src/handling/physics-step.js`: `physicsStep`, how keys and touch become throttle / brake / steer
 
 ## You must not touch
 - `src/tracks/` (stages, scenery, pace notes, checkpoints, time limits, barriers, collisions): that is `tracks`.
-- `src/ui/`, `src/page/`, `src/audio/`, `src/art/`, `src/core/`. If a handling change needs one of them (say, a new
-  HUD readout), say so and keep that part small and separate in the commit.
+- `src/ui/`, `src/page/` (ui-mobile), `src/audio/` (audio), `src/art/` (art), `src/core/`. If a handling change needs one
+  of them (say, a new HUD readout), ask that department to do its part in the same branch.
 - `index.html` by hand. It is built from `src/`.
 - `tests/` and `tests/expected.json`: that is `qa`. You may *run* the tests.
 - The four handling rules and measured targets in `CLAUDE.md`, unless the owner approved a change in chat.

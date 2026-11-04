@@ -5,6 +5,23 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-04 · Round 3: PRs are merged as soon as qa says READY TO MERGE
+**Decision:** the owner asked: "Merge when QA says it's ready." The main session merges right after qa's `READY TO MERGE`
+(merge commit, not squash), checks `main` still builds, and tells the owner. The owner can say "hold" at any time.
+Changes to the handling rules or targets still need the owner's yes in chat before merging. If something breaks: revert PR first, fix after.
+**Reason:** the owner tests on the live game on the phone anyway; waiting for a manual merge added a step without adding a check.
+Because qa's verdict is now final, qa is told to be strict about phones and the live page.
+
+### 2026-11-04 · Round 3: seven departments, shared files split by kind of change
+**Decision:** departments producer, handling, tracks, art, audio, ui-mobile, qa. Most files have one owner. Shared files are split by the
+*kind* of change: scenery files (placement → tracks, look → art), each stage's `look` block (art), `CONFIG.camera` and car colours (art),
+co-driver voice in `core/game-flow.js` (audio), `quality === 'low'` paths (ui-mobile). Table: `src/README.md`.
+**Reason:** the code mixes placement and look in the same functions, and splitting those files would change `index.html` and
+risk changing how the game behaves, for no gain. Ownership by kind of change keeps every edit with one clear owner.
+`CONFIG.camera` stays inside `handling/config.js` for the same reason: moving it would change the built file.
+**Models:** art, audio, ui-mobile, producer run on Sonnet (look, sound and layout work is iterative and checked by screenshots
+and tests; planning is light). handling stays on Opus.
+
 ### 2026-11-04 · Round 2: split by gluing parts, not by rewriting into JavaScript modules
 **Decision:** `index.html` is cut into 33 consecutive parts in `src/` (grouped in folders per department). `tools/build.js`
 glues them back together in the order of `src/parts.txt`, adding nothing. Real ES modules (`import`/`export`) were not used.

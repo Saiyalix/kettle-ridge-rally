@@ -1,8 +1,9 @@
 # Roadmap
 
-Kept up to date by every department (from Round 3: by the producer). Newest changes at the top of each section.
+Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **Round 3: full studio** (2026-11-04): new departments art, audio, ui-mobile, producer; ownership for every file in `src/README.md`, including shared files; PRs are merged as soon as qa says READY TO MERGE.
 - **Round 2: game split into parts** (2026-11-04): `src/` holds the game in 33 files grouped by department; `tools/build.js` glues them into `index.html`. The built file is byte-for-byte the old one. New `build` test.
 - **Studio foundation** (2026-11-04): rulebook (`CLAUDE.md`), departments handling / tracks / qa, QA test kit (`tests/`), skills ship-a-build and handling-check, this roadmap and the decisions log.
 - **Handling rebuilt**: arcade model (`CONFIG.arcade`, `Car.arcadeForces`) with the four handling rules; measured targets hold (see `tests/results/report.md`).
@@ -12,15 +13,14 @@ Kept up to date by every department (from Round 3: by the producer). Newest chan
 - Co-driver pace notes with voice, replays, rescue/respawn, championship mode, 15-car field with rivals on time.
 
 ## Next (in this order unless the owner says otherwise)
-1. **Round 3: more departments**: art, audio, ui-mobile, producer. Their folders already exist in `src/` (`art/`, `audio/`, `ui/`, `page/`).
-2. **Fix: map label overlaps the HB button** on short phones (800×360): known issue in the test kit. (ui-mobile)
-3. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage.
-4. **Best times leaderboard on the device**: top times per stage and car, saved locally (today only one best time per stage).
-5. **Menu polish pass**: on short landscape phones the Start button sits below the fold (the menu scrolls); make Start visible without scrolling.
-6. **Better HUD**: readability on small screens, cleaner minimap label.
-7. **Engine and surface audio**: richer engine, distinct gravel / snow / tarmac sounds.
-8. **More stages.**
-9. **More cars.**
+1. **Fix: map label overlaps the HB button** on short phones (800×360): known issue in the test kit. (ui-mobile)
+2. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. (ui-mobile, art)
+3. **Best times leaderboard on the device**: top times per stage and car, saved locally (today only one best time per stage). (ui-mobile)
+4. **Menu polish pass**: on short landscape phones the Start button sits below the fold (the menu scrolls); make Start visible without scrolling. (ui-mobile)
+5. **Better HUD**: readability on small screens, cleaner minimap label. (ui-mobile)
+6. **Engine and surface audio**: richer engine, distinct gravel / snow / tarmac sounds. (audio)
+7. **More stages.** (tracks, art)
+8. **More cars.** (handling, art)
 
 ## Ideas (not planned yet)
 - Weather and time of day variants of existing stages.

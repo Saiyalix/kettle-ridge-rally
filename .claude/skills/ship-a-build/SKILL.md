@@ -1,6 +1,6 @@
 ---
 name: ship-a-build
-description: Finish a piece of work on Kettle Ridge Rally and hand it to the owner - run the full QA test kit, get the qa verdict, push the branch and open a pull request with a plain-language summary and a phone test checklist. Use when a change is ready for the owner to review.
+description: Finish a piece of work on Kettle Ridge Rally and ship it - run the full QA test kit, get the qa verdict, push the branch, open a pull request with a plain-language summary and a phone test checklist, and merge it once qa says READY TO MERGE. Use when a change is ready.
 ---
 
 # Ship a build
@@ -27,7 +27,7 @@ description: Finish a piece of work on Kettle Ridge Rally and hand it to the own
 <before → after numbers if gameplay changed>
 
 ## Test it on your phone
-After merging, open https://saiyalix.github.io/kettle-ridge-rally/ (wait ~1 minute for Pages to update, then refresh).
+Live about a minute after merging: https://saiyalix.github.io/kettle-ridge-rally/ (refresh the page).
 - [ ] Hold the phone sideways; the menu shows and Start works
 - [ ] <stage + what to do + what you should notice>
 - [ ] <second thing to try>
@@ -40,4 +40,7 @@ After merging, open https://saiyalix.github.io/kettle-ridge-rally/ (wait ~1 minu
 <paste the qa verdict block>
 ```
 
-7. Tell the owner in chat: the PR link, one line on what to try, and the risk line.
+7. **Merge** (owner's rule since 2026-11-04): when qa wrote `READY TO MERGE` and the owner hasn't said to hold, merge the
+   PR with a merge commit. Then `git fetch origin main` and `git checkout origin/main -- . && node tools/build.js --check`
+   (or check in a clean clone) to confirm `main` is consistent.
+8. Tell the owner in chat: the PR link, that it is merged and live in about a minute, one line on what to try, and the risk line.
