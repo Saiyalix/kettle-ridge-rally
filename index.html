@@ -777,7 +777,7 @@ const STAGES = [
         { col: 0x090c26, base: -6, amp: 20, per: 9, oct: 3, jag: 0, mist: 0.1, trees: 1 },
       ],
       noPeaks: true, peak: [0x0c1138, 0x4a528c],
-      nightGlow: { road: 0x9aa4c8, roadI: 0.36, reach: 40, pool: 1.2 },
+      nightGlow: { road: 0x9aa4c8, roadI: 0.8, reach: 40, pool: 0.35 },
       grade: { tint: [0.95, 0.98, 1.06], lift: [0.004, 0.008, 0.024], sat: 1.12, con: 1.1, bloom: 0.55, thresh: 0.78, bloom2: 0.4, vig: 0.42 },
       grassA: [0.36, 0.60, 0.30], grassB: [0.50, 0.68, 0.30], dirt: [0.72, 0.58, 0.42], snow: [0.9, 0.94, 1.0], rock: [0.60, 0.56, 0.62],
     },
@@ -1683,7 +1683,14 @@ function boot() {
       else if (i === 3) { g.fillStyle = hex(ground); g.fillRect(0, 0, 64, 64); }
       else { const grd = g.createLinearGradient(0, 0, 0, 64); grd.addColorStop(0, hex(top)); grd.addColorStop(0.48, hex(horizon)); grd.addColorStop(0.52, hex(mix(ground, horizon, 0.3))); grd.addColorStop(1, hex(ground)); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); }
     });
-    envMap.needsUpdate = true;
+    envMap.needsUpdate = true; envDirty = true;
+  }
+  // the clear-coated car paint (high quality only) needs the sky picture as a blurred environment map: made on first use after each stage change
+  let envDirty = true, envPM = null, pmremGen = null;
+  function envPMREM() {
+    if (!pmremGen) pmremGen = new THREE.PMREMGenerator(renderer);
+    if (envDirty || !envPM) { envPM = pmremGen.fromCubemap(envMap, envPM); envDirty = false; }
+    return envPM.texture;
   }
   paintEnv(0x8ec5ff, 0xe8f4ff, 0x5a6a3a);
   const paintMat = (color) => new THREE.MeshPhongMaterial({ color, specular: 0x666666, shininess: 80, envMap, reflectivity: 0.22, combine: THREE.MixOperation });
@@ -2019,7 +2026,7 @@ function boot() {
     }
     if (pools.length) {
       const m = new THREE.MeshBasicMaterial({ map: glowTexture(64, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
-      const warm = [new THREE.Color(0.9, 0.78, 0.55), new THREE.Color(0.95, 0.55, 0.28)];
+      const warm = [new THREE.Color(0.62, 0.58, 0.5), new THREE.Color(0.8, 0.5, 0.3)];
       const im = instanced(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), m, pools, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(q.s); }, { shadow: false, color: (c, q) => c.copy(warm[q.c]) });
       im.renderOrder = 4;
     }
@@ -2042,7 +2049,7 @@ function boot() {
     }
     g.putImageData(img, 0, 0);
     const pt = new THREE.CanvasTexture(tex); pt.wrapS = pt.wrapT = THREE.ClampToEdgeWrapping;
-    const pool = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, opacity: 1 }));
+    const pool = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, opacity: 1 }));
     pool.frustumCulled = false; pool.renderOrder = 5; add(pool);
     NIGHT.pool = pool; NIGHT.grid = { N, M, pos: pp, reach: gl.reach || 40, power: gl.pool != null ? gl.pool : 1 };
     pool.material.color.setScalar(NIGHT.grid.power);
@@ -2054,7 +2061,7 @@ function boot() {
     let fx = vFwd.x, fz = vFwd.z; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l;
     const rx = fz, rz = -fx;
     for (let j = 0; j < M; j++) {
-      const t = j / (M - 1), z = 1.4 + t * t * (reach - 1.4) * 0.5 + t * (reach - 1.4) * 0.5, hw = 1.5 + z * 0.3;
+      const t = j / (M - 1), z = 1.4 + t * t * (reach - 1.4) * 0.5 + t * (reach - 1.4) * 0.5, hw = 1.5 + z * 0.17;
       for (let i = 0; i < N; i++) {
         const x = (i / (N - 1) * 2 - 1) * hw, wx = vPos.x + fx * z + rx * x, wz = vPos.z + fz * z + rz * x, k = (j * N + i) * 3;
         pos[k] = wx; pos[k + 1] = terrain.heightAt(wx, wz) + 0.14; pos[k + 2] = wz;
@@ -3928,9 +3935,8 @@ function boot() {
       m.dark = new THREE.MeshLambertMaterial({ vertexColors: true }); m.trim = m.dark;
       m.glass = new THREE.MeshLambertMaterial({ color: 0x2a3d50 });
     } else {
-      m.paint = new THREE.MeshPhongMaterial({ map: carTex, vertexColors: true, specular: 0xffffff, shininess: 110, envMap, reflectivity: 0.3, combine: THREE.MixOperation });
-      m.paint.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <envmap_fragment>', 'specularStrength *= 0.14 + 1.0 * pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.2);\n#include <envmap_fragment>'); };
-      m.paint.customProgramCacheKey = () => 'carpaint';
+      // glossy clear-coated paint: a satin base under a sharp lacquer layer that mirrors the sky (physical material, high quality only)
+      m.paint = new THREE.MeshPhysicalMaterial({ map: carTex, vertexColors: true, roughness: 0.4, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, envMap: envPMREM(), envMapIntensity: 0.65 });
       m.dark = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x333333, shininess: 30, envMap, reflectivity: 0.12, combine: THREE.MixOperation });
       m.trim = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0xffffff, shininess: 90, envMap, reflectivity: 0.5, combine: THREE.MixOperation });
       m.glass = new THREE.MeshPhongMaterial({ color: 0x22364a, specular: 0xffffff, shininess: 140, envMap, reflectivity: 0.55, combine: THREE.MixOperation });
@@ -5428,6 +5434,7 @@ function boot() {
   }
   function renderFrame(dt) {
     updateSky(dt); updateNight(); cullFar();
+    if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;
     const kmh = car.speed * 3.6;

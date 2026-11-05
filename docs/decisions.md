@@ -158,3 +158,7 @@ Colour management is ON (`ColorManagement.enabled`, output sRGB). Hex colours an
 - Lights are no longer multiplied by pi; `look.sunI` and `look.hemi` are now physical values (about pi times the old ones). New optional `look.exposure`: SS1 1.1, SS2 1.0, SS3 0.85.
 - Retuned looks: SS1 greener ground bounce, SS2 stronger low sun and less saturation, SS3 darker moon and sky light; night windows and glow textures adjusted because additive light is now added in linear.
 - Car paint env reflection 0.5 to 0.3 (the linear pipeline made the paint pale). No handling, bot or expected values changed.
+
+## 2026-11-05 · Art: sRGB step follow-up (night pool, car gloss)
+- The night headlight pool was never drawn (its triangles faced down and were culled); it is now double-sided, warm-white, narrower, strength 0.35. Street-lamp pools are less orange (they tinted the road pink). Night road self-light 0.36 to 0.8; the moon light on SS3 2.4 to 2.0 (darker blue car).
+- High quality car paint is now MeshPhysicalMaterial with clearcoat (roughness 0.4, clearcoat 1) lit by a blurred copy of the stage's sky (PMREM, rebuilt once per stage on high only). Low keeps Lambert. Rival cars unchanged.

@@ -62,6 +62,7 @@
   }
   function renderFrame(dt) {
     updateSky(dt); updateNight(); cullFar();
+    if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;
     const kmh = car.speed * 3.6;

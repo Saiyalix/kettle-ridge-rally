@@ -57,7 +57,7 @@
     }
     if (pools.length) {
       const m = new THREE.MeshBasicMaterial({ map: glowTexture(64, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
-      const warm = [new THREE.Color(0.9, 0.78, 0.55), new THREE.Color(0.95, 0.55, 0.28)];
+      const warm = [new THREE.Color(0.62, 0.58, 0.5), new THREE.Color(0.8, 0.5, 0.3)];
       const im = instanced(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), m, pools, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(q.s); }, { shadow: false, color: (c, q) => c.copy(warm[q.c]) });
       im.renderOrder = 4;
     }
@@ -80,7 +80,7 @@
     }
     g.putImageData(img, 0, 0);
     const pt = new THREE.CanvasTexture(tex); pt.wrapS = pt.wrapT = THREE.ClampToEdgeWrapping;
-    const pool = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, opacity: 1 }));
+    const pool = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, opacity: 1 }));
     pool.frustumCulled = false; pool.renderOrder = 5; add(pool);
     NIGHT.pool = pool; NIGHT.grid = { N, M, pos: pp, reach: gl.reach || 40, power: gl.pool != null ? gl.pool : 1 };
     pool.material.color.setScalar(NIGHT.grid.power);
@@ -92,7 +92,7 @@
     let fx = vFwd.x, fz = vFwd.z; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l;
     const rx = fz, rz = -fx;
     for (let j = 0; j < M; j++) {
-      const t = j / (M - 1), z = 1.4 + t * t * (reach - 1.4) * 0.5 + t * (reach - 1.4) * 0.5, hw = 1.5 + z * 0.3;
+      const t = j / (M - 1), z = 1.4 + t * t * (reach - 1.4) * 0.5 + t * (reach - 1.4) * 0.5, hw = 1.5 + z * 0.17;
       for (let i = 0; i < N; i++) {
         const x = (i / (N - 1) * 2 - 1) * hw, wx = vPos.x + fx * z + rx * x, wz = vPos.z + fz * z + rz * x, k = (j * N + i) * 3;
         pos[k] = wx; pos[k + 1] = terrain.heightAt(wx, wz) + 0.14; pos[k + 2] = wz;

@@ -48,7 +48,14 @@
       else if (i === 3) { g.fillStyle = hex(ground); g.fillRect(0, 0, 64, 64); }
       else { const grd = g.createLinearGradient(0, 0, 0, 64); grd.addColorStop(0, hex(top)); grd.addColorStop(0.48, hex(horizon)); grd.addColorStop(0.52, hex(mix(ground, horizon, 0.3))); grd.addColorStop(1, hex(ground)); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); }
     });
-    envMap.needsUpdate = true;
+    envMap.needsUpdate = true; envDirty = true;
+  }
+  // the clear-coated car paint (high quality only) needs the sky picture as a blurred environment map: made on first use after each stage change
+  let envDirty = true, envPM = null, pmremGen = null;
+  function envPMREM() {
+    if (!pmremGen) pmremGen = new THREE.PMREMGenerator(renderer);
+    if (envDirty || !envPM) { envPM = pmremGen.fromCubemap(envMap, envPM); envDirty = false; }
+    return envPM.texture;
   }
   paintEnv(0x8ec5ff, 0xe8f4ff, 0x5a6a3a);
   const paintMat = (color) => new THREE.MeshPhongMaterial({ color, specular: 0x666666, shininess: 80, envMap, reflectivity: 0.22, combine: THREE.MixOperation });
