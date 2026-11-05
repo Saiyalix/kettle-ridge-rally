@@ -42,10 +42,10 @@
     const rect = (t, z0, y0, z1, y1, col) => poly(t, [[z0, y0], [z1, y0], [z1, y1], [z0, y1]], col);
     const circ = (t, z, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(X(t, z), Y(t, y), r * ppm, 0, 7); g.fill(); };
     const line = (t, pts, col, w) => { g.strokeStyle = col; g.lineWidth = w * ppm; g.lineJoin = 'miter'; g.beginPath(); pts.forEach((p, k) => k ? g.lineTo(X(t, p[0]), Y(t, p[1])) : g.moveTo(X(t, p[0]), Y(t, p[1]))); g.stroke(); };
-    // text: h = cap height in metres; reads left to right for whoever looks at that tile (rotated on the top tile so it reads from behind)
+    // text: h = cap height in metres; reads left to right for whoever looks at that tile (rotated on the top tile so it reads from the front)
     const word = (t, str, z, y, h, col, o = {}) => {
       if (!str || h <= 0) return;
-      g.save(); g.translate(X(t, z), Y(t, y)); if (t === 'T') g.rotate(Math.PI / 2); if (o.skew) g.transform(1, 0, -o.skew, 1, 0, 0);
+      g.save(); g.translate(X(t, z), Y(t, y)); if (t === 'T') g.rotate(-Math.PI / 2); if (o.skew) g.transform(1, 0, -o.skew, 1, 0, 0);
       g.font = `${o.weight || 900} ${o.italic === false ? '' : 'italic '}${Math.round(h * ppm / 0.7)}px ${LFONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       if (g.letterSpacing !== undefined) g.letterSpacing = Math.round((o.spacing || 0) * ppm) + 'px';
       if (o.stroke) { g.lineWidth = o.strokeW * ppm; g.strokeStyle = o.stroke; g.lineJoin = 'round'; g.strokeText(str, 0, 0); }
