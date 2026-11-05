@@ -24,7 +24,9 @@
     };
   }
   function roadsideMesh(geo, map, opts = {}) {
-    const m = new THREE.Mesh(geo, lit({ map, vertexColors: true, side: THREE.FrontSide }));
+    const mat = lit({ map, vertexColors: true, side: THREE.FrontSide });
+    if (opts.glow) { mat.emissiveMap = opts.glow; mat.emissive.setHex(0xffffff); mat.emissiveIntensity = 1.15; }       // lit windows at night
+    const m = new THREE.Mesh(geo, mat);
     m.castShadow = opts.shadow !== false; m.receiveShadow = true; add(m); return m;
   }
   // horizontal unit tangent at each point of a path
@@ -144,7 +146,7 @@
           rb.quad(q(-ex, y0, -ez, 0, 0), q(-ex, y0, ez, ez * 2 / 4, 0), q(-rl, ridgeY, 0, ez / 4, sw / 4), q(-rl, ridgeY, 0, ez / 4, sw / 4), dir(-1, 0).map((v, i) => i === 1 ? rise : v * 1));
         }
       }
-      out.push(roadsideMesh(wb.build(), facadeTex(style === 'stone')), roadsideMesh(rb.build(), roofTex(), { shadow: true }));
+      out.push(roadsideMesh(wb.build(), facadeTex(style === 'stone'), { glow: ST.look && ST.look.night ? facadeGlowTex(style === 'stone') : null }), roadsideMesh(rb.build(), roofTex(), { shadow: true }));
     }
     return out;
   }

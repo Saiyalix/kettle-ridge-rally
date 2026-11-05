@@ -14,7 +14,7 @@
       if (e.code === 'ArrowDown' || e.code === 'KeyS') pickStage((menuSel + 1) % STAGES.length);
     }
     if (e.code === 'KeyR' && (state === 'running')) rescue(2, false);
-    if (e.code === 'KeyC') camMode = (camMode + 1) % 4;
+    if (e.code === 'KeyC') camMode = (camMode + 1) % CAM_MODES;
     if (e.code === 'KeyM') { muted = !muted; if (muted && synth) synth.cancel(); }
     if (e.code === 'KeyV') setVoice(!voiceOn);
     if (e.code === 'Escape' && (state === 'finished' || state === 'gameover')) goMenu();
@@ -79,7 +79,7 @@
     window.addEventListener('blur', () => { held.clear(); paint(); });
     pad.addEventListener('contextmenu', e => e.preventDefault());
     $('tcPause').addEventListener('click', () => { if (state === 'running' || state === 'countdown' || state === 'paused') togglePause(); });
-    $('tcCam').addEventListener('click', () => { camMode = (camMode + 1) % 4; });
+    $('tcCam').addEventListener('click', () => { camMode = (camMode + 1) % CAM_MODES; });
     $('tcReset').addEventListener('click', () => { if (state === 'running') rescue(2, false); });
     // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen
     window.addEventListener('devicemotion', e => {

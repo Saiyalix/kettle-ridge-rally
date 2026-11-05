@@ -3,6 +3,7 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **Graphics step 2: Skies and lighting** (2026-11-05, branch `gfx/2-skies-lighting`): painted sky dome per stage (SS1 bright day with big cumulus, SS2 sunset with long shadows and purple haze, SS3 night with stars, moon, glowing city skyline, lit windows, lanterns and a headlight pool), far hills / mountains ring, per-stage colour grade and glow in the post pass. Fixes the fog colour (it never followed the stage). Rally camera sits lower so the sky is visible.
 - **Graphics step 6: Retro HUD / compact HUD** (2026-11-05, branch `ui/compact-hud`, done out of order because the owner asked after phone testing): HUD covers 15.5% -> 7.0% of an 800x360 phone screen (19.4% -> 8.4% with a corner call, 21.6% -> 8.6% with a banner); desktop 15.1% -> 5.1%; a corner call no longer covers the centre (33% -> ~4%). One-line pace-note chip, small banners, thin START-GOAL progress bar, small rev dial + gear + speed, smaller minimap. Also fixes the known issue "map label overlaps the HB button" and covers "Better HUD".
 - **Graphics step 1: Road and roadside** (2026-11-05, PR #4): per-surface road textures; roadside walls, fences, rock faces and village houses placed close to the road and solid; SS2 drop side covered 1766/1776 samples (582 before). Owner tested on phone: "Game runs fine. No issues on phone."
 - **Round 3: full studio** (2026-11-04): new departments art, audio, ui-mobile, producer; ownership for every file in `src/README.md`, including shared files; PRs are merged as soon as qa says READY TO MERGE.
@@ -17,8 +18,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 ## Next (in this order unless the owner says otherwise)
 **Graphics overhaul** (owner request 2026-11-04; one PR per step, in this order; qa checks each, then it is merged).
 Style: smooth and modern, all textures generated in code, original designs only. Handling tests must still pass at every step.
-Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile with each step. Steps 1 and 6 are done.
-1. **Skies and lighting**: painted cloud skies, a sunset look, a night look with a distant lit city. (art)
+Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile with each step. Steps 1, 2 and 6 are done.
 2. **Trees and nature**: denser, colourful, layered trees; better grass and rocks. (art, tracks)
 3. **Car look**: bold original livery with invented sponsors and number plate, shinier finish. (art)
 4. **New cameras**: add a low, close chase camera; keep all existing cameras. (art)

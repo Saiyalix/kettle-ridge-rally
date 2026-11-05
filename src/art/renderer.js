@@ -26,51 +26,24 @@
       for (let i = 0; i < 500; i++) { g.fillStyle = trng() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)'; g.fillRect(trng() * w, trng() * h, 1 + trng() * 4, 1 + trng() * 2); }
     }),
   };
-  // tiny cube map of the sky and ground, so car paint and glass catch a reflection
-  const envMap = (() => {
-    const face = (top) => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
-      if (top === 'sky') { g.fillStyle = '#8ec5ff'; g.fillRect(0, 0, 64, 64); }
-      else if (top === 'ground') { g.fillStyle = '#5a6a3a'; g.fillRect(0, 0, 64, 64); }
-      else { const grd = g.createLinearGradient(0, 0, 0, 64); grd.addColorStop(0, '#6fb2ff'); grd.addColorStop(0.48, '#e8f4ff'); grd.addColorStop(0.52, '#7d8a5a'); grd.addColorStop(1, '#4b5a32'); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); }
-      return c; };
-    const t = new THREE.CubeTexture([face('side'), face('side'), face('sky'), face('ground'), face('side'), face('side')]); t.needsUpdate = true; return t;
-  })();
+  // tiny cube map of the sky and ground, so car paint and glass catch a reflection (repainted per stage by paintEnv)
+  const envFaces = [0, 1, 2, 3, 4, 5].map(() => { const c = document.createElement('canvas'); c.width = c.height = 64; return c; });
+  const envMap = new THREE.CubeTexture(envFaces);
+  function paintEnv(top, horizon, ground) {
+    const hex = (n) => '#' + n.toString(16).padStart(6, '0'), mix = (a, b, t) => { const f = (s) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t); return (f(16) << 16) | (f(8) << 8) | f(0); };
+    envFaces.forEach((c, i) => {
+      const g = c.getContext('2d');
+      if (i === 2) { g.fillStyle = hex(top); g.fillRect(0, 0, 64, 64); }
+      else if (i === 3) { g.fillStyle = hex(ground); g.fillRect(0, 0, 64, 64); }
+      else { const grd = g.createLinearGradient(0, 0, 0, 64); grd.addColorStop(0, hex(top)); grd.addColorStop(0.48, hex(horizon)); grd.addColorStop(0.52, hex(mix(ground, horizon, 0.3))); grd.addColorStop(1, hex(ground)); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); }
+    });
+    envMap.needsUpdate = true;
+  }
+  paintEnv(0x8ec5ff, 0xe8f4ff, 0x5a6a3a);
   const paintMat = (color) => new THREE.MeshPhongMaterial({ color, specular: 0x666666, shininess: 80, envMap, reflectivity: 0.22, combine: THREE.MixOperation });
   const glassMat = () => new THREE.MeshPhongMaterial({ color: 0x1a2430, specular: 0xaaaaaa, shininess: 120, envMap, reflectivity: 0.55, combine: THREE.MixOperation });
 
-  const skyU = { top: { value: new THREE.Color(0x2f7fe0) }, mid: { value: new THREE.Color(0x7cc2ff) }, bottom: { value: skyCol } };
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(2000, 24, 12), new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyU,
-    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-    fragmentShader: 'uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec3 vP; void main(){ float t = clamp(normalize(vP).y, 0.0, 1.0); vec3 c = mix(bottom, mid, smoothstep(0.0, 0.18, t)); c = mix(c, top, smoothstep(0.18, 0.7, t)); gl_FragColor = vec4(c, 1.0); }',
-  }));
-  scene.add(sky);
-
-  // Big anime cumulus clouds: flat billboards with a lit top and a cool shadow underside
-  const clouds = new THREE.Group(); scene.add(clouds);
-  const cloudMats = [];
-  {
-    const cloudTex = (seed) => {
-      const r = mulberry32(seed), c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
-      const puffs = [];
-      for (let i = 0; i < 9; i++) { const x = 90 + r() * 330, rad = 40 + r() * 55; puffs.push([x, 175 - rad * (0.6 + r() * 0.5), rad]); }
-      puffs.push([256, 175, 120]);
-      // soft painted puffs: shaded underside, bright tops, feathered edges
-      for (const [x, y, rad] of puffs) { const grd = g.createRadialGradient(x, y + rad * 0.3, rad * 0.1, x, y, rad); grd.addColorStop(0, 'rgba(178,196,222,0.95)'); grd.addColorStop(0.7, 'rgba(200,214,236,0.7)'); grd.addColorStop(1, 'rgba(200,214,236,0)'); g.fillStyle = grd; g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill(); }
-      for (const [x, y, rad] of puffs) { const grd = g.createRadialGradient(x - rad * 0.2, y - rad * 0.35, rad * 0.05, x, y - rad * 0.2, rad * 0.85); grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.6, 'rgba(255,255,255,0.75)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.beginPath(); g.arc(x, y - rad * 0.2, rad * 0.85, 0, 7); g.fill(); }
-      return new THREE.CanvasTexture(c);
-    };
-    const texes = [cloudTex(3), cloudTex(11), cloudTex(29)];
-    const rr = mulberry32(5);
-    for (let i = 0; i < 16; i++) {
-      const m = new THREE.SpriteMaterial({ map: texes[i % 3], fog: false, depthWrite: false, transparent: true });
-      cloudMats.push(m);
-      const sp = new THREE.Sprite(m);
-      const a = rr() * Math.PI * 2, d = 1150 + rr() * 350, sc = 260 + rr() * 280;
-      sp.position.set(Math.cos(a) * d, 130 + rr() * 300, Math.sin(a) * d); sp.scale.set(sc, sc / 2, 1);
-      clouds.add(sp);
-    }
-  }
+  const clouds = new THREE.Group(); scene.add(clouds);       // (kept empty: the sky is painted in art/sky.js)
 
   const hemi = new THREE.HemisphereLight(0xdcefff, 0x6a7fb0, 0.5);   // cool fill: shaded sides go blue, like anime backgrounds
   scene.add(hemi);
@@ -83,13 +56,23 @@
   const sunOffset = new THREE.Vector3(-70, 110, -45);
   const inkColor = new THREE.Color(0x1c2440);
 
+  let curLook = null;
   function applyLook(L) {
-    skyU.top.value.setHex(L.skyTop); skyU.mid.value.setHex(L.skyMid); skyCol.setHex(L.horizon);
+    curLook = L;
+    skyCol.setHex(L.horizon); scene.fog.color.setHex(L.horizon);        // (the fog keeps its own copy of the colour)
     scene.fog.near = L.fogNear; scene.fog.far = L.fogFar;
     hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi;
-    sun.color.setHex(L.sun); sun.intensity = L.sunI; sunOffset.set(L.sunDir[0], L.sunDir[1], L.sunDir[2]);
-    for (const m of cloudMats) m.color.setHex(L.cloud);
-    inkColor.setHex(L.ink);
+    // the sun (or the moon at night): colour, strength and direction, from an elevation and compass bearing in degrees
+    const el = (L.lightEl != null ? L.lightEl : L.sunEl) * Math.PI / 180, az = (L.lightAz != null ? L.lightAz : L.sunAz) * Math.PI / 180;      // lightEl / lightAz: when the light comes from somewhere other than the disc in the sky
+    sun.color.setHex(L.sun); sun.intensity = L.sunI;
+    sunOffset.set(Math.sin(az) * Math.cos(el) * 140, Math.sin(el) * 140, Math.cos(az) * Math.cos(el) * 140);
+    sun.shadow.bias = L.shadowBias != null ? L.shadowBias : -0.0008; sun.shadow.normalBias = L.shadowNormal || 0;
+    inkColor.setHex(L.ink); dustK = L.dust != null ? L.dust : 1;
+    paintEnv(L.env[0], L.env[1], L.env[2]);
+    buildSky(L);                       // art/sky.js
+    buildNight(L);                     // art/night.js (does nothing by day)
+    applyGrade(L);                     // art/post-process.js
+    const fl = document.getElementById('flare'); if (fl) fl.style.display = L.flare === false ? 'none' : '';
   }
 
   // Japanese signs need a font with kana/kanji; start fetching it now (falls back to system fonts)

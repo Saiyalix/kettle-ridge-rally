@@ -15,7 +15,9 @@ handling/car.js           # class Car: suspension, arcade driving forces
 tracks/collisions.js      # car vs obstacles, cliff barriers
 
 core/boot.js              # starts the game; ---- everything below runs inside boot() ----
-art/renderer.js           # renderer, scene, lights, sky and fog per stage
+art/renderer.js           # renderer, scene, lights, fog, applyLook (per stage lighting)
+art/sky.js                # painted sky dome, far backdrop ring (hills / mountains / city skyline)
+art/night.js              # night extras: headlight pool, road posts, lamp and lantern glows
 art/textures.js           # generated textures: road per surface, grass/soil, stone, wood, rock, facades
 tracks/stage-build.js     # building helpers, ground mesh, road ribbon
 tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
