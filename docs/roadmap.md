@@ -3,7 +3,7 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
-- **Graphics step 2: Skies and lighting** (2026-11-05, branch `gfx/2-skies-lighting`): painted sky dome per stage (SS1 bright day with big cumulus, SS2 sunset with long shadows and purple haze, SS3 night with stars, moon, glowing city skyline, lit windows, lanterns and a headlight pool), far hills / mountains ring, per-stage colour grade and glow in the post pass. Fixes the fog colour (it never followed the stage). Rally camera sits lower so the sky is visible.
+- **Graphics step 2: Skies and lighting** (2026-11-05, PR #6): SS1 painted-cloud day, SS2 sunset, SS3 night (stars, moon, city skyline, lit windows, lamps, headlight pool, reflector posts); far hills ring, per-stage colour grade; fog now follows each stage. Old far camera kept as default, a lower far view added as camera mode 4 (owner's choice).
 - **Graphics step 6: Retro HUD / compact HUD** (2026-11-05, branch `ui/compact-hud`, done out of order because the owner asked after phone testing): HUD covers 15.5% -> 7.0% of an 800x360 phone screen (19.4% -> 8.4% with a corner call, 21.6% -> 8.6% with a banner); desktop 15.1% -> 5.1%; a corner call no longer covers the centre (33% -> ~4%). One-line pace-note chip, small banners, thin START-GOAL progress bar, small rev dial + gear + speed, smaller minimap. Also fixes the known issue "map label overlaps the HB button" and covers "Better HUD".
 - **Graphics step 1: Road and roadside** (2026-11-05, PR #4): per-surface road textures; roadside walls, fences, rock faces and village houses placed close to the road and solid; SS2 drop side covered 1766/1776 samples (582 before). Owner tested on phone: "Game runs fine. No issues on phone."
 - **Round 3: full studio** (2026-11-04): new departments art, audio, ui-mobile, producer; ownership for every file in `src/README.md`, including shared files; PRs are merged as soon as qa says READY TO MERGE.
@@ -16,22 +16,23 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - Co-driver pace notes with voice, replays, rescue/respawn, championship mode, 15-car field with rivals on time.
 
 ## Next (in this order unless the owner says otherwise)
-**Graphics overhaul** (owner request 2026-11-04; one PR per step, in this order; qa checks each, then it is merged).
-Style: smooth and modern, all textures generated in code, original designs only. Handling tests must still pass at every step.
+**Graphics overhaul** (owner request 2026-11-04, extended 2026-11-05 with real 3D models built in code; one PR per step; qa checks each, then it is merged).
+Style: a modern rendition of a 1990s arcade rally look, retro styling at higher resolution; original designs only. Handling tests must still pass at every step.
 Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile with each step. Steps 1, 2 and 6 are done.
-2. **Trees and nature**: denser, colourful, layered trees; better grass and rocks. (art, tracks)
-3. **Car look**: bold original livery with invented sponsors and number plate, shinier finish. (art)
-4. **New cameras**: add a low, close chase camera; keep all existing cameras. (art)
-
-Then:
-5. **Japanese-style buildings for Sakura Touge town outskirts**: current houses are European-style. (art, tracks)
-6. **SS2 drop wall clearance**: keep the drop-side wall at least 1 m clear of stacked road sections on hairpins. (tracks)
-7. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. Checked with every graphics step; this item is for anything left over. (ui-mobile, art)
-8. **Best times leaderboard on the device**: top times per stage and car, saved locally (today only one best time per stage). (ui-mobile)
-9. **Menu polish pass**: on short landscape phones the Start button sits below the fold; make Start visible without scrolling. (ui-mobile)
-10. **Engine and surface audio**: richer engine, distinct gravel / snow / tarmac sounds. (audio)
+1. **three.js upgrade r128 -> 0.186.1** (branch `gfx/3-threejs-upgrade`): in review; same look on purpose. Move to Done when merged. (art, qa)
+2. **Player cars as detailed 3D models + 4 liveries each, menu picker**: Kestrel = 90s Japanese 4WD rally coupe, Strada = boxy hot hatch; liveries remembered; includes the colour-managed (sRGB) pipeline. (art, ui-mobile)
+3. **Rival cars with their own liveries.** (art)
+4. **Buildings as 3D models, including Japanese-style for Sakura Touge.** (art, tracks)
+5. **Trees and nature**: denser, layered trees, grass, rocks; night colours of sakura trees and rice paddies. (art, tracks)
+6. **Spectators, signs, gates and barriers as 3D models.** (art, tracks)
+7. **New low, close chase camera**: keep all existing cameras. (art)
+8. **SS2 drop wall clearance**: keep the drop-side wall at least 1 m clear of stacked road sections on hairpins. (tracks)
+9. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. Checked with every graphics step; this item is for anything left over. (ui-mobile, art)
+10. **Best times leaderboard on the device**: top times per stage and car, saved locally. (ui-mobile)
 
 ## Ideas (not planned yet)
+- Menu polish pass: on short landscape phones the Start button sits below the fold. (ui-mobile)
+- Engine and surface audio: richer engine, distinct gravel / snow / tarmac sounds. (audio)
 - More stages. (tracks, art)
 - More cars. (handling, art)
 - Weather and time of day variants of existing stages.

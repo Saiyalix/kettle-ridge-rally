@@ -5,6 +5,19 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-05 · three.js upgrade: r128 -> 0.186.1, same look on purpose
+**Request (owner):** "Upgrade three.js to the newest version."
+**Decision:** 0.186.1, not 0.187.0 (released 6 days earlier; we picked the one that has had a little time to settle). Loaded as an ES module through an inline import map from cdn.jsdelivr.net with the exact version; the main script is `<script type="module">`. `tools/build.js` now validates module scripts. The test kit serves r128 and 0.186.1 from `node_modules` (`package.json`: three 0.186.1 + `three-r128` alias) and fails if the game asks for any other version.
+**Same look on purpose:** colour management off (`ColorManagement.enabled = false`, LinearSRGB output) and light intensities x pi, which reproduces r128's look; `PCFSoftShadowMap` -> `PCFShadowMap` (soft type removed in r186); one shader fix. Bot and handling results identical (no handling rule or target changed).
+**Reason:** the upgrade should change nothing the owner sees, so any difference is a bug and easy to spot; mixing a look change into it would hide problems.
+**Follow-up:** a proper colour-managed (sRGB) pipeline, best done in the car-models step when the materials are redone anyway.
+
+### 2026-11-05 · Real 3D models and liveries: owner's choices
+**Request (owner):** "make real 3D models for everything ... a modern rendition of [a 1990s arcade rally game]: the retro styling but with higher resolution", and "add different liveries for the player car".
+**Owner's choices:** models are built in code (no model files); Kestrel = 1990s Japanese 4WD rally coupe, Strada = boxy hot hatch, handling characters unchanged; 4 original liveries per car, picked in the menu and remembered on the device; rivals get their own liveries.
+**Constraint:** original designs only: no real brands, and no copies of that game's cars, liveries or tracks.
+**Reason:** code-built models keep the page one self-contained file; unchanged handling means no rule or target is touched.
+
 ### 2026-11-05 · HUD redesign: small, phone-first, centre of the screen clear
 **Request (owner, after phone testing; game ran fine, no issues):** the HUD clogs the screen and corner calls block the view; make them a lot smaller, redesign the HUD smaller and less cluttered.
 **Decision:** design for the phone (800x360) first; the centre of the screen stays clear. Done by ui-mobile together with graphics step 6 "Retro HUD" (so step 6 was done out of order on purpose). Pace note is a one-line chip under the countdown; banners are small and in the upper area; moderate yellow countdown; small italic stage time + position top-left (phone) / position top-right (desktop); only the latest split, fading; thin START-GOAL progress bar replaces "km to go"; smaller minimap; small rev dial + gear + speed bottom-left; keyboard help only for the first 8 s and in the pause menu. Also fixes the known issue "map label overlaps the HB button".
