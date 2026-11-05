@@ -780,7 +780,7 @@ const STAGES = [
       nightGlow: { road: 0x9aa4c8, roadI: 0.8, reach: 40, pool: 0.35 },
       grade: { tint: [0.95, 0.98, 1.06], lift: [0.004, 0.008, 0.024], sat: 1.12, con: 1.1, bloom: 0.55, thresh: 0.78, bloom2: 0.4, vig: 0.42 },
       grassA: [0.36, 0.60, 0.30], grassB: [0.50, 0.68, 0.30], dirt: [0.72, 0.58, 0.42], snow: [0.9, 0.94, 1.0], rock: [0.60, 0.56, 0.62],
-      foliageTint: [0.86, 0.6, 0.58], rockCaps: { moss: { col: [0.14, 0.26, 0.16], amt: 0.5 }, snow: { col: [0.8, 0.85, 1.0], amt: 0.9 }, none: { col: [0, 0, 0], amt: 0 } },
+      foliageTint: [1.0, 0.82, 0.86], rockCaps: { moss: { col: [0.14, 0.26, 0.16], amt: 0.5 }, snow: { col: [0.8, 0.85, 1.0], amt: 0.9 }, none: { col: [0, 0, 0], amt: 0 } },
     },
   },
 ];
@@ -2792,7 +2792,7 @@ function boot() {
     const ico = icoGet(det), base = b.p.length / 3;
     for (const v of ico.v) {
       const j = 1 - jit + r() * jit * 2, x = cx + v[0] * rx * j, y = cy + v[1] * ry * j, z = cz + v[2] * rz * j;
-      const k = 0.5 + 0.5 * sstep(-0.55, 0.8, v[1]), ao = 0.76 + 0.24 * sstep(aoLo, aoHi, y), sp = 0.9 + r() * 0.2;
+      const k = 0.5 + 0.5 * sstep(-0.55, 0.8, v[1]), ao = 0.84 + 0.16 * sstep(aoLo, aoHi, y), sp = 0.9 + r() * 0.2;
       tgV(b, x, y, z, mixC(dark, lite, k).map(q => q * ao * sp), fol);
     }
     for (const f of ico.f) tgT(b, base + f[0], base + f[1], base + f[2]);
@@ -2800,10 +2800,10 @@ function boot() {
 
   /* ----- conifers: layered, irregular branch tiers around a trunk ----- */
   function buildConifer(sp, lvl, low) {
-    const H = sp.H, R0 = sp.rad, yLo = sp.trunkH, b = tgNew(H, sp.amp || 0.16), r = mulberry32(sp.seed * 7 + lvl * 3 + 1);
+    const H = sp.H, R0 = sp.rad * 1.15, yLo = sp.trunkH, b = tgNew(H, sp.amp || 0.16), r = mulberry32(sp.seed * 7 + lvl * 3 + 1);
     const N = lvl === 0 ? sp.tiers - (low ? 2 : 0) : lvl === 1 ? Math.max(3, sp.tiers - 3) : 2;
-    const seg = lvl === 0 ? (low ? 7 : 10) : lvl === 1 ? 6 : 5, crown = H - yLo;
-    const tierH = crown * (lvl === 2 ? 0.62 : N <= 4 ? 0.46 : sp.tierF || 0.34), mid = lvl === 0 && !low, under = lvl === 0;
+    const seg = lvl === 0 ? (low ? 8 : 14) : lvl === 1 ? 8 : 6, crown = H - yLo;
+    const tierH = crown * (lvl === 2 ? 0.62 : N <= 4 ? 0.46 : sp.tierF || 0.38), mid = lvl === 0 && !low, under = lvl === 0;
     tgLimb(b, 0, -0.3, 0, 0, yLo + crown * 0.55, 0, 0.3 * (sp.trunkW || 1), 0.08, lvl === 0 ? 6 : 3, BARK, BARK_DK);
     const snowW = (w) => sp.snow ? w : 0, SNOW = [0.93, 0.96, 1.0];
     for (let k = 0; k < N; k++) {
@@ -2813,10 +2813,10 @@ function boot() {
       const rim = [], rimU = [], mids = [], rot = k * 1.1 + r() * 0.5;
       for (let i = 0; i < seg; i++) {
         const a = rot + i / seg * 6.2832 + (r() - 0.5) * 0.25, rr = R * (i % 2 ? 0.66 : 1.06) * (0.86 + r() * 0.28), ry = rimY - (i % 2 ? -0.05 * R : sp.droop * R * 0.17) + (r() - 0.5) * 0.1 * R;
-        const cs = Math.cos(a), sn = Math.sin(a), edge = 0.7 + r() * 0.12;
-        rim.push(tgV(b, cs * rr, ry, sn * rr, tw(shadeC(top, edge), 0.55 + r() * 0.25), 1));
-        if (under) rimU.push(tgV(b, cs * rr, ry, sn * rr, shadeC(top, 0.4), 1));
-        if (mid) mids.push(tgV(b, cs * rr * 0.55, rimY + tierH * 0.36, sn * rr * 0.55, tw(shadeC(top, 0.98), 0.8), 1));
+        const cs = Math.cos(a), sn = Math.sin(a), edge = 0.82 + r() * 0.12;
+        rim.push(tgV(b, cs * rr, ry, sn * rr, tw(shadeC(top, edge), r() * 0.12), 1));
+        if (under) rimU.push(tgV(b, cs * rr, ry, sn * rr, shadeC(top, 0.5), 1));
+        if (mid) mids.push(tgV(b, cs * rr * 0.55, rimY + tierH * 0.36, sn * rr * 0.55, tw(shadeC(top, 0.98), 0.4), 1));
       }
       for (let i = 0; i < seg; i++) {
         const j = (i + 1) % seg;
@@ -2824,7 +2824,7 @@ function boot() {
         else tgT(b, apex, rim[j], rim[i]);
       }
       if (under) {
-        const c = tgV(b, 0, rimY + tierH * 0.1, 0, shadeC(top, 0.26), 1);
+        const c = tgV(b, 0, rimY + tierH * 0.1, 0, shadeC(top, 0.36), 1);
         for (let i = 0; i < seg; i++) tgT(b, c, rimU[i], rimU[(i + 1) % seg]);
       }
     }
@@ -2832,16 +2832,16 @@ function boot() {
   }
 
   /* ----- broadleaf trees (autumn colours come from the instance colour) ----- */
-  const LEAF_LITE = [1.0, 0.98, 0.88], LEAF_DARK = [0.62, 0.66, 0.82];
+  const LEAF_LITE = [1.0, 0.98, 0.88], LEAF_DARK = [0.74, 0.78, 0.9];
   function buildBroad(sp, lvl, low) {
     const H = sp.H, R = sp.rad, b = tgNew(H, 0.26), r = mulberry32(sp.seed * 5 + lvl * 3 + 2), hi = lvl === 0 && !low;
-    const stemTop = H * 0.5, aoLo = H * 0.34, aoHi = H * 0.95;
+    const stemTop = H * 0.46, aoLo = H * 0.34, aoHi = H * 0.95;
     tgLimb(b, 0, -0.3, 0, 0.1, stemTop, 0, 0.3 * (sp.trunkW || 1), 0.12, lvl === 0 ? (low ? 5 : 7) : 3, BARK, BARK_DK);
     const blobs = [], n = lvl === 0 ? (low ? 4 : 7) : lvl === 1 ? 4 : 1;
-    blobs.push([0, H * 0.72, 0, R * 0.72, R * 0.56, R * 0.72, hi ? 1 : 0]);
+    blobs.push([0, H * 0.72, 0, R * 0.86, R * 0.66, R * 0.86, hi ? 1 : 0]);
     for (let j = 0; j < n; j++) {
       const a = j / n * 6.2832 + r() * 0.8, d = R * (0.46 + r() * 0.16), y = H * (0.5 + r() * 0.2);
-      blobs.push([Math.cos(a) * d, y, Math.sin(a) * d, R * (0.46 + r() * 0.12), R * (0.38 + r() * 0.1), R * (0.46 + r() * 0.12), hi && j < 3 ? 1 : 0]);
+      blobs.push([Math.cos(a) * d, y, Math.sin(a) * d, R * (0.56 + r() * 0.12), R * (0.46 + r() * 0.1), R * (0.56 + r() * 0.12), hi && j < 6 ? 1 : 0]);
       if (hi && j === 0) tgLimb(b, 0.1, stemTop * 0.8, 0, Math.cos(a) * d * 0.7, y - R * 0.1, Math.sin(a) * d * 0.7, 0.1, 0.05, 4, BARK, BARK_DK);
     }
     if (lvl === 2) blobs.push([0, H * 0.55, 0, R * 0.9, R * 0.42, R * 0.9, 0]);
@@ -2858,7 +2858,7 @@ function boot() {
     const blobs = [];
     for (let j = 0; j < nb; j++) {
       const a = j * 2.4 + r() * 0.6, d = j === 0 ? 0 : R * (0.3 + 0.45 * Math.sqrt(j / nb)), y = H * (0.62 + r() * 0.2) - d * 0.14 + (j % 3 === 0 ? 0.35 : 0);
-      blobs.push([Math.cos(a) * d + 0.2, y, Math.sin(a) * d, R * (0.3 + r() * 0.12), R * (0.24 + r() * 0.07), R * (0.3 + r() * 0.12), hi && j < 4 ? 1 : 0]);
+      blobs.push([Math.cos(a) * d + 0.2, y, Math.sin(a) * d, R * (0.38 + r() * 0.12), R * (0.29 + r() * 0.07), R * (0.38 + r() * 0.12), hi && j < 6 ? 1 : 0]);
       if (lvl < 2 && j > 0 && (j < 6 || hi)) tgLimb(b, 0.2, H * 0.3, 0.1, Math.cos(a) * d * 0.75 + 0.2, y - R * 0.25, Math.sin(a) * d * 0.75, 0.13, 0.05, lvl === 0 ? 5 : 3, [0.28, 0.19, 0.16], [0.2, 0.14, 0.13]);
     }
     if (lvl === 2) blobs.push([0, H * 0.62, 0, R * 0.95, R * 0.36, R * 0.95, 0]);
@@ -2872,25 +2872,25 @@ function boot() {
   const SPECIES = {
     spruce: CON({ name: 'spruce', H: 8.5, rad: 2.5, tiers: 7, seed: 11, col: [0.25, 0.56, 0.28] }),
     fir: CON({ name: 'fir', H: 8.5, rad: 2.6, tiers: 6, seed: 12, droop: 2, tierF: 0.4, col: [0.19, 0.5, 0.33] }),
-    snow: CON({ name: 'snow', H: 8.5, rad: 2.5, tiers: 7, seed: 13, snow: true, col: [0.27, 0.54, 0.38] }),
-    snowFir: CON({ name: 'snowFir', H: 8.5, rad: 2.6, tiers: 6, seed: 14, snow: true, droop: 2, tierF: 0.4, col: [0.22, 0.48, 0.38] }),
+    snow: CON({ name: 'snow', H: 8.5, rad: 2.5, tiers: 7, seed: 13, snow: true, col: [0.18, 0.46, 0.27] }),
+    snowFir: CON({ name: 'snowFir', H: 8.5, rad: 2.6, tiers: 6, seed: 14, snow: true, droop: 2, tierF: 0.4, col: [0.16, 0.44, 0.3] }),
     pineT: CON({ name: 'pineT', H: 9.78, rad: 2.4, tiers: 8, seed: 15, col: [0.2, 0.5, 0.3] }),
     firT: CON({ name: 'firT', H: 9.78, rad: 2.6, tiers: 6, seed: 16, droop: 2, tierF: 0.4, col: [0.24, 0.52, 0.27] }),
     cedar: CON({ name: 'cedar', H: 12.5, rad: 1.9, tiers: 9, seed: 17, trunkH: 1.4, tierF: 0.28, col: [0.2, 0.45, 0.28], reach: 2.6 }),
     cedar2: CON({ name: 'cedar2', H: 12.5, rad: 2.1, tiers: 8, seed: 18, trunkH: 1.6, droop: 2.5, tierF: 0.3, col: [0.17, 0.4, 0.3], reach: 2.8 }),
     broad: { name: 'broad', kind: 'broad', H: 7.6, rad: 2.7, seed: 21, reach: 3.8 },
-    sakura: { name: 'sakura', kind: 'sakura', H: 7.5, rad: 3.2, seed: 22, reach: 4.4 },
+    sakura: { name: 'sakura', kind: 'sakura', H: 7.5, rad: 3.3, seed: 22, reach: 4.4 },
   };
   for (const k in SPECIES) {
     const sp = SPECIES[k], mk = sp.kind === 'con' ? buildConifer : sp.kind === 'broad' ? buildBroad : buildSakura;
-    sp.mat = (low) => treeMaterial(low); sp.shadowLv = 2; sp.cache = {};
+    sp.mat = k === 'sakura' ? (low) => { const m = treeMaterial(low, 's'); m.emissive.setHex(ST.look.night ? 0x4c2a40 : 0); return m; } : (low) => treeMaterial(low); sp.shadowLv = 2; sp.cache = {};
     sp.levels = (low) => sp.cache[low ? 'l' : 'h'] || (sp.cache[low ? 'l' : 'h'] = TREE_LV.map(([l, hi, lo]) => ({ geo: mk(sp, l, low), maxD: low ? lo : hi })));
   }
 
   /* ----- shared material for everything that is a plant: vertex colours, instance colour on the leaves only, wind ----- */
   const _treeMats = {};
-  function treeMaterial(low) {
-    const key = low ? 'l' : 'h';
+  function treeMaterial(low, variant) {
+    const key = (low ? 'l' : 'h') + (variant || '');
     if (_treeMats[key]) return _treeMats[key];
     const m = new THREE.MeshLambertMaterial({ vertexColors: true });
     if (!low) m.defines = { SWAY: 1 };
@@ -2911,7 +2911,7 @@ function boot() {
             #endif
           #endif`);
     };
-    m.customProgramCacheKey = () => 'tree' + key;
+    m.customProgramCacheKey = () => 'tree' + (low ? 'l' : 'h') + (variant || '');
     m.userData.keep = true;
     return _treeMats[key] = m;
   }
@@ -3030,6 +3030,7 @@ function boot() {
     if (sp.kind === 'broad') { let a = h, p = BROAD_COLS[0]; for (const q of BROAD_COLS) { if (a < q[3]) { p = q; break; } a -= q[3]; p = q; } const v = 0.9 + 0.1 * h2; c = [p[0] * v, p[1] * v, p[2] * v]; }
     else if (sp.kind === 'sakura') { const v = 0.88 + 0.12 * h2; c = [1.0 * v, (0.78 + 0.12 * h) * v, (0.88 + 0.08 * (1 - h)) * v]; }
     else { const v = 0.84 + 0.16 * h2; c = [v * (0.94 + 0.12 * h), v, v * (0.94 + 0.12 * (1 - h))]; }
+    if (sp.kind === 'con') return c;                       // cedars stay dark at night
     return [c[0] * tint[0], c[1] * tint[1], c[2] * tint[2]];
   }
   function treeStand(list, pick) {
@@ -3094,7 +3095,7 @@ function boot() {
     for (let k = 0; k < n; k++) {
       const a = k / n * 6.2832 + r() * 0.7, len = H * (0.6 + 0.4 * r()), lean = 0.2 + 0.4 * r(), w = wide * (0.7 + 0.5 * r()), ca = Math.cos(a), sa = Math.sin(a);
       const x0 = ca * 0.06, z0 = sa * 0.06, tx = ca * (0.06 + lean * len), tz = sa * (0.06 + lean * len);
-      const bl = tgV(b, x0 - sa * w, 0, z0 + ca * w, [0.42, 0.5, 0.4], 1), br = tgV(b, x0 + sa * w, 0, z0 - ca * w, [0.42, 0.5, 0.4], 1), tp = tgV(b, tx, len, tz, [1.0, 1.0, 0.86], 1);
+      const bl = tgV(b, x0 - sa * w, 0, z0 + ca * w, [0.42, 0.5, 0.4], 1), br = tgV(b, x0 + sa * w, 0, z0 - ca * w, [0.42, 0.5, 0.4], 1), tp = tgV(b, tx, len, tz, [0.9, 0.96, 0.8], 1);
       tgT(b, bl, br, tp); tgT(b, br, bl, tp);
     }
     return tgGeo(b);
@@ -3129,8 +3130,8 @@ function boot() {
   }
   const makeDeco = (name, reach, lvDefs) => { const sp = { name, reach, shadowLv: 0, cache: {}, mat: treeMaterial }; sp.levels = (low) => sp.cache[low ? 'l' : 'h'] || (sp.cache[low ? 'l' : 'h'] = lvDefs(low)); return sp; };
   const DECO = {
-    tuft: makeDeco('tuft', 0.6, (low) => [{ geo: buildTuft(low, 0.55, 0.075), maxD: low ? 26 : 62 }]),
-    tuftTall: makeDeco('tuftTall', 0.8, (low) => [{ geo: buildTuft(low, 0.95, 0.1), maxD: low ? -1 : 75 }]),       // (not drawn on low: one draw call less)
+    tuft: makeDeco('tuft', 0.6, (low) => [{ geo: buildTuft(low, 0.4, 0.06), maxD: low ? 26 : 62 }]),
+    tuftTall: makeDeco('tuftTall', 0.8, (low) => [{ geo: buildTuft(low, 0.62, 0.075), maxD: low ? -1 : 75 }]),       // (not drawn on low: one draw call less)
     bush: makeDeco('bush', 1.8, (low) => low ? [{ geo: buildBush(true, false), maxD: 36 }] : [{ geo: buildBush(false, true), maxD: 60 }, { geo: buildBush(false, false), maxD: 120 }]),
     flower: makeDeco('flower', 0.6, (low) => [{ geo: buildFlowers(), maxD: low ? -1 : 40 }]),
     reed: makeDeco('reed', 0.8, (low) => [{ geo: buildReed(low), maxD: low ? 28 : 80 }]),
@@ -3155,7 +3156,7 @@ function boot() {
       for (let k = 0, n = nr() < 0.55 ? 2 : 1; k < n; k++) {
         const off = edge + Math.pow(nr(), 1.8) * 12, [x, z] = sideXZ(sampleAt(s + nr() * 1.5), side * off), y = terrain.heightAt(x, z), sc = 0.7 + nr() * 0.8, rot = nr() * 6.28, pick = nr(), pick2 = nr();
         if (s > snowFrom - 20 || !okSpot(x, z, y, p, edge, s)) continue;
-        const c = pick2 < dry ? strawC.map(q => q * (0.9 + 0.15 * pick)) : gr(1.12);
+        const c = pick2 < dry ? strawC.map(q => q * (0.9 + 0.15 * pick)) : gr(1.0);
         (pick < 0.3 ? tall : tufts).push({ x, y: y - 0.02, z, s: sc, r: rot, c });
       }
     }
