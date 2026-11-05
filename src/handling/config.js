@@ -139,11 +139,27 @@ const CONFIG = {
       grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  look: 6,   slide: 1.1 },
     },
   },
+  // Car colours (art owns paint / stripe / skirt / number and `liveries`): paint/stripe/skirt/number = the default
+  // livery (liveries[0]), kept so the menu swatches keep working. Each livery is drawn by art/car-livery.js:
+  //   base = body, a / b = accents, c = dark trim, wheel = rim colour, numBg / numFg = number panel, plate = invented plate text,
+  //   design = which painter function, pod = rally light bar on the nose, wing = wing / roof spoiler colour.
   cars: [
     { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.92, turn: 1.0,
-      paint: 0xf4f6f8, stripe: 0xffc928, skirt: 0x1f4fa3, number: '7' },
+      paint: 0xf4f6f8, stripe: 0xffc928, skirt: 0x1f4fa3, number: '7',
+      liveries: [
+        { id: 'ridgeline', name: 'Ridgeline',   design: 'ridgeline', base: 0xf4f6f8, a: 0xffc928, b: 0x1f4fa3, c: 0x14213f, wheel: 0xd9dde2, numBg: 0xffc928, numFg: 0x101820, plate: 'KR 07-GT', wing: 0x14213f, spons: ['ROTOR OIL', 'NORTHGATE', 'BRINDLE'] },
+        { id: 'midnight',  name: 'Midnight Blue', design: 'midnight', base: 0x16255a, a: 0xb4f01c, b: 0xf4f6f8, c: 0x0a1230, wheel: 0xc9cfd8, numBg: 0xf4f6f8, numFg: 0x16255a, plate: 'MB 31-NT', pod: true, wing: 0xb4f01c, spons: ['HALCYON', 'ROTOR OIL', 'PIKE RACING'], number: '31' },
+        { id: 'magma',     name: 'Magma',       design: 'magma',     base: 0x17181c, a: 0xff4a12, b: 0xffb81c, c: 0x2a1208, wheel: 0xff4a12, numBg: 0xffb81c, numFg: 0x17181c, plate: 'MG 66-HT', pod: true, wing: 0xff4a12, spons: ['TAMARACK', 'NORTHGATE', 'ROTOR OIL'], number: '66' },
+        { id: 'mint',      name: 'Alpine Mint', design: 'mint',      base: 0x35d6a4, a: 0x3a1a6b, b: 0xf4f6f8, c: 0x1a0d36, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x3a1a6b, plate: 'AM 12-IN', wing: 0x3a1a6b, spons: ['BRINDLE BANK', 'HALCYON', 'PIKE RACING'], number: '12' },
+      ] },
     { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.12, turn: 1.08,
-      paint: 0xd8342c, stripe: 0xf4f6f8, skirt: 0x1b1d20, number: '4' },
+      paint: 0xd8342c, stripe: 0xf4f6f8, skirt: 0x1b1d20, number: '4',
+      liveries: [
+        { id: 'signal',  name: 'Signal Red',   design: 'signal', base: 0xd8342c, a: 0xf4f6f8, b: 0x1b1d20, c: 0x1b1d20, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x1b1d20, plate: 'SR 04-HF', wing: 0x1b1d20, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'BRINDLE'] },
+        { id: 'lime',    name: 'Lime Rush',    design: 'lime',   base: 0xb7e81c, a: 0x15161a, b: 0x12b7c4, c: 0x15161a, wheel: 0x24272c, numBg: 0x15161a, numFg: 0xb7e81c, plate: 'LR 88-ZP', wing: 0x15161a, spons: ['TAMARACK', 'HALCYON', 'NORTHGATE'], number: '88' },
+        { id: 'violet',  name: 'Violet Storm', design: 'violet', base: 0x6a2bd6, a: 0x19e0e0, b: 0xf4f6f8, c: 0x1b0d3d, wheel: 0x19e0e0, numBg: 0xf4f6f8, numFg: 0x4a1aa8, plate: 'VS 23-ZZ', wing: 0x19e0e0, spons: ['PIKE RACING', 'ROTOR OIL', 'AUROC'], number: '23' },
+        { id: 'arctic',  name: 'Silver Shard', design: 'arctic', base: 0xc9ced6, a: 0x0f6b5e, b: 0xff3d8a, c: 0x0f6b5e, wheel: 0xff3d8a, numBg: 0xff3d8a, numFg: 0xf4f6f8, plate: 'SS 19-IC', wing: 0x0f6b5e, spons: ['NORTHGATE', 'KETTLE CO-OP', 'HALCYON'], number: '19' },
+      ] },
   ],
   carIndex: 0,
 

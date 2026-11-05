@@ -206,6 +206,11 @@ button.ghost { font-family: var(--f-arcade) !important; font-style: italic; tran
 .car-chip { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; font-family: var(--f-display); font-weight: 700; font-size: 17px; background: rgba(238,242,244,.06); border: 2px solid transparent; }
 .car-chip[aria-checked="true"] { border-color: var(--accent); background: rgba(255,201,40,.12); }
 .car-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.livery-chip { min-height: 40px; box-sizing: border-box; padding: 6px 10px; gap: 6px; font-size: 15px; }
+.livery-chip .lv-name { display: none; }
+.livery-chip[aria-checked="true"] .lv-name { display: inline; }
+.swatch3 { width: 30px; height: 16px; background: linear-gradient(90deg, var(--a) 0 40%, var(--b) 40% 70%, var(--c) 70% 100%); border: 1px solid rgba(0,0,0,.4); }
+.livery-pick { flex-wrap: nowrap; }
 .swatch { width: 18px; height: 12px; background: linear-gradient(90deg, var(--a) 0 60%, var(--b) 60% 100%); border: 1px solid rgba(0,0,0,.4); }
 .carblurb { margin: -6px 0 0; color: var(--muted); font-size: 14px; }
 .toggle { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; color: var(--text); cursor: pointer; }
@@ -302,3 +307,11 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
   .menu-panel .tip { display: none; }
   #debug { top: 40%; } #dbgText { font-size: 10px; }
 }
+
+/* Short screens (720p laptops, phones): the "Select stage" heading stays for screen readers but takes no room,
+   so the Paint row fits without pushing Race further down. */
+@media (max-height: 800px) {
+  .menu-panel h1 { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px !important; padding: 0; }
+}
+@media (max-height: 800px) { .menu-panel { gap: 10px; } }
+@media (max-height: 520px) { .menu-panel { gap: 8px; } .carblurb { display: none; } }
