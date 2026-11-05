@@ -307,3 +307,11 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
   .menu-panel .tip { display: none; }
   #debug { top: 40%; } #dbgText { font-size: 10px; }
 }
+
+/* Short screens (720p laptops, phones): the "Select stage" heading stays for screen readers but takes no room,
+   so the Paint row fits without pushing Race further down. */
+@media (max-height: 800px) {
+  .menu-panel h1 { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px !important; padding: 0; }
+}
+@media (max-height: 800px) { .menu-panel { gap: 10px; } }
+@media (max-height: 520px) { .menu-panel { gap: 8px; } .carblurb { display: none; } }
