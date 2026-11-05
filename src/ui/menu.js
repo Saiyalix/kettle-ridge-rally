@@ -28,8 +28,30 @@
       cp.appendChild(b);
     });
     [...cp.children].forEach((b, i) => b.setAttribute('aria-checked', i === CONFIG.carIndex ? 'true' : 'false'));
+    renderLiveries();
     $('carBlurb').textContent = CONFIG.cars[CONFIG.carIndex].blurb;
     $('voiceToggle').checked = voiceOn;
+  }
+  // livery chips for the selected car: swatch only, the chosen one also shows its name. Tap applies at once (art's setLivery).
+  function renderLiveries() {
+    const lp = $('liveryPick'), ci = CONFIG.carIndex, list = liveryList(ci), cur = liveryIndex(ci);
+    if (lp.dataset.car !== String(ci)) {
+      lp.dataset.car = ci; lp.textContent = '';
+      list.forEach((l, i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'car-chip livery-chip'; b.setAttribute('role', 'radio');
+        b.setAttribute('aria-label', l.name); b.title = l.name;
+        const [c0, c1, c2] = l.swatch.map(n => '#' + n.toString(16).padStart(6, '0'));
+        b.innerHTML = `<span class="swatch3" style="--a:${c0};--b:${c1};--c:${c2}"></span><span class="lv-name">${l.name}</span>`;
+        b.addEventListener('click', () => { setLivery(ci, i); renderLiveries(); });
+        b.addEventListener('keydown', e => {
+          if (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') return;
+          const n = (i + (e.code === 'ArrowRight' ? 1 : list.length - 1)) % list.length;
+          setLivery(ci, n); renderLiveries(); lp.children[n].focus();
+        });
+        lp.appendChild(b);
+      });
+    }
+    [...lp.children].forEach((b, i) => { b.setAttribute('aria-checked', i === cur ? 'true' : 'false'); b.tabIndex = i === cur ? 0 : -1; });
   }
   function pickStage(i) {
     if (loading) return;
