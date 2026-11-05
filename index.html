@@ -3102,7 +3102,7 @@ function boot() {
           // the two ends of a shed roof are trapezoids: the roof is higher against the main wall
           const alongZ = V.face === 'front', endFace = alongZ ? (fname === 'left' || fname === 'right') : (fname === 'front' || fname === 'back');
           if (endFace) {
-            const yS = (x, z) => V.face === 'front' ? V.h - ov * 0.25 + (V.z1 + ov - z) * 0.25 : V.face === 'right' ? V.h - ov * 0.25 + (V.x1 + ov - x) * 0.25 : V.h - ov * 0.25 + (x - (V.x0 - ov)) * 0.25;
+            const yS = (x, z) => V.face === 'front' ? V.h + 0.3 - ov * 0.25 + (V.z1 + ov - z) * 0.25 : V.face === 'right' ? V.h + 0.3 - ov * 0.25 + (V.x1 + ov - x) * 0.25 : V.h + 0.3 - ov * 0.25 + (x - (V.x0 - ov)) * 0.25;
             const p0 = F.P(0, 0, 0), p1 = F.P(L, 0, 0), y0s = yS(p0[0], p0[2]) - 0.14, y1s = yS(p1[0], p1[2]) - 0.14;
             K.Q(wb, [F.P(0, V.h, 0), F.P(L, V.h, 0), F.P(L, y1s, 0), F.P(0, y0s, 0)], [[0, V.h / 4], [L / 4, V.h / 4], [L / 4, y1s / 4], [0, y0s / 4]].map(q => [q[0] + wo, q[1]]), F.d(0, 0, 1), col);
           }
@@ -3135,8 +3135,14 @@ function boot() {
             } else {                                                  // balcony in front of the french window
               const bw = 0.55; fbox(tb, F, u0 - bw, u1 + bw, y0 - 0.2, y0 - 0.04, 0, 1.0, [0.62, 0.6, 0.57]);
               const iron = [0.27, 0.28, 0.31];
-              fbox(tb, F, u0 - bw, u1 + bw, y0 + 0.88, y0 + 0.94, 0.9, 0.96, iron, 'u'); fbox(tb, F, u0 - bw, u0 - bw + 0.05, y0 + 0.0, y0 + 0.94, 0.0, 0.96, iron, 'u'); fbox(tb, F, u1 + bw - 0.05, u1 + bw, y0 + 0.0, y0 + 0.94, 0.0, 0.96, iron, 'u');
-              if (!low) for (let uu = u0 - bw + 0.2; uu < u1 + bw - 0.1; uu += 0.22) fbox(tb, F, uu, uu + 0.035, y0 - 0.04, y0 + 0.9, 0.92, 0.95, iron, 'blrbu');
+              const ua = u0 - bw, ub = u1 + bw;                                                                              // open railing: top rail, bottom rail, corner posts, balusters (never a solid plate)
+              fbox(tb, F, ua, ub, y0 + 0.88, y0 + 0.94, 0.9, 0.96, iron, 'u'); fbox(tb, F, ua, ub, y0 - 0.02, y0 + 0.04, 0.9, 0.96, iron, 'u');
+              for (const [a, b] of [[ua, ua + 0.05], [ub - 0.05, ub]]) {
+                fbox(tb, F, a, b, y0 + 0.88, y0 + 0.94, 0.0, 0.96, iron, 'u'); fbox(tb, F, a, b, y0 - 0.02, y0 + 0.04, 0.0, 0.96, iron, 'u');
+                fbox(tb, F, a, b, y0, y0 + 0.9, 0.9, 0.96, iron, 'u'); fbox(tb, F, a, b, y0, y0 + 0.9, 0.0, 0.05, iron, 'u');
+                if (!low) for (let ww = 0.2; ww < 0.9; ww += 0.22) fbox(tb, F, a, b, y0, y0 + 0.9, ww, ww + 0.035, iron, 'u');
+              }
+              if (!low) for (let uu = ua + 0.2; uu < ub - 0.1; uu += 0.22) fbox(tb, F, uu, uu + 0.035, y0 - 0.04, y0 + 0.9, 0.92, 0.95, iron, 'blrbu');
               fbox(tb, F, u0 - 0.1, u1 + 0.1, y1, y1 + 0.14, 0, 0.06, trim, 'bu');
             }
           } else if (o.kind === 'door') {
@@ -3161,7 +3167,7 @@ function boot() {
       const x0 = V.x0 - ov, x1 = V.x1 + ov, z0 = (V.rz0 != null ? V.rz0 : V.z0 - ov), z1 = V.z1 + ov;
       if (V.kind === 'shed') {
         const key = V.face, F = key === 'front' ? faces(V.x0 - 0.3, V.x1 + 0.3, V.z0, V.z1 + ov).front : key === 'left' ? faces(V.x0 - ov, V.x1, V.z0 - 0.3, V.z1 + 0.3).left : faces(V.x0, V.x1 + ov, V.z0 - 0.3, V.z1 + 0.3).right;
-        const run = key === 'front' ? V.z1 + ov - V.z0 : V.x1 - V.x0 + ov, yE = V.h - ov * 0.25, yR = yE + run * 0.25;
+        const run = key === 'front' ? V.z1 + ov - V.z0 : V.x1 - V.x0 + ov, yE = V.h + 0.3 - ov * 0.25, yR = yE + run * 0.25;
         slab(F, 0, F.L, yE, yR, run, 0, 0, { tint: roofTint, th: 0.1, rakes: [true, true], gutter: true });
         return;
       }
@@ -3196,8 +3202,9 @@ function boot() {
     const { it, rng, hw, hd, low, wb, rb, tb, gb, fbox, wallHoles, pane, slab, roofRect, ridgeCap, faces, ID, wf } = K;
     const two = it.h >= 7.6 || (it.h >= 7.0 && rng() < 0.4), tint = it.tint || [1, 1, 1];
     const PL = [[1, 0.97, 0.9], [0.92, 0.89, 0.82], [0.96, 0.93, 0.85], [0.8, 0.74, 0.65]], pl0 = PL[Math.floor(rng() * PL.length)];
-    const plaster = [pl0[0] * (0.9 + tint[0] * 0.1), pl0[1] * (0.9 + tint[1] * 0.1), pl0[2] * (0.9 + tint[2] * 0.1)];
-    const wood = [0.2, 0.14, 0.11], woodL = [0.46, 0.33, 0.22], burnt = [0.2, 0.19, 0.2], stoneC = [0.5, 0.49, 0.47], kum = [0.34, 0.24, 0.17];
+    const nb = K.night ? 1.7 : 1;                                       // at night the plaster is painted lighter and the roof edges catch the moon, so the shape still reads against the dark wood
+    const plaster = [pl0[0] * (0.9 + tint[0] * 0.1) * nb, pl0[1] * (0.9 + tint[1] * 0.1) * nb, pl0[2] * (0.9 + tint[2] * 0.1) * nb * 1.05];
+    const wood = K.night ? [0.1, 0.07, 0.06] : [0.2, 0.14, 0.11], woodL = [0.46, 0.33, 0.22], burnt = [0.2, 0.19, 0.2], stoneC = [0.5, 0.49, 0.47], kum = [0.34, 0.24, 0.17];
     const wallH = two ? 6.0 : 3.5, dv = two ? 0 : Math.min(1.6, hd * 0.3), ov = 0.85, gable = rng() < 0.4, uo = rng();
     const body = { x0: -hw, x1: hw, z0: -hd, z1: hd - dv };
     const Fs = faces(body.x0, body.x1, body.z0, body.z1), pitch = 0.5, sag = 0.26, lift = 0.5;
@@ -3214,6 +3221,7 @@ function boot() {
       if (Math.abs(doorCenter - L * 0.5) > 1.8) holesFront.push({ u0: L * 0.5 - 0.6, u1: L * 0.5 + 0.6, y0: 3.85, y1: 5.15, lattice: true });
       for (const uc of [L * 0.2, L * 0.8]) if (Math.abs(uc - doorCenter) > 2.3) holesFront.push({ u0: uc - 0.6, u1: uc + 0.6, y0: 0.85, y1: 2.2, lattice: true });
     }
+    let litUp = false;
     const wallsFor = (F, name) => {
       let holes;
       if (name === 'front') holes = holesFront;
@@ -3230,7 +3238,8 @@ function boot() {
       fbox(tb, F, -0.1, F.L + 0.1, -1, 0.5, -0.02, 0.06, stoneC, 'blu');
       for (const h of holes) if (h.lattice) {                           // lattice window with paper behind
         const { u0, u1, y0, y1 } = h, rd = 0.2;
-        pane(F, u0, u1, y0, y1, -rd + 0.04, 'paper');
+        const upLit = two && y0 > 3 && !litUp ? (litUp = true) : undefined;
+        pane(F, u0, u1, y0, y1, -rd + 0.04, 'paper', upLit);
         fbox(tb, F, u0 - 0.1, u1 + 0.1, y1, y1 + 0.12, -0.02, 0.1, wood, 'bu'); fbox(tb, F, u0 - 0.1, u1 + 0.1, y0 - 0.12, y0, -0.02, 0.14, wood, 'b');
         fbox(tb, F, u0 - 0.1, u0, y0, y1, -0.02, 0.1, wood, 'bu'); fbox(tb, F, u1, u1 + 0.1, y0, y1, -0.02, 0.1, wood, 'bu');
         const nb = low ? 3 : Math.max(4, Math.round((u1 - u0) / 0.16));
@@ -3273,7 +3282,11 @@ function boot() {
       const litRoom = rng() < 0.7;
       for (let k = 0; k < np; k++) {
         const u0 = a + k * pw, u1 = u0 + pw, off = (k % 2) * 0.05, y2 = y0 + (sh.door ? 0.05 : 0.5);
-        pane(F, u0, u1, y2, y1 - 0.02, -rd + 0.05, 'paper', litRoom && ((k + (rng() < 0.2 ? 1 : 0)) % 3 !== 2));
+        const isLit = pane(F, u0, u1, y2, y1 - 0.02, -rd + 0.05, 'paper', litRoom && ((k + (rng() < 0.2 ? 1 : 0)) % 3 !== 2));
+        if (isLit && !sh.door) {                                  // warm light spilling from the lit screen onto the veranda boards (a vertex-coloured patch, no light)
+          const near = [0.85, 0.5, 0.22], far = [0.3, 0.2, 0.13];
+          K.Q(gb, [F.P(u0 - 0.05, 0.52, 0.02), F.P(u1 + 0.05, 0.52, 0.02), F.P(u1 + 0.35, 0.52, dv - 0.1), F.P(u0 - 0.35, 0.52, dv - 0.1)], [[0, 0], [1, 0], [1, 1], [0, 1]], BD_UP, [near, near, far, far]);
+        }
         fbox(tb, F, u0 - 0.03, u0 + 0.03, y0, y1, -0.2 + off, -0.1 + off, wood, 'bu');
         if (!sh.door) fbox(tb, F, u0 + 0.03, u1 - 0.03, y0 + 0.05, y0 + 0.5, -0.2 + off, -0.1 + off, woodL, 'bu');
         fbox(tb, F, u0 + 0.03, u1 - 0.03, y2 - 0.0, y2 + 0.04, -0.2 + off, -0.1 + off, wood, 'bu');
@@ -3287,7 +3300,7 @@ function boot() {
     // ---- lower pent roof (hisashi) over the entrance of a two-storey house
     if (two) {
       const Fh = wf([front.O[0] + front.n[0] * 1.3, front.O[1] + front.n[1] * 1.3], front.ax, front.n, L);
-      slab(Fh, -0.4, L + 0.4, 3.0, 3.0 + 1.3 * 0.33, 1.3, 0, 0, { nu: 6, nv: 2, th: 0.14, tint: [0.95, 0.95, 1], rakes: [true, true], under: [0.34, 0.26, 0.2], fascia: [0.86, 0.84, 0.78],
+      slab(Fh, -0.4, L + 0.4, 3.0, 3.0 + 1.3 * 0.33, 1.3, 0, 0, { nu: 6, nv: 2, th: 0.14, tint: K.night ? [1.9, 2.0, 2.3] : [0.95, 0.95, 1], rakes: [true, true], under: [0.34, 0.26, 0.2], fascia: K.night ? [1.4, 1.4, 1.6] : [0.86, 0.84, 0.78],
         disp: (x, z) => { const fx = (x - Fh.O[0]) * Fh.ax[0] + (z - Fh.O[1]) * Fh.ax[1]; const e = Math.min(fx + 0.4, L + 0.4 - fx); return 0.22 * Math.exp(-(e * e) / 0.7); } });
     }
     // ---- main roof
@@ -3299,8 +3312,8 @@ function boot() {
       return -sag * Math.sin(Math.PI * t) + lift * Math.exp(-cd2 / 2.6);
     };
     const kind = gable ? 'gx' : 'hip', run = (kind === 'gx' ? (eaveR[3] - eaveR[2]) : Math.min(eaveR[1] - eaveR[0], eaveR[3] - eaveR[2])) / 2;
-    const r = roofRect(eaveR, kind, eaveY, pitch, { nu: 8, nv: 3, th: 0.22, disp: dispFn(eaveR, kind, run), under: [0.3, 0.22, 0.17], fascia: [0.88, 0.86, 0.8], skirtY: wallH, skirtCol: [0.82, 0.8, 0.74], tint: [1, 1, 1.02] });
-    ridgeCap(r, r.yR + 0.06, [0.18, 0.2, 0.25], 0.26, 0.3);
+    const r = roofRect(eaveR, kind, eaveY, pitch, { nu: 8, nv: 3, th: 0.22, disp: dispFn(eaveR, kind, run), under: [0.3, 0.22, 0.17], fascia: K.night ? [1.5, 1.5, 1.7] : [0.88, 0.86, 0.8], skirtY: wallH, skirtCol: K.night ? [1.1, 1.1, 1.25] : [0.82, 0.8, 0.74], tint: K.night ? [1.8, 1.9, 2.2] : [1, 1, 1.02] });
+    ridgeCap(r, r.yR + 0.06, K.night ? [0.55, 0.6, 0.75] : [0.18, 0.2, 0.25], 0.26, 0.3);
     // ceiling under the eaves (wood), around the walls
     {
       const e = eaveR, ceil = [0.36, 0.26, 0.19], y = wallH + 0.01, b0 = body;
