@@ -5,6 +5,12 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-05 · HUD redesign: small, phone-first, centre of the screen clear
+**Request (owner, after phone testing; game ran fine, no issues):** the HUD clogs the screen and corner calls block the view; make them a lot smaller, redesign the HUD smaller and less cluttered.
+**Decision:** design for the phone (800x360) first; the centre of the screen stays clear. Done by ui-mobile together with graphics step 6 "Retro HUD" (so step 6 was done out of order on purpose). Pace note is a one-line chip under the countdown; banners are small and in the upper area; moderate yellow countdown; small italic stage time + position top-left (phone) / position top-right (desktop); only the latest split, fading; thin START-GOAL progress bar replaces "km to go"; smaller minimap; small rev dial + gear + speed bottom-left; keyboard help only for the first 8 s and in the pause menu. Also fixes the known issue "map label overlaps the HB button".
+**Measured (HUD share of screen):** 800x360 phone: plain driving 15.5% -> 7.0%, with corner call 19.4% -> 8.4%, with banner 21.6% -> 8.6%; 1280x720 desktop 15.1% -> 5.1%; centre covered by a corner call 33% -> ~4%; pace-note box 299x88 -> 292x24 px.
+**Reason:** the HUD hid the road on small screens; readability while driving matters more than a big retro look. No handling rule or target changes.
+
 ### 2026-11-04 · Graphics overhaul: plan, style and limits
 **Request (owner):** "I want the graphics to be a lot better. Right now they're very basic and not interesting to look at."
 The owner shared three screenshots of a 1990s arcade rally game as style inspiration: textured world (stone walls, plaster buildings,
