@@ -436,8 +436,11 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
 'use strict';
 /* =====================================================================
    CONFIG: every tunable value lives here. Units are SI (kg, m, s, N, Nm).
@@ -1602,10 +1605,14 @@ function boot() {
 
   /* ---------- renderer, scene, lights ---------- */
   const canvas = document.getElementById('scene');
+  // The look was tuned on r128, which did no colour conversion: colours, textures and lighting all lived in one
+  // "display" space and the post-process shader worked on those values directly. Keep that on purpose (PS2 style).
+  THREE.ColorManagement.enabled = false;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;          // no conversion on output (see above); the post pass writes the final pixels
   renderer.setPixelRatio(1);                                      // the post pass renders at a lower internal resolution anyway
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   const scene = new THREE.Scene();
   const skyCol = new THREE.Color(0xc4e8ff);                     // horizon haze
   scene.background = skyCol;
@@ -1663,10 +1670,10 @@ function boot() {
     curLook = L;
     skyCol.setHex(L.horizon); scene.fog.color.setHex(L.horizon);        // (the fog keeps its own copy of the colour)
     scene.fog.near = L.fogNear; scene.fog.far = L.fogFar;
-    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi;
+    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi * Math.PI;      // x PI: r155+ lights are physical; this keeps the old strengths
     // the sun (or the moon at night): colour, strength and direction, from an elevation and compass bearing in degrees
     const el = (L.lightEl != null ? L.lightEl : L.sunEl) * Math.PI / 180, az = (L.lightAz != null ? L.lightAz : L.sunAz) * Math.PI / 180;      // lightEl / lightAz: when the light comes from somewhere other than the disc in the sky
-    sun.color.setHex(L.sun); sun.intensity = L.sunI;
+    sun.color.setHex(L.sun); sun.intensity = L.sunI * Math.PI;
     sunOffset.set(Math.sin(az) * Math.cos(el) * 140, Math.sin(el) * 140, Math.cos(az) * Math.cos(el) * 140);
     sun.shadow.bias = L.shadowBias != null ? L.shadowBias : -0.0008; sun.shadow.normalBias = L.shadowNormal || 0;
     inkColor.setHex(L.ink); dustK = L.dust != null ? L.dust : 1;
@@ -2156,7 +2163,7 @@ function boot() {
         sh.uniforms.soilMap = { value: st };
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float soil; varying float vSoil;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvSoil = soil;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D soilMap; varying float vSoil;')
-          .replace('#include <map_fragment>', '#ifdef USE_MAP\n vec4 texelColor = mix(texture2D(map, vUv), texture2D(soilMap, vUv * 1.7), smoothstep(0.1, 0.8, vSoil));\n diffuseColor *= texelColor;\n#endif');
+          .replace('#include <map_fragment>', '#ifdef USE_MAP\n vec4 texelColor = mix(texture2D(map, vMapUv), texture2D(soilMap, vMapUv * 1.7), smoothstep(0.1, 0.8, vSoil));\n diffuseColor *= texelColor;\n#endif');
       };
       m.customProgramCacheKey = () => 'ground-soil';
     }

@@ -136,7 +136,7 @@
         sh.uniforms.soilMap = { value: st };
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float soil; varying float vSoil;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvSoil = soil;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D soilMap; varying float vSoil;')
-          .replace('#include <map_fragment>', '#ifdef USE_MAP\n vec4 texelColor = mix(texture2D(map, vUv), texture2D(soilMap, vUv * 1.7), smoothstep(0.1, 0.8, vSoil));\n diffuseColor *= texelColor;\n#endif');
+          .replace('#include <map_fragment>', '#ifdef USE_MAP\n vec4 texelColor = mix(texture2D(map, vMapUv), texture2D(soilMap, vMapUv * 1.7), smoothstep(0.1, 0.8, vSoil));\n diffuseColor *= texelColor;\n#endif');
       };
       m.customProgramCacheKey = () => 'ground-soil';
     }
