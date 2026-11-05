@@ -48,7 +48,5 @@
     },
     "minTouchPx": 40
   },
-  "knownIssues": {
-    "race: touch controls do not overlap the HUD": "Minimap distance label overlaps the top of the HB button by ~14 px on 800x360. Logged 2026-11-04 in docs/roadmap.md; remove this entry when fixed."
-  }
+  "knownIssues": {}
 }
