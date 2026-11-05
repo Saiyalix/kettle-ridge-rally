@@ -15,7 +15,7 @@
       varying float vA; varying vec3 vC;
       void main(){ vA = aAlpha; vC = aColor; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = aSize * uScale / -mv.z; gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying float vA; varying vec3 vC;
-      void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(vC, vA * (1.0 - d * 2.0) * 1.2); }`,
+      void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(pow(vC, vec3(2.2)), vA * (1.0 - d * 2.0) * 1.2); }`,
   });
   const points = new THREE.Points(pGeo, pMat);
   points.frustumCulled = false;

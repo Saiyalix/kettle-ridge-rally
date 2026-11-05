@@ -22,7 +22,7 @@
       add(bodyG, paint, 0, -0.04, 0); add(cabG, glassM, 0, 0.47, -0.25); add(skirtG, stripe, 0, -0.18, 0);
       add(stripeG, stripe, 0.26, 0.215, 1.25); add(stripeG, stripe, -0.26, 0.215, 1.25); add(wingG, darkM, 0, 0.62, -1.9);
       const nc = document.createElement('canvas'); nc.width = nc.height = 128; drawNumber(nc, String(i + 10));
-      const nm = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(nc), transparent: true });
+      const nm = new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(nc)), transparent: true });
       const p1 = add(new THREE.PlaneGeometry(0.5, 0.5), nm, 0.835, 0, 0.1); p1.rotation.y = Math.PI / 2; p1.castShadow = false;
       const p2 = add(new THREE.PlaneGeometry(0.5, 0.5), nm, -0.835, 0, 0.1); p2.rotation.y = -Math.PI / 2; p2.castShadow = false;
       const wheels = [[0.79, 1.24], [-0.79, 1.24], [0.79, -1.33], [-0.79, -1.33]].map(([x, z]) => add(wheelG, tyreM, x, -0.19, z));

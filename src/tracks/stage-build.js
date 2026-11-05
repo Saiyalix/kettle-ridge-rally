@@ -20,7 +20,7 @@
     m.castShadow = opts.shadow !== false; m.receiveShadow = true;
     add(m); return m;
   }
-  const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; };
+  const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return srgb(t); };
 
   /* ---------- ground ---------- */
   function buildGround(rng) {

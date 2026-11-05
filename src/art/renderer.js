@@ -1,10 +1,17 @@
   /* ---------- renderer, scene, lights ---------- */
   const canvas = document.getElementById('scene');
-  // The look was tuned on r128, which did no colour conversion: colours, textures and lighting all lived in one
-  // "display" space and the post-process shader worked on those values directly. Keep that on purpose (PS2 style).
-  THREE.ColorManagement.enabled = false;
+  // Colour-managed pipeline: hex colours and canvas textures are sRGB (what you see in a paint program), three.js converts
+  // them to linear for lighting and fog. The scene is drawn into a linear (half-float) target; the post pass does the
+  // tone mapping and the sRGB conversion once, at the very end (art/post-process.js). Stage looks set `exposure`.
+  THREE.ColorManagement.enabled = true;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;          // no conversion on output (see above); the post pass writes the final pixels
+  renderer.outputColorSpace = THREE.SRGBColorSpace;               // only the post pass draws to the screen
+  renderer.toneMapping = THREE.NeutralToneMapping;                // Khronos PBR Neutral: keeps the painted colours, only squeezes highlights
+  renderer.toneMappingExposure = 1;
+  // Vertex colours and instance colours in this game are authored as sRGB-looking numbers (0..1). three.js treats the
+  // attribute as linear, so decode it in the shader (one cheap pow per vertex), once for every material.
+  THREE.ShaderChunk.color_vertex = THREE.ShaderChunk.color_vertex.replace(/(\bvColor\.rgb \*= color;)/, 'vColor.rgb *= pow(color, vec3(2.2));').replace(/(\bvColor\.rgb \*= instanceColor\.rgb;)/, 'vColor.rgb *= pow(instanceColor.rgb, vec3(2.2));');
+  const srgb = (t) => { t.colorSpace = THREE.SRGBColorSpace; return t; };           // mark a colour texture (data textures stay linear)
   renderer.setPixelRatio(1);                                      // the post pass renders at a lower internal resolution anyway
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -19,7 +26,7 @@
   const maxAniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   function makeTex(w, h, draw) {
     const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return t;
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return srgb(t);
   }
   const trng = mulberry32(99);
   const wrapDraw = (g, w, h, x, y, fn) => { for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) fn(x + dx, y + dy); };   // seamless tiling
@@ -32,7 +39,7 @@
   };
   // tiny cube map of the sky and ground, so car paint and glass catch a reflection (repainted per stage by paintEnv)
   const envFaces = [0, 1, 2, 3, 4, 5].map(() => { const c = document.createElement('canvas'); c.width = c.height = 64; return c; });
-  const envMap = new THREE.CubeTexture(envFaces);
+  const envMap = srgb(new THREE.CubeTexture(envFaces));
   function paintEnv(top, horizon, ground) {
     const hex = (n) => '#' + n.toString(16).padStart(6, '0'), mix = (a, b, t) => { const f = (s) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t); return (f(16) << 16) | (f(8) << 8) | f(0); };
     envFaces.forEach((c, i) => {
@@ -41,7 +48,14 @@
       else if (i === 3) { g.fillStyle = hex(ground); g.fillRect(0, 0, 64, 64); }
       else { const grd = g.createLinearGradient(0, 0, 0, 64); grd.addColorStop(0, hex(top)); grd.addColorStop(0.48, hex(horizon)); grd.addColorStop(0.52, hex(mix(ground, horizon, 0.3))); grd.addColorStop(1, hex(ground)); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); }
     });
-    envMap.needsUpdate = true;
+    envMap.needsUpdate = true; envDirty = true;
+  }
+  // the clear-coated car paint (high quality only) needs the sky picture as a blurred environment map: made on first use after each stage change
+  let envDirty = true, envPM = null, pmremGen = null;
+  function envPMREM() {
+    if (!pmremGen) pmremGen = new THREE.PMREMGenerator(renderer);
+    if (envDirty || !envPM) { envPM = pmremGen.fromCubemap(envMap, envPM); envDirty = false; }
+    return envPM.texture;
   }
   paintEnv(0x8ec5ff, 0xe8f4ff, 0x5a6a3a);
   const paintMat = (color) => new THREE.MeshPhongMaterial({ color, specular: 0x666666, shininess: 80, envMap, reflectivity: 0.22, combine: THREE.MixOperation });
@@ -65,10 +79,10 @@
     curLook = L;
     skyCol.setHex(L.horizon); scene.fog.color.setHex(L.horizon);        // (the fog keeps its own copy of the colour)
     scene.fog.near = L.fogNear; scene.fog.far = L.fogFar;
-    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi * Math.PI;      // x PI: r155+ lights are physical; this keeps the old strengths
+    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi;
     // the sun (or the moon at night): colour, strength and direction, from an elevation and compass bearing in degrees
     const el = (L.lightEl != null ? L.lightEl : L.sunEl) * Math.PI / 180, az = (L.lightAz != null ? L.lightAz : L.sunAz) * Math.PI / 180;      // lightEl / lightAz: when the light comes from somewhere other than the disc in the sky
-    sun.color.setHex(L.sun); sun.intensity = L.sunI * Math.PI;
+    sun.color.setHex(L.sun); sun.intensity = L.sunI; renderer.toneMappingExposure = L.exposure != null ? L.exposure : 1;
     sunOffset.set(Math.sin(az) * Math.cos(el) * 140, Math.sin(el) * 140, Math.cos(az) * Math.cos(el) * 140);
     sun.shadow.bias = L.shadowBias != null ? L.shadowBias : -0.0008; sun.shadow.normalBias = L.shadowNormal || 0;
     inkColor.setHex(L.ink); dustK = L.dust != null ? L.dust : 1;

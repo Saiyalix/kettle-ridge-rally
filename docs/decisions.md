@@ -151,3 +151,14 @@ Stage moods (owner can change them later): SS1 Kettle Ridge = bright day with pa
 
 ## 2026-11-05 · Art: graphics step 2b, player cars as 3D models with 4 liveries each
 Kestrel GT4 (wide low 4WD coupe, big rear wing) and Strada HF (short boxy hatch, roof spoiler) are built in code: lofted body shells, arch tunnels, glass, wheels with spokes. Wheel positions, radius and centre of mass are unchanged (driving identical: handling and bot tests unchanged). Liveries are data in `CONFIG.cars[i].liveries` (4 per car), painted onto one atlas texture (1024x1152 high, 512x576 low). Choice is remembered in localStorage `rallyLivery:<carId>`. `CONFIG.cars[i].paint/stripe/skirt/number` stay = default livery for the menu swatches. Low quality: Lambert materials, no env reflection, coarser mesh, half-size texture. No expected test values changed.
+
+## 2026-11-05 · Art: graphics step 5, colour-managed (sRGB) lighting
+Colour management is ON (`ColorManagement.enabled`, output sRGB). Hex colours and every colour canvas texture (road, ground, scenery, signs, livery, plates, dial, env map, backdrop ring) are sRGB and converted to linear for lighting and fog. Vertex and instance colours (authored as display numbers) are decoded by a one-line patch of three's `color_vertex` chunk. The sky dome keeps painting in display colours and converts once at the end of its shader, so its gradients look as before; dust particles decode in their shader.
+- The scene is drawn into a linear half-float target (8-bit fallback if the device cannot); the existing post pass does bloom (linear), then tone mapping (Khronos Neutral, chosen because it keeps painted hex colours and only squeezes highlights), then the sRGB conversion once, then the grade (tint, saturation, contrast, vignette) in display space as before. No new pass, also on low.
+- Lights are no longer multiplied by pi; `look.sunI` and `look.hemi` are now physical values (about pi times the old ones). New optional `look.exposure`: SS1 1.1, SS2 1.0, SS3 0.85.
+- Retuned looks: SS1 greener ground bounce, SS2 stronger low sun and less saturation, SS3 darker moon and sky light; night windows and glow textures adjusted because additive light is now added in linear.
+- Car paint env reflection 0.5 to 0.3 (the linear pipeline made the paint pale). No handling, bot or expected values changed.
+
+## 2026-11-05 · Art: sRGB step follow-up (night pool, car gloss)
+- The night headlight pool was never drawn (its triangles faced down and were culled); it is now double-sided, warm-white, narrower, strength 0.35. Street-lamp pools are less orange (they tinted the road pink). Night road self-light 0.36 to 0.8; the moon light on SS3 2.4 to 2.0 (darker blue car).
+- High quality car paint is now MeshPhysicalMaterial with clearcoat (roughness 0.4, clearcoat 1) lit by a blurred copy of the stage's sky (PMREM, rebuilt once per stage on high only). Low keeps Lambert. Rival cars unchanged.

@@ -21,7 +21,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 Style: a modern rendition of a 1990s arcade rally look, retro styling at higher resolution; original designs only. Handling tests must still pass at every step.
 Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile with each step. Steps 1, 2, 3 and 6 are done.
 1. **Player cars as detailed 3D models + 4 liveries each, menu picker** (branch `gfx/4-cars-liveries`): in review; will be Done on merge. Kestrel GT4 = wide 4WD coupe (two-element wing, splitter, lit pop-up-style headlights), Strada HF = boxy hatch (bolted box flares, roof spoiler); glossy sky-reflecting paint, brake lights; 4 liveries each (Kestrel: Ridgeline, Midnight Blue, Magma, Alpine Mint; Strada: Signal Red, Lime Rush, Violet Storm, Arctic Shard), "Paint" picker in the menu, remembered per car; simpler car on Low quality. (art, ui-mobile)
-2. **Colour-managed (sRGB) lighting pipeline**: follow-up from the three.js upgrade, split out of the cars step to keep it reviewable. (art)
+2. **Colour-managed (sRGB) lighting pipeline**: follow-up from the three.js upgrade, split out of the cars step to keep it reviewable. In review on branch `gfx/5-srgb-lighting`: done on merge. (art)
 3. **Rival cars with their own liveries.** (art)
 4. **Buildings as 3D models, including Japanese-style for Sakura Touge.** (art, tracks)
 5. **Trees and nature**: denser, layered trees, grass, rocks; night colours of sakura trees and rice paddies. (art, tracks)

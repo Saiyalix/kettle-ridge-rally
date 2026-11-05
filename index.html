@@ -696,7 +696,7 @@ const STAGES = [
     // look: bright day. Big painted cumulus on deep blue, crisp sun. (sunEl / sunAz = degrees above the horizon / compass bearing, 0 = start direction)
     look: {
       skyTop: 0x1a5fd8, skyMid: 0x4a9cf2, horizon: 0xcfe8ff, fogNear: 150, fogFar: 640,
-      hemiSky: 0xdcefff, hemiGround: 0x6a7fb0, hemi: 0.5, sun: 0xfff1d8, sunI: 0.95, sunEl: 52, sunAz: -123,
+      hemiSky: 0xdcefff, hemiGround: 0x5c7050, hemi: 1.1, sun: 0xfff1d8, sunI: 3.6, exposure: 1.1, sunEl: 52, sunAz: -123,
       ink: 0x1c2440, env: [0x7ab8ff, 0xeaf5ff, 0x5a6a3a],
       sky: { clouds: 'cumulus', seed: 5, sunCol: 0xfffbe8, sunSize: 0.03, glowCol: 0xfff0c0, glowAmt: 0.35, band: 0, shade: 0x9fb8e0, lit: 0xffffff, rim: 0xfff4cc },
       ridge: [
@@ -732,8 +732,8 @@ const STAGES = [
     ],
     // look: late-afternoon sunset. Low warm sun, long shadows, orange-purple sky, purple haze in the distance
     look: {
-      skyTop: 0x241a68, skyMid: 0x9a4f9e, horizon: 0xc882a6, fogNear: 200, fogFar: 900,
-      hemiSky: 0xb8a4ec, hemiGround: 0x50407a, hemi: 0.7, sun: 0xffb06a, sunI: 1.2, sunEl: 17, sunAz: -60,
+      skyTop: 0x241a68, skyMid: 0x9a4f9e, horizon: 0xb877a8, fogNear: 200, fogFar: 900,
+      hemiSky: 0xb8a4ec, hemiGround: 0x50407a, hemi: 2.2, sun: 0xffbf86, sunI: 6.2, exposure: 1.0, sunEl: 17, sunAz: -60,
       ink: 0x2a1c44, env: [0x6a4a9a, 0xff9a70, 0x4a3050], shadowBias: -0.0006, shadowNormal: 0.05, dust: 0.8,
       sky: { clouds: 'sunset', seed: 12, sunCol: 0xfff2c0, sunSize: 0.05, glowCol: 0xff9238, glowAmt: 0.9, band: 0.9, shade: 0x4a2a70, lit: 0xff9a52, rim: 0xffe08a },
       ridge: [
@@ -743,7 +743,7 @@ const STAGES = [
         { col: 0x5b3d7e, base: -36, amp: 46, per: 10, oct: 3, jag: 0, mist: 0.3, trees: 1 },
       ],
       noPeaks: true,
-      grade: { tint: [1.04, 0.98, 0.95], lift: [0.012, 0.0, 0.03], sat: 1.15, con: 1.08, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
+      grade: { tint: [1.04, 0.98, 0.95], lift: [0.012, 0.0, 0.03], sat: 1.0, con: 1.1, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
       grassA: [0.42, 0.62, 0.30], grassB: [0.56, 0.68, 0.34], dirt: [0.70, 0.56, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.50, 0.43, 0.47],
     },
   },
@@ -769,7 +769,7 @@ const STAGES = [
     look: {
       night: true, flare: false, dust: 0.45,
       skyTop: 0x03051a, skyMid: 0x0e1650, horizon: 0x1f2658, fogNear: 110, fogFar: 560,
-      hemiSky: 0x8a9af0, hemiGround: 0x2e2e60, hemi: 0.72, sun: 0xa8b8ff, sunI: 0.5, sunEl: 10, sunAz: 12, lightEl: 38, lightAz: 12,
+      hemiSky: 0x7080e8, hemiGround: 0x20285a, hemi: 1.5, sun: 0x9fb0ff, sunI: 2.0, exposure: 0.85, sunEl: 10, sunAz: 12, lightEl: 38, lightAz: 12,
       ink: 0x10142c, env: [0x141a48, 0x3a4090, 0x10142c], shadowBias: -0.0006, shadowNormal: 0.04,
       sky: { clouds: 'night', seed: 31, stars: 1, moon: 1, city: 1, cityAt: 0, sunCol: 0xf6f2e4, sunSize: 0.045, glowCol: 0x7c88e8, glowAmt: 0.5, band: 0.35, shade: 0x070a1e, lit: 0x4a5a98, rim: 0x9fb0f0 },
       ridge: [
@@ -777,7 +777,7 @@ const STAGES = [
         { col: 0x090c26, base: -6, amp: 20, per: 9, oct: 3, jag: 0, mist: 0.1, trees: 1 },
       ],
       noPeaks: true, peak: [0x0c1138, 0x4a528c],
-      nightGlow: { road: 0x9aa4c8, roadI: 0.36, reach: 40, pool: 0.5 },
+      nightGlow: { road: 0x9aa4c8, roadI: 0.8, reach: 40, pool: 0.35 },
       grade: { tint: [0.95, 0.98, 1.06], lift: [0.004, 0.008, 0.024], sat: 1.12, con: 1.1, bloom: 0.55, thresh: 0.78, bloom2: 0.4, vig: 0.42 },
       grassA: [0.36, 0.60, 0.30], grassB: [0.50, 0.68, 0.30], dirt: [0.72, 0.58, 0.42], snow: [0.9, 0.94, 1.0], rock: [0.60, 0.56, 0.62],
     },
@@ -1635,11 +1635,18 @@ function boot() {
 
   /* ---------- renderer, scene, lights ---------- */
   const canvas = document.getElementById('scene');
-  // The look was tuned on r128, which did no colour conversion: colours, textures and lighting all lived in one
-  // "display" space and the post-process shader worked on those values directly. Keep that on purpose (PS2 style).
-  THREE.ColorManagement.enabled = false;
+  // Colour-managed pipeline: hex colours and canvas textures are sRGB (what you see in a paint program), three.js converts
+  // them to linear for lighting and fog. The scene is drawn into a linear (half-float) target; the post pass does the
+  // tone mapping and the sRGB conversion once, at the very end (art/post-process.js). Stage looks set `exposure`.
+  THREE.ColorManagement.enabled = true;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;          // no conversion on output (see above); the post pass writes the final pixels
+  renderer.outputColorSpace = THREE.SRGBColorSpace;               // only the post pass draws to the screen
+  renderer.toneMapping = THREE.NeutralToneMapping;                // Khronos PBR Neutral: keeps the painted colours, only squeezes highlights
+  renderer.toneMappingExposure = 1;
+  // Vertex colours and instance colours in this game are authored as sRGB-looking numbers (0..1). three.js treats the
+  // attribute as linear, so decode it in the shader (one cheap pow per vertex), once for every material.
+  THREE.ShaderChunk.color_vertex = THREE.ShaderChunk.color_vertex.replace(/(\bvColor\.rgb \*= color;)/, 'vColor.rgb *= pow(color, vec3(2.2));').replace(/(\bvColor\.rgb \*= instanceColor\.rgb;)/, 'vColor.rgb *= pow(instanceColor.rgb, vec3(2.2));');
+  const srgb = (t) => { t.colorSpace = THREE.SRGBColorSpace; return t; };           // mark a colour texture (data textures stay linear)
   renderer.setPixelRatio(1);                                      // the post pass renders at a lower internal resolution anyway
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -1654,7 +1661,7 @@ function boot() {
   const maxAniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   function makeTex(w, h, draw) {
     const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return t;
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return srgb(t);
   }
   const trng = mulberry32(99);
   const wrapDraw = (g, w, h, x, y, fn) => { for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) fn(x + dx, y + dy); };   // seamless tiling
@@ -1667,7 +1674,7 @@ function boot() {
   };
   // tiny cube map of the sky and ground, so car paint and glass catch a reflection (repainted per stage by paintEnv)
   const envFaces = [0, 1, 2, 3, 4, 5].map(() => { const c = document.createElement('canvas'); c.width = c.height = 64; return c; });
-  const envMap = new THREE.CubeTexture(envFaces);
+  const envMap = srgb(new THREE.CubeTexture(envFaces));
   function paintEnv(top, horizon, ground) {
     const hex = (n) => '#' + n.toString(16).padStart(6, '0'), mix = (a, b, t) => { const f = (s) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t); return (f(16) << 16) | (f(8) << 8) | f(0); };
     envFaces.forEach((c, i) => {
@@ -1676,7 +1683,14 @@ function boot() {
       else if (i === 3) { g.fillStyle = hex(ground); g.fillRect(0, 0, 64, 64); }
       else { const grd = g.createLinearGradient(0, 0, 0, 64); grd.addColorStop(0, hex(top)); grd.addColorStop(0.48, hex(horizon)); grd.addColorStop(0.52, hex(mix(ground, horizon, 0.3))); grd.addColorStop(1, hex(ground)); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); }
     });
-    envMap.needsUpdate = true;
+    envMap.needsUpdate = true; envDirty = true;
+  }
+  // the clear-coated car paint (high quality only) needs the sky picture as a blurred environment map: made on first use after each stage change
+  let envDirty = true, envPM = null, pmremGen = null;
+  function envPMREM() {
+    if (!pmremGen) pmremGen = new THREE.PMREMGenerator(renderer);
+    if (envDirty || !envPM) { envPM = pmremGen.fromCubemap(envMap, envPM); envDirty = false; }
+    return envPM.texture;
   }
   paintEnv(0x8ec5ff, 0xe8f4ff, 0x5a6a3a);
   const paintMat = (color) => new THREE.MeshPhongMaterial({ color, specular: 0x666666, shininess: 80, envMap, reflectivity: 0.22, combine: THREE.MixOperation });
@@ -1700,10 +1714,10 @@ function boot() {
     curLook = L;
     skyCol.setHex(L.horizon); scene.fog.color.setHex(L.horizon);        // (the fog keeps its own copy of the colour)
     scene.fog.near = L.fogNear; scene.fog.far = L.fogFar;
-    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi * Math.PI;      // x PI: r155+ lights are physical; this keeps the old strengths
+    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi;
     // the sun (or the moon at night): colour, strength and direction, from an elevation and compass bearing in degrees
     const el = (L.lightEl != null ? L.lightEl : L.sunEl) * Math.PI / 180, az = (L.lightAz != null ? L.lightAz : L.sunAz) * Math.PI / 180;      // lightEl / lightAz: when the light comes from somewhere other than the disc in the sky
-    sun.color.setHex(L.sun); sun.intensity = L.sunI * Math.PI;
+    sun.color.setHex(L.sun); sun.intensity = L.sunI; renderer.toneMappingExposure = L.exposure != null ? L.exposure : 1;
     sunOffset.set(Math.sin(az) * Math.cos(el) * 140, Math.sin(el) * 140, Math.cos(az) * Math.cos(el) * 140);
     sun.shadow.bias = L.shadowBias != null ? L.shadowBias : -0.0008; sun.shadow.normalBias = L.shadowNormal || 0;
     inkColor.setHex(L.ink); dustK = L.dust != null ? L.dust : 1;
@@ -1727,11 +1741,11 @@ function boot() {
      The ring is a cylinder around the camera at 1850 m with the ridge silhouettes. Its foot is the fog colour,
      so the far ground melts into it. Both follow the camera, so they never come closer.
      Stage looks set it all in `look.sky` and `look.ridge` (see tracks/stages.js). 'low' draws the same pictures at half size. */
-  const DEG = Math.PI / 180;
+  const DEG = Math.PI / 180, RAW = THREE.LinearSRGBColorSpace;           // RAW: take the hex numbers as they are (no sRGB -> linear): the sky shader works in display colours
   const SKY_EL = 45;                                                   // degrees of sky covered by the painted cloud texture
   const RING_R = 1850, RING_LO = -200, RING_HI = 320;                  // ring: radius and the heights (m, relative to the eye) it spans
   const skyU = {
-    top: { value: new THREE.Color(0x2f7fe0) }, mid: { value: new THREE.Color(0x7cc2ff) }, bottom: { value: skyCol },
+    top: { value: new THREE.Color(0x2f7fe0) }, mid: { value: new THREE.Color(0x7cc2ff) }, bottom: { value: new THREE.Color(0xc4e8ff) },
     tSky: { value: null }, tMoon: { value: null },
     uElMax: { value: Math.sin(SKY_EL * DEG) }, uDrift: { value: 0 }, uTime: { value: 0 }, uStars: { value: 0 }, uMoon: { value: 0 },
     uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSunSize: { value: 0.03 }, uSunCos: { value: new THREE.Vector2(0.9, 0.95) },
@@ -1783,12 +1797,12 @@ function boot() {
         cc = mix(cc, uRim, pow(pc, 3.0) * smoothstep(0.4, 1.0, p.r));
         cc = mix(cc, bottom, (1.0 - smoothstep(0.0, 0.3, t)) * 0.5);                               // far clouds melt into the haze
         c = mix(c, cc, p.a * smoothstep(0.0, 0.03, t));
-        gl_FragColor = vec4(c, 1.0);
+        gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), 1.0);                                // the dome is painted in display colours (gradients, glow, stars all as before); to linear for the scene target
       }`,
   }));
   scene.add(sky);
 
-  const ringMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(document.createElement('canvas')), transparent: true, depthWrite: false, fog: false, side: THREE.BackSide });
+  const ringMat = new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(document.createElement('canvas'))), transparent: true, depthWrite: false, fog: false, side: THREE.BackSide });
   const ring = new THREE.Mesh(new THREE.CylinderGeometry(RING_R, RING_R, RING_HI - RING_LO, 64, 1, true), ringMat);
   ring.frustumCulled = false; scene.add(ring);
 
@@ -1914,17 +1928,17 @@ function boot() {
     const sc = skyCanvas(4096 / k, 512 / k), rc = skyCanvas(4096 / k, 256 / k);
     paintSkyLayer(sc.getContext('2d'), sc.width, sc.height, L);
     paintBackdrop(rc.getContext('2d'), rc.width, rc.height, L);
-    const texSky = skyTexture(sc), texRing = skyTexture(rc), textures = [texSky, texRing];
+    const texSky = skyTexture(sc), texRing = srgb(skyTexture(rc)), textures = [texSky, texRing];
     texRing.wrapT = THREE.ClampToEdgeWrapping;
     skyU.tSky.value = texSky; ringMat.map = texRing; ringMat.needsUpdate = true;
     if (S.moon) { const tm = new THREE.CanvasTexture(paintMoon(low ? 128 : 256)); tm.wrapS = tm.wrapT = THREE.ClampToEdgeWrapping; skyU.tMoon.value = tm; textures.push(tm); }
     else skyU.tMoon.value = texSky;
-    skyU.top.value.setHex(L.skyTop); skyU.mid.value.setHex(L.skyMid);
+    skyU.top.value.setHex(L.skyTop, RAW); skyU.mid.value.setHex(L.skyMid, RAW); skyU.bottom.value.setHex(L.horizon, RAW);
     const el = L.sunEl * DEG, az = L.sunAz * DEG;
     skyU.uSunDir.value.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
-    skyU.uSunCol.value.setHex(S.sunCol); skyU.uSunSize.value = S.sunSize; skyU.uSunCos.value.set(Math.cos(S.sunSize), Math.cos(S.sunSize * 0.85)); skyU.uMoon.value = S.moon ? 1 : 0;
-    skyU.uGlowCol.value.setHex(S.glowCol); skyU.uGlowAmt.value = S.glowAmt; skyU.uBand.value = S.band || 0;
-    skyU.uShade.value.setHex(S.shade); skyU.uLit.value.setHex(S.lit); skyU.uRim.value.setHex(S.rim);
+    skyU.uSunCol.value.setHex(S.sunCol, RAW); skyU.uSunSize.value = S.sunSize; skyU.uSunCos.value.set(Math.cos(S.sunSize), Math.cos(S.sunSize * 0.85)); skyU.uMoon.value = S.moon ? 1 : 0;
+    skyU.uGlowCol.value.setHex(S.glowCol, RAW); skyU.uGlowAmt.value = S.glowAmt; skyU.uBand.value = S.band || 0;
+    skyU.uShade.value.setHex(S.shade, RAW); skyU.uLit.value.setHex(S.lit, RAW); skyU.uRim.value.setHex(S.rim, RAW);
     skyU.uStars.value = S.stars ? 1 : 0;
     skyBuilt = { look: L, low, textures };
   }
@@ -1962,9 +1976,9 @@ function boot() {
      Other files add glow dots with glowSpots.push({ x, y, z, c: 0xrrggbb, size }) while they build the stage. */
   const glowSpots = [];
   const NIGHT = { pool: null, grid: null };
-  function glowTexture(size, falloff) {
+  function glowTexture(size, falloff) {          // (glow is added in linear light now: the 0.55 power keeps the old brightness)
     const c = skyCanvas(size, size), g = c.getContext('2d'), R = size / 2, gr = g.createRadialGradient(R, R, 0, R, R, R);
-    for (let i = 0; i <= 8; i++) { const t = i / 8, v = Math.pow(1 - t, falloff); gr.addColorStop(t, `rgba(255,255,255,${v})`); }
+    for (let i = 0; i <= 8; i++) { const u = i / 8, v = Math.pow(Math.pow(1 - u, falloff), 0.55); gr.addColorStop(u, `rgba(255,255,255,${v})`); }
     g.fillStyle = gr; g.fillRect(0, 0, size, size);
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
   }
@@ -2012,7 +2026,7 @@ function boot() {
     }
     if (pools.length) {
       const m = new THREE.MeshBasicMaterial({ map: glowTexture(64, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
-      const warm = [new THREE.Color(0.7, 0.55, 0.32), new THREE.Color(0.8, 0.4, 0.14)];
+      const warm = [new THREE.Color(0.62, 0.58, 0.5), new THREE.Color(0.8, 0.5, 0.3)];
       const im = instanced(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), m, pools, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(q.s); }, { shadow: false, color: (c, q) => c.copy(warm[q.c]) });
       im.renderOrder = 4;
     }
@@ -2031,11 +2045,11 @@ function boot() {
     const tex = skyCanvas(128, 256), g = tex.getContext('2d'), img = g.createImageData(128, 256);
     for (let y = 0; y < 256; y++) for (let x = 0; x < 128; x++) {
       const u = x / 127 * 2 - 1, v = 1 - y / 255, a = Math.exp(-Math.pow((Math.abs(u) - 0.3) / 0.38, 2)), b = Math.exp(-u * u / 0.5), k = (0.4 * a + 0.6 * b) * Math.pow(1 - v, 1.7) * Math.min(1, v * 14 + 0.25) * (1 - Math.pow(Math.abs(u), 3));
-      const o = (y * 128 + x) * 4; img.data[o] = 255 * k; img.data[o + 1] = 240 * k; img.data[o + 2] = 205 * k; img.data[o + 3] = 255;
+      const o = (y * 128 + x) * 4, kk = Math.pow(k, 0.5); img.data[o] = 255 * kk; img.data[o + 1] = 240 * kk; img.data[o + 2] = 205 * kk; img.data[o + 3] = 255;
     }
     g.putImageData(img, 0, 0);
     const pt = new THREE.CanvasTexture(tex); pt.wrapS = pt.wrapT = THREE.ClampToEdgeWrapping;
-    const pool = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, opacity: 1 }));
+    const pool = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: pt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, opacity: 1 }));
     pool.frustumCulled = false; pool.renderOrder = 5; add(pool);
     NIGHT.pool = pool; NIGHT.grid = { N, M, pos: pp, reach: gl.reach || 40, power: gl.pool != null ? gl.pool : 1 };
     pool.material.color.setScalar(NIGHT.grid.power);
@@ -2047,7 +2061,7 @@ function boot() {
     let fx = vFwd.x, fz = vFwd.z; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l;
     const rx = fz, rz = -fx;
     for (let j = 0; j < M; j++) {
-      const t = j / (M - 1), z = 1.4 + t * t * (reach - 1.4) * 0.5 + t * (reach - 1.4) * 0.5, hw = 1.5 + z * 0.3;
+      const t = j / (M - 1), z = 1.4 + t * t * (reach - 1.4) * 0.5 + t * (reach - 1.4) * 0.5, hw = 1.5 + z * 0.17;
       for (let i = 0; i < N; i++) {
         const x = (i / (N - 1) * 2 - 1) * hw, wx = vPos.x + fx * z + rx * x, wz = vPos.z + fz * z + rz * x, k = (j * N + i) * 3;
         pos[k] = wx; pos[k + 1] = terrain.heightAt(wx, wz) + 0.14; pos[k + 2] = wz;
@@ -2360,7 +2374,7 @@ function boot() {
     m.castShadow = opts.shadow !== false; m.receiveShadow = true;
     add(m); return m;
   }
-  const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; };
+  const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return srgb(t); };
 
   /* ---------- ground ---------- */
   function buildGround(rng) {
@@ -3037,7 +3051,7 @@ function boot() {
     const r2 = mulberry32(77);
     const litTex = canvasTex(256, 256, (g) => {
       g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256);
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r2() < (ST.look.night ? 0.8 : 0.55)) { g.fillStyle = r2() < 0.7 ? '#ffd38a' : '#bfe3ff'; g.fillRect(i * 64 + 12, j * 64 + 14, 40, 34); }
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r2() < (ST.look.night ? 0.8 : 0.55)) { g.fillStyle = r2() < 0.7 ? '#fff0b8' : '#d4ecff'; g.fillRect(i * 64 + 12, j * 64 + 14, 40, 34); }
     });
     for (const t of [winTex, litTex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
     const bMat = lit({ map: winTex, emissiveMap: litTex, emissive: 0xffffff, emissiveIntensity: ST.look.night ? 1.05 : 0.85, vertexColors: true });
@@ -3637,7 +3651,7 @@ function boot() {
     g.fillStyle = '#16335f'; g.fillRect(0, 0, 40, 64); g.fillStyle = '#fff'; g.font = `800 20px ${LFONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('KR', 20, 32);
     g.fillStyle = '#111'; g.font = `800 46px ${LFONT}`; g.fillText(text, 150, 35);
     g.strokeStyle = '#111'; g.lineWidth = 4; g.strokeRect(2, 2, 252, 60);
-    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return srgb(t);
   }
   // round door-number disc (also used by the rival cars in tracks/rivals.js)
   function drawNumber(c, num) {
@@ -3921,9 +3935,8 @@ function boot() {
       m.dark = new THREE.MeshLambertMaterial({ vertexColors: true }); m.trim = m.dark;
       m.glass = new THREE.MeshLambertMaterial({ color: 0x2a3d50 });
     } else {
-      m.paint = new THREE.MeshPhongMaterial({ map: carTex, vertexColors: true, specular: 0xffffff, shininess: 110, envMap, reflectivity: 0.5, combine: THREE.MixOperation });
-      m.paint.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <envmap_fragment>', 'specularStrength *= 0.14 + 1.0 * pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.2);\n#include <envmap_fragment>'); };
-      m.paint.customProgramCacheKey = () => 'carpaint';
+      // glossy clear-coated paint: a satin base under a sharp lacquer layer that mirrors the sky (physical material, high quality only)
+      m.paint = new THREE.MeshPhysicalMaterial({ map: carTex, vertexColors: true, roughness: 0.4, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, envMap: envPMREM(), envMapIntensity: 0.65 });
       m.dark = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x333333, shininess: 30, envMap, reflectivity: 0.12, combine: THREE.MixOperation });
       m.trim = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0xffffff, shininess: 90, envMap, reflectivity: 0.5, combine: THREE.MixOperation });
       m.glass = new THREE.MeshPhongMaterial({ color: 0x22364a, specular: 0xffffff, shininess: 140, envMap, reflectivity: 0.55, combine: THREE.MixOperation });
@@ -3949,7 +3962,7 @@ function boot() {
       const cv = document.createElement('canvas'); cv.width = size; cv.height = Math.round(size * CT.H / CT.W);
       paintLivery(cv, ci, L);
       if (carTex) carTex.dispose();
-      carTex = new THREE.CanvasTexture(cv); carTex.anisotropy = maxAniso; carTex.colorSpace = THREE.NoColorSpace; carTexKey = key;
+      carTex = new THREE.CanvasTexture(cv); carTex.anisotropy = maxAniso; carTex.colorSpace = THREE.SRGBColorSpace; carTexKey = key;
       carStats.texBytes = Math.round(cv.width * cv.height * 4 * 1.33);
     }
     for (const m of carMatsLive) m.dispose();
@@ -4064,7 +4077,7 @@ function boot() {
       if (major) { tg.fillStyle = red ? '#ff4b3e' : '#e9ecef'; tg.font = '700 30px "Saira Condensed", sans-serif'; tg.textAlign = 'center'; tg.textBaseline = 'middle'; tg.fillText(String(v / 1000), 128 + Math.sin(a) * 70, 128 - Math.cos(a) * 70); }
     }
     tg.fillStyle = '#93a2ad'; tg.font = '600 16px "Saira Condensed", sans-serif'; tg.fillText('x1000 rpm', 128, 190);
-    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.058, 32), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(tc) }));
+    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.058, 32), new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(tc)) }));
     dial.position.set(DRV, 0.425, 0.298); dial.rotation.y = Math.PI; cockpit.add(dial);
     needle = new THREE.Group(); needle.position.z = 0.002; dial.add(needle);
     const nm = new THREE.Mesh(new THREE.PlaneGeometry(0.005, 0.05), new THREE.MeshBasicMaterial({ color: 0xff7a1a })); nm.position.y = 0.022; needle.add(nm);
@@ -4138,7 +4151,7 @@ function boot() {
       varying float vA; varying vec3 vC;
       void main(){ vA = aAlpha; vC = aColor; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = aSize * uScale / -mv.z; gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying float vA; varying vec3 vC;
-      void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(vC, vA * (1.0 - d * 2.0) * 1.2); }`,
+      void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(pow(vC, vec3(2.2)), vA * (1.0 - d * 2.0) * 1.2); }`,
   });
   const points = new THREE.Points(pGeo, pMat);
   points.frustumCulled = false;
@@ -4213,7 +4226,7 @@ function boot() {
       add(bodyG, paint, 0, -0.04, 0); add(cabG, glassM, 0, 0.47, -0.25); add(skirtG, stripe, 0, -0.18, 0);
       add(stripeG, stripe, 0.26, 0.215, 1.25); add(stripeG, stripe, -0.26, 0.215, 1.25); add(wingG, darkM, 0, 0.62, -1.9);
       const nc = document.createElement('canvas'); nc.width = nc.height = 128; drawNumber(nc, String(i + 10));
-      const nm = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(nc), transparent: true });
+      const nm = new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(nc)), transparent: true });
       const p1 = add(new THREE.PlaneGeometry(0.5, 0.5), nm, 0.835, 0, 0.1); p1.rotation.y = Math.PI / 2; p1.castShadow = false;
       const p2 = add(new THREE.PlaneGeometry(0.5, 0.5), nm, -0.835, 0, 0.1); p2.rotation.y = -Math.PI / 2; p2.castShadow = false;
       const wheels = [[0.79, 1.24], [-0.79, 1.24], [0.79, -1.33], [-0.79, -1.33]].map(([x, z]) => add(wheelG, tyreM, x, -0.19, z));
@@ -5361,7 +5374,9 @@ function boot() {
      The scene renders at a lower internal resolution and is scaled up, with a soft bloom on bright areas,
      a little extra saturation and contrast, a vignette, and radial motion blur at high speed. */
   const RENDER_SCALE = 0.72;
-  const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  // the scene is drawn here in linear light (half float, so bright highlights are not clipped before the tone mapping); a plain 8-bit target if the phone can't
+  const hdrOk = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
+  const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: hdrOk ? THREE.HalfFloatType : THREE.UnsignedByteType });
   const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -5395,6 +5410,10 @@ function boot() {
           b2 += max(texture2D(tColor, vUv + vec2(0.0, -w.y)).rgb - thresh, 0.0);
           c += b2 * bloom2;
         }
+        gl_FragColor = vec4(c, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        c = gl_FragColor.rgb;                                  // from here on: display (sRGB) values, the grade works like it always did
         c = c * tint + lift;
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         c = mix(vec3(l), c, sat);
@@ -5415,6 +5434,7 @@ function boot() {
   }
   function renderFrame(dt) {
     updateSky(dt); updateNight(); cullFar();
+    if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;
     const kmh = car.speed * 3.6;

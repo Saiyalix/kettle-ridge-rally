@@ -5,11 +5,11 @@
      The ring is a cylinder around the camera at 1850 m with the ridge silhouettes. Its foot is the fog colour,
      so the far ground melts into it. Both follow the camera, so they never come closer.
      Stage looks set it all in `look.sky` and `look.ridge` (see tracks/stages.js). 'low' draws the same pictures at half size. */
-  const DEG = Math.PI / 180;
+  const DEG = Math.PI / 180, RAW = THREE.LinearSRGBColorSpace;           // RAW: take the hex numbers as they are (no sRGB -> linear): the sky shader works in display colours
   const SKY_EL = 45;                                                   // degrees of sky covered by the painted cloud texture
   const RING_R = 1850, RING_LO = -200, RING_HI = 320;                  // ring: radius and the heights (m, relative to the eye) it spans
   const skyU = {
-    top: { value: new THREE.Color(0x2f7fe0) }, mid: { value: new THREE.Color(0x7cc2ff) }, bottom: { value: skyCol },
+    top: { value: new THREE.Color(0x2f7fe0) }, mid: { value: new THREE.Color(0x7cc2ff) }, bottom: { value: new THREE.Color(0xc4e8ff) },
     tSky: { value: null }, tMoon: { value: null },
     uElMax: { value: Math.sin(SKY_EL * DEG) }, uDrift: { value: 0 }, uTime: { value: 0 }, uStars: { value: 0 }, uMoon: { value: 0 },
     uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSunSize: { value: 0.03 }, uSunCos: { value: new THREE.Vector2(0.9, 0.95) },
@@ -61,12 +61,12 @@
         cc = mix(cc, uRim, pow(pc, 3.0) * smoothstep(0.4, 1.0, p.r));
         cc = mix(cc, bottom, (1.0 - smoothstep(0.0, 0.3, t)) * 0.5);                               // far clouds melt into the haze
         c = mix(c, cc, p.a * smoothstep(0.0, 0.03, t));
-        gl_FragColor = vec4(c, 1.0);
+        gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), 1.0);                                // the dome is painted in display colours (gradients, glow, stars all as before); to linear for the scene target
       }`,
   }));
   scene.add(sky);
 
-  const ringMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(document.createElement('canvas')), transparent: true, depthWrite: false, fog: false, side: THREE.BackSide });
+  const ringMat = new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(document.createElement('canvas'))), transparent: true, depthWrite: false, fog: false, side: THREE.BackSide });
   const ring = new THREE.Mesh(new THREE.CylinderGeometry(RING_R, RING_R, RING_HI - RING_LO, 64, 1, true), ringMat);
   ring.frustumCulled = false; scene.add(ring);
 
@@ -192,17 +192,17 @@
     const sc = skyCanvas(4096 / k, 512 / k), rc = skyCanvas(4096 / k, 256 / k);
     paintSkyLayer(sc.getContext('2d'), sc.width, sc.height, L);
     paintBackdrop(rc.getContext('2d'), rc.width, rc.height, L);
-    const texSky = skyTexture(sc), texRing = skyTexture(rc), textures = [texSky, texRing];
+    const texSky = skyTexture(sc), texRing = srgb(skyTexture(rc)), textures = [texSky, texRing];
     texRing.wrapT = THREE.ClampToEdgeWrapping;
     skyU.tSky.value = texSky; ringMat.map = texRing; ringMat.needsUpdate = true;
     if (S.moon) { const tm = new THREE.CanvasTexture(paintMoon(low ? 128 : 256)); tm.wrapS = tm.wrapT = THREE.ClampToEdgeWrapping; skyU.tMoon.value = tm; textures.push(tm); }
     else skyU.tMoon.value = texSky;
-    skyU.top.value.setHex(L.skyTop); skyU.mid.value.setHex(L.skyMid);
+    skyU.top.value.setHex(L.skyTop, RAW); skyU.mid.value.setHex(L.skyMid, RAW); skyU.bottom.value.setHex(L.horizon, RAW);
     const el = L.sunEl * DEG, az = L.sunAz * DEG;
     skyU.uSunDir.value.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
-    skyU.uSunCol.value.setHex(S.sunCol); skyU.uSunSize.value = S.sunSize; skyU.uSunCos.value.set(Math.cos(S.sunSize), Math.cos(S.sunSize * 0.85)); skyU.uMoon.value = S.moon ? 1 : 0;
-    skyU.uGlowCol.value.setHex(S.glowCol); skyU.uGlowAmt.value = S.glowAmt; skyU.uBand.value = S.band || 0;
-    skyU.uShade.value.setHex(S.shade); skyU.uLit.value.setHex(S.lit); skyU.uRim.value.setHex(S.rim);
+    skyU.uSunCol.value.setHex(S.sunCol, RAW); skyU.uSunSize.value = S.sunSize; skyU.uSunCos.value.set(Math.cos(S.sunSize), Math.cos(S.sunSize * 0.85)); skyU.uMoon.value = S.moon ? 1 : 0;
+    skyU.uGlowCol.value.setHex(S.glowCol, RAW); skyU.uGlowAmt.value = S.glowAmt; skyU.uBand.value = S.band || 0;
+    skyU.uShade.value.setHex(S.shade, RAW); skyU.uLit.value.setHex(S.lit, RAW); skyU.uRim.value.setHex(S.rim, RAW);
     skyU.uStars.value = S.stars ? 1 : 0;
     skyBuilt = { look: L, low, textures };
   }
