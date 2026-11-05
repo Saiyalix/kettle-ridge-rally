@@ -10,7 +10,17 @@
   renderer.toneMappingExposure = 1;
   // Vertex colours and instance colours in this game are authored as sRGB-looking numbers (0..1). three.js treats the
   // attribute as linear, so decode it in the shader (one cheap pow per vertex), once for every material.
-  THREE.ShaderChunk.color_vertex = THREE.ShaderChunk.color_vertex.replace(/(\bvColor\.rgb \*= color;)/, 'vColor.rgb *= pow(color, vec3(2.2));').replace(/(\bvColor\.rgb \*= instanceColor\.rgb;)/, 'vColor.rgb *= pow(instanceColor.rgb, vec3(2.2));');
+  {
+    // (If a future three.js changes this chunk, the game would silently lose its colours: say so loudly instead.)
+    let cv = THREE.ShaderChunk.color_vertex;
+    const patches = [[/(\bvColor\.rgb \*= color;)/, 'vColor.rgb *= pow(color, vec3(2.2));', 'vColor.rgb *= color;'], [/(\bvColor\.rgb \*= instanceColor\.rgb;)/, 'vColor.rgb *= pow(instanceColor.rgb, vec3(2.2));', 'vColor.rgb *= instanceColor.rgb;']];
+    for (const [re, rep, what] of patches) {
+      if (re.test(cv)) cv = cv.replace(re, rep);
+      else console.error('art/renderer.js: three.js color_vertex shader chunk has changed: could not find "' + what + '", so vertex colours would be wrong (too bright). Update this patch for three ' + THREE.REVISION + '.');
+    }
+    THREE.ShaderChunk.color_vertex = cv;
+  }
+  const hdrOk = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');   // can draw into half-float targets (post-process and the sky reflection need it)
   const srgb = (t) => { t.colorSpace = THREE.SRGBColorSpace; return t; };           // mark a colour texture (data textures stay linear)
   renderer.setPixelRatio(1);                                      // the post pass renders at a lower internal resolution anyway
   renderer.shadowMap.enabled = true;
@@ -53,6 +63,7 @@
   // the clear-coated car paint (high quality only) needs the sky picture as a blurred environment map: made on first use after each stage change
   let envDirty = true, envPM = null, pmremGen = null;
   function envPMREM() {
+    if (!hdrOk) return null;                                       // no float render targets (PMREM would warn "Attachment is not renderable"): callers use the plain env reflection
     if (!pmremGen) pmremGen = new THREE.PMREMGenerator(renderer);
     if (envDirty || !envPM) { envPM = pmremGen.fromCubemap(envMap, envPM); envDirty = false; }
     return envPM.texture;
