@@ -83,7 +83,7 @@
           rect(t, -1.4, 0.7, -2.2, -0.7, C.b);
         });
       },
-      midnight() {           // navy car, big orange blade from the front arch to the tail, white pin-line, white panels
+      midnight() {           // navy car, big lime blade from the front arch to the tail, white pin-line, white panels
         sides((t) => {
           const blade = [[1.95, -0.3], [1.3, -0.04], [0.5, 0.1], [-0.6, 0.15], [-1.7, 0.2], [-2.3, 0.215], [-2.3, 0.08], [-1.8, 0.04], [-0.9, -0.02], [0.1, -0.1], [0.9, -0.24], [1.3, -0.3]];
           poly(t, blade, C.a);
@@ -159,7 +159,7 @@
         });
         tops((t) => { line(t, [[2.2, 0.3], [1.6, -0.05], [1.9, -0.05], [1.0, -0.4]], C.a, 0.1); rect(t, 0.4, 0.62, -1.0, -0.62, C.c); rect(t, 0.4, 0.05, -1.0, -0.05, C.a); });
       },
-      arctic() {             // ice-blue car, navy shard triangles up from the sill, orange line, navy roof
+      arctic() {             // silver car, teal and pink shard triangles up from the sill, teal roof
         sides((t) => {
           for (let k = 0; k < 13; k++) { const z = 2.35 - k * 0.37, h = 0.17 + 0.17 * ((k * 7) % 5) / 4; poly(t, [[z, -0.3], [z - 0.37, -0.3], [z - 0.18, -0.3 + h]], k % 3 === 0 ? C.b : C.a); }
           rect(t, -2.3, -0.3, 2.3, -0.26, C.a);

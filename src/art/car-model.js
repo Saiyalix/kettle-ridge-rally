@@ -452,8 +452,8 @@
   }
   const _hw = new THREE.Vector3(), _el = new THREE.Vector3(), _wr = new THREE.Vector3(), _cf = new THREE.Vector3();
   function updateCockpit() {
-    if (carBuilt && carBuilt.low !== (quality === 'low')) applyLivery();
-    if (carTailMat) carTailMat.color.setScalar(car.brakeIn > 0.15 ? 1.9 : 1);          // brake lights            // graphics quality changed: rebuild the car
+    if (carBuilt && carBuilt.low !== (quality === 'low')) applyLivery();            // graphics quality changed: rebuild the car
+    if (carTailMat) carTailMat.color.setScalar(car.brakeIn > 0.15 ? 1.9 : 1);          // brake lights
     const inside = camMode === 3;
     cockpit.visible = inside;
     for (const m of exteriorCabin) m.visible = !inside;

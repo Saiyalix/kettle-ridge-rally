@@ -597,8 +597,8 @@ const CONFIG = {
       paint: 0xf4f6f8, stripe: 0xffc928, skirt: 0x1f4fa3, number: '7',
       liveries: [
         { id: 'ridgeline', name: 'Ridgeline',   design: 'ridgeline', base: 0xf4f6f8, a: 0xffc928, b: 0x1f4fa3, c: 0x14213f, wheel: 0xd9dde2, numBg: 0xffc928, numFg: 0x101820, plate: 'KR 07-GT', wing: 0x14213f, spons: ['ROTOR OIL', 'NORTHGATE', 'BRINDLE'] },
-        { id: 'midnight',  name: 'Midnight Blue', design: 'midnight', base: 0x16255a, a: 0xff6a1f, b: 0xf4f6f8, c: 0x0a1230, wheel: 0xc9cfd8, numBg: 0xf4f6f8, numFg: 0x16255a, plate: 'MB 31-NT', pod: true, wing: 0xff6a1f, spons: ['HALCYON', 'ROTOR OIL', 'PIKE RACING'], number: '31' },
-        { id: 'magma',     name: 'Magma',       design: 'magma',     base: 0x17181c, a: 0xff4a12, b: 0xffb81c, c: 0x2a1208, wheel: 0xffb81c, numBg: 0xffb81c, numFg: 0x17181c, plate: 'MG 66-HT', pod: true, wing: 0xff4a12, spons: ['TAMARACK', 'NORTHGATE', 'ROTOR OIL'], number: '66' },
+        { id: 'midnight',  name: 'Midnight Blue', design: 'midnight', base: 0x16255a, a: 0xb4f01c, b: 0xf4f6f8, c: 0x0a1230, wheel: 0xc9cfd8, numBg: 0xf4f6f8, numFg: 0x16255a, plate: 'MB 31-NT', pod: true, wing: 0xb4f01c, spons: ['HALCYON', 'ROTOR OIL', 'PIKE RACING'], number: '31' },
+        { id: 'magma',     name: 'Magma',       design: 'magma',     base: 0x17181c, a: 0xff4a12, b: 0xffb81c, c: 0x2a1208, wheel: 0xff4a12, numBg: 0xffb81c, numFg: 0x17181c, plate: 'MG 66-HT', pod: true, wing: 0xff4a12, spons: ['TAMARACK', 'NORTHGATE', 'ROTOR OIL'], number: '66' },
         { id: 'mint',      name: 'Alpine Mint', design: 'mint',      base: 0x35d6a4, a: 0x3a1a6b, b: 0xf4f6f8, c: 0x1a0d36, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x3a1a6b, plate: 'AM 12-IN', wing: 0x3a1a6b, spons: ['BRINDLE BANK', 'HALCYON', 'PIKE RACING'], number: '12' },
       ] },
     { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.12, turn: 1.08,
@@ -607,7 +607,7 @@ const CONFIG = {
         { id: 'signal',  name: 'Signal Red',   design: 'signal', base: 0xd8342c, a: 0xf4f6f8, b: 0x1b1d20, c: 0x1b1d20, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x1b1d20, plate: 'SR 04-HF', wing: 0x1b1d20, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'BRINDLE'] },
         { id: 'lime',    name: 'Lime Rush',    design: 'lime',   base: 0xb7e81c, a: 0x15161a, b: 0x12b7c4, c: 0x15161a, wheel: 0x24272c, numBg: 0x15161a, numFg: 0xb7e81c, plate: 'LR 88-ZP', wing: 0x15161a, spons: ['TAMARACK', 'HALCYON', 'NORTHGATE'], number: '88' },
         { id: 'violet',  name: 'Violet Storm', design: 'violet', base: 0x6a2bd6, a: 0x19e0e0, b: 0xf4f6f8, c: 0x1b0d3d, wheel: 0x19e0e0, numBg: 0xf4f6f8, numFg: 0x4a1aa8, plate: 'VS 23-ZZ', wing: 0x19e0e0, spons: ['PIKE RACING', 'ROTOR OIL', 'AUROC'], number: '23' },
-        { id: 'arctic',  name: 'Arctic Shard', design: 'arctic', base: 0xa9dcf0, a: 0x16295e, b: 0xff5a2a, c: 0x16295e, wheel: 0xff5a2a, numBg: 0xff5a2a, numFg: 0xf4f6f8, plate: 'AS 19-IC', wing: 0x16295e, spons: ['NORTHGATE', 'KETTLE CO-OP', 'HALCYON'], number: '19' },
+        { id: 'arctic',  name: 'Silver Shard', design: 'arctic', base: 0xc9ced6, a: 0x0f6b5e, b: 0xff3d8a, c: 0x0f6b5e, wheel: 0xff3d8a, numBg: 0xff3d8a, numFg: 0xf4f6f8, plate: 'SS 19-IC', wing: 0x0f6b5e, spons: ['NORTHGATE', 'KETTLE CO-OP', 'HALCYON'], number: '19' },
       ] },
   ],
   carIndex: 0,
@@ -3513,7 +3513,7 @@ function boot() {
           rect(t, -1.4, 0.7, -2.2, -0.7, C.b);
         });
       },
-      midnight() {           // navy car, big orange blade from the front arch to the tail, white pin-line, white panels
+      midnight() {           // navy car, big lime blade from the front arch to the tail, white pin-line, white panels
         sides((t) => {
           const blade = [[1.95, -0.3], [1.3, -0.04], [0.5, 0.1], [-0.6, 0.15], [-1.7, 0.2], [-2.3, 0.215], [-2.3, 0.08], [-1.8, 0.04], [-0.9, -0.02], [0.1, -0.1], [0.9, -0.24], [1.3, -0.3]];
           poly(t, blade, C.a);
@@ -3589,7 +3589,7 @@ function boot() {
         });
         tops((t) => { line(t, [[2.2, 0.3], [1.6, -0.05], [1.9, -0.05], [1.0, -0.4]], C.a, 0.1); rect(t, 0.4, 0.62, -1.0, -0.62, C.c); rect(t, 0.4, 0.05, -1.0, -0.05, C.a); });
       },
-      arctic() {             // ice-blue car, navy shard triangles up from the sill, orange line, navy roof
+      arctic() {             // silver car, teal and pink shard triangles up from the sill, teal roof
         sides((t) => {
           for (let k = 0; k < 13; k++) { const z = 2.35 - k * 0.37, h = 0.17 + 0.17 * ((k * 7) % 5) / 4; poly(t, [[z, -0.3], [z - 0.37, -0.3], [z - 0.18, -0.3 + h]], k % 3 === 0 ? C.b : C.a); }
           rect(t, -2.3, -0.3, 2.3, -0.26, C.a);
@@ -4090,8 +4090,8 @@ function boot() {
   }
   const _hw = new THREE.Vector3(), _el = new THREE.Vector3(), _wr = new THREE.Vector3(), _cf = new THREE.Vector3();
   function updateCockpit() {
-    if (carBuilt && carBuilt.low !== (quality === 'low')) applyLivery();
-    if (carTailMat) carTailMat.color.setScalar(car.brakeIn > 0.15 ? 1.9 : 1);          // brake lights            // graphics quality changed: rebuild the car
+    if (carBuilt && carBuilt.low !== (quality === 'low')) applyLivery();            // graphics quality changed: rebuild the car
+    if (carTailMat) carTailMat.color.setScalar(car.brakeIn > 0.15 ? 1.9 : 1);          // brake lights
     const inside = camMode === 3;
     cockpit.visible = inside;
     for (const m of exteriorCabin) m.visible = !inside;
