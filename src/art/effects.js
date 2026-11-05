@@ -2,7 +2,7 @@
   const PMAX = 1000;
   const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3), pAlpha = new Float32Array(PMAX), pSize = new Float32Array(PMAX);
   const pVel = new Float32Array(PMAX * 3), pLife = new Float32Array(PMAX), pMax = new Float32Array(PMAX), pKind = new Uint8Array(PMAX);   // 0 dust, 1 spark, 2 gravel chip
-  let pNext = 0;
+  let pNext = 0, dustK = 1;                                  // dustK: dust and chips are dimmed at night (set by applyLook)
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute('aColor', new THREE.BufferAttribute(pCol, 3));
@@ -24,7 +24,8 @@
     const i = pNext; pNext = (pNext + 1) % PMAX; pKind[i] = kind;
     pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
     pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
-    pCol[i * 3] = col[0]; pCol[i * 3 + 1] = col[1]; pCol[i * 3 + 2] = col[2];
+    const k = kind === 1 ? 1 : dustK;
+    pCol[i * 3] = col[0] * k; pCol[i * 3 + 1] = col[1] * k; pCol[i * 3 + 2] = col[2] * k;
     pSize[i] = size; pLife[i] = life; pMax[i] = life;
   }
   function updateParticles(dt) {

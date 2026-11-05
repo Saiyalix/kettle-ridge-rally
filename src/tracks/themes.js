@@ -23,7 +23,7 @@
     rocks(rng, wallRocks.concat(scree), [0.60, 0.55, 0.62]);
     // drop-side walls and rock faces: see buildRoadside() in scenery.js. The old corner collision stays underneath as a safety layer.
     for (const sg of cliffBarriers(track, half).segs) obstacles.push(sg);
-    distantPeaks(rng, 20, 0x9aa6d0, 0xf4f7ff, { dist: 1350, y: -60 });
+    distantPeaks(rng, 20, ST.look.peak ? ST.look.peak[0] : 0x9aa6d0, ST.look.peak ? ST.look.peak[1] : 0xf4f7ff, { dist: 1350, y: -60, hideRandom: !!ST.look.noPeaks });
   }
 
   /* ---------- theme: Japan (Sakura Touge) ---------- */
@@ -110,10 +110,10 @@
     const r2 = mulberry32(77);
     const litTex = canvasTex(256, 256, (g) => {
       g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256);
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r2() < 0.55) { g.fillStyle = r2() < 0.7 ? '#ffd38a' : '#bfe3ff'; g.fillRect(i * 64 + 12, j * 64 + 14, 40, 34); }
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r2() < (ST.look.night ? 0.8 : 0.55)) { g.fillStyle = r2() < 0.7 ? '#ffd38a' : '#bfe3ff'; g.fillRect(i * 64 + 12, j * 64 + 14, 40, 34); }
     });
     for (const t of [winTex, litTex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
-    const bMat = lit({ map: winTex, emissiveMap: litTex, emissive: 0xffffff, emissiveIntensity: 0.85, vertexColors: true });
+    const bMat = lit({ map: winTex, emissiveMap: litTex, emissive: 0xffffff, emissiveIntensity: ST.look.night ? 1.05 : 0.85, vertexColors: true });
     const WALLS = [[1.0, 0.96, 0.88], [0.86, 0.88, 0.92], [1.0, 0.84, 0.78], [0.82, 0.90, 1.0], [0.95, 0.90, 0.80], [0.78, 0.80, 0.84]];
     function building(w, d, hh) {
       const g = new THREE.BoxGeometry(w, hh, d); g.translate(0, hh / 2, 0);
@@ -166,10 +166,11 @@
         // vertical sign sticking out from the facade, readable as you drive up
         if (rng() < 0.75) {
           const [gx, gz] = sideXZ(sampleAt(sc - w * 0.3), side * (half + 3.0));
-          const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 4.6), signMats[Math.floor(rng() * signMats.length)]);
+          const si = Math.floor(rng() * signMats.length), sg = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 4.6), signMats[si]);
           sg.position.set(gx, terrain.heightAt(gx, gz) + 4.2 + rng() * 3, gz); sg.rotation.y = p.th; add(sg);
+          if (ST.look.night) glowSpots.push({ x: gx, y: sg.position.y, z: gz, c: parseInt(SIGNS[si][1].slice(1), 16), size: 2.2 });
         }
-        if (rng() < 0.4) for (let k = 0; k < 3; k++) { const [lx, lz] = sideXZ(sampleAt(sc - 2 + k * 2), side * (half + 3.3)); lanterns.push({ x: lx, z: lz, y: terrain.heightAt(lx, lz) + 3.1 }); }
+        if (rng() < 0.4) for (let k = 0; k < 3; k++) { const [lx, lz] = sideXZ(sampleAt(sc - 2 + k * 2), side * (half + 3.3)); lanterns.push({ x: lx, z: lz, y: terrain.heightAt(lx, lz) + 3.1 }); if (ST.look.night) glowSpots.push({ x: lx, y: terrain.heightAt(lx, lz) + 3.1, z: lz, c: 0xff4a30, size: 1.2 }); }
         if (rng() < 0.25) { const [vx, vz] = sideXZ(sampleAt(sc + 1), side * (half + 2.9)); vends.push({ x: vx, z: vz, y: terrain.heightAt(vx, vz), th: p.th + (side > 0 ? Math.PI / 2 : -Math.PI / 2) }); obstacles.push({ x: vx, z: vz, r: 0.6 }); }
         s += w + 0.6 + rng() * 2;
       }
@@ -186,7 +187,7 @@
     instanced(new THREE.PlaneGeometry(0.55, 3.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf4f2ea, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), stripes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th, 0); o.scale.setScalar(1); }, { shadow: false });
     // a snow-capped volcano on the horizon, straight ahead at the finish
     const pe = sampleAt(track.finishS), fd = 1700;
-    distantPeaks(rng, 10, 0x8d86c4, 0xfff0f4, { dist: 1400, y: -40, extra: { x: pe.x + Math.sin(pe.th) * fd, z: pe.z + Math.cos(pe.th) * fd, r: 900, h: 720, rot: 0, cap: 0.28 } });
+    distantPeaks(rng, 10, ST.look.peak ? ST.look.peak[0] : 0x8d86c4, ST.look.peak ? ST.look.peak[1] : 0xfff0f4, { dist: 1400, y: -40, hideRandom: !!ST.look.noPeaks, extra: { x: pe.x + Math.sin(pe.th) * fd, z: pe.z + Math.cos(pe.th) * fd, r: 900, h: 720, rot: 0, cap: 0.28 } });
   }
 
   /* ---------- trackside: spectators behind tape and sponsor boards (all brands invented) ---------- */

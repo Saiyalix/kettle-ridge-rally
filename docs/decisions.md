@@ -125,3 +125,13 @@ distance label overlaps the top of the HB button by ~14 px: logged as a known is
 
 ## 2026-11-05 · QA: centre-screen clearance check (mobile test)
 Owner complained the co-driver note and banners block the view. New `mobile` check: on 800x360 the note, the (goal-size) banner and the big countdown digit are forced on screen and the middle band (40% wide x 40% high) must stay mostly clear. Thresholds measured on branch `ui/compact-hud` (note 0%, banner 36.2%, countdown 1.3%) and set with headroom: note ≤ 5%, banner ≤ 45%, countdown ≤ 10%. Also removed the knownIssues entry "touch controls do not overlap the HUD" (fixed by the compact HUD).
+
+## 2026-11-05 · Art: graphics step 2, skies and lighting
+Stage moods (owner can change them later): SS1 Kettle Ridge = bright day with painted cumulus, SS2 Vulture Ledge = late-afternoon sunset (sun 17 degrees up, long shadows, purple haze), SS3 Sakura Touge = night (stars, moon, lit city on the horizon). SS3 `place` is now "Japan by night" and its blurb says moon / lantern-lit / glowing town; nothing else in the stage data changed.
+- Sky is one dome shader plus one wide canvas texture (clouds only, 4096x512; 2048x256 on low) and a far ring with the ridge / skyline picture (4096x256; half on low). Stars, sun and moon discs are drawn by the shader, so they stay sharp. All generated in code, repainted when a stage loads.
+- Night uses no extra real-time lights: the road is slightly self-lit, a headlight pool (one additive mesh draped on the ground) follows the car, reflector posts line both road edges (look only, no collision), lamps / lanterns / signs are glow dots (one Points draw call). `scene.fog.color` now follows the stage's horizon colour (before, fog stayed pale cyan on every stage because three.js keeps its own copy of the colour).
+- `look` blocks have new keys: `sunEl`/`sunAz` (replace `sunDir`), `sky`, `ridge`, `grade`, `env`, `night`, `nightGlow`, `noPeaks`, `lightEl`/`lightAz`, `dust`, `flare`, `shadowBias`.
+- The random cone mountains of SS2 and SS3 are hidden (`noPeaks`; the random numbers are still drawn, so no scenery moved); the volcano at the SS3 finish stays.
+- Rally camera (`CONFIG.camera`): height 10.5 -> 6.8, look-ahead 7 -> 15, so the horizon and sky are visible. Same distance behind the car. This changes how the default view feels (more road ahead); the owner should say if it is too flat.
+- Meshes beyond the fog distance are not drawn (`cullFar`): they were fog colour anyway; this keeps SS3's draw calls down.
+- No expected values changed (handling and bot results identical).

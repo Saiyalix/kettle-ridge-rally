@@ -5,10 +5,15 @@
   const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
   const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMat = new THREE.ShaderMaterial({
-    uniforms: { tColor: { value: rtColor.texture }, res: { value: new THREE.Vector2(1, 1) }, blur: { value: 0 } },
+    uniforms: {
+      tColor: { value: rtColor.texture }, res: { value: new THREE.Vector2(1, 1) }, blur: { value: 0 },
+      // colour grade per stage look (applyGrade): tint multiplies, lift adds to the shadows, bloom = glow on bright areas above `thresh`
+      tint: { value: new THREE.Vector3(1, 1, 1) }, lift: { value: new THREE.Vector3(0, 0, 0) }, sat: { value: 1.14 }, con: { value: 1.05 },
+      bloom: { value: 0.4 }, bloom2: { value: 0 }, thresh: { value: 0.86 }, vig: { value: 0.32 },
+    },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tColor; uniform vec2 res; uniform float blur; varying vec2 vUv;
+      uniform sampler2D tColor; uniform vec2 res; uniform float blur; uniform vec3 tint; uniform vec3 lift; uniform float sat; uniform float con; uniform float bloom; uniform float bloom2; uniform float thresh; uniform float vig; varying vec2 vUv;
       void main(){
         vec2 dir = vUv - 0.5;
         vec3 c = texture2D(tColor, vUv).rgb;
@@ -18,21 +23,41 @@
           c = mix(c, acc / 7.0, smoothstep(0.12, 0.5, length(dir)));
         }
         vec2 o = 2.5 / res; vec3 b = vec3(0.0);
-        b += max(texture2D(tColor, vUv + vec2(o.x, o.y)).rgb - 0.86, 0.0);
-        b += max(texture2D(tColor, vUv + vec2(-o.x, o.y)).rgb - 0.86, 0.0);
-        b += max(texture2D(tColor, vUv + vec2(o.x, -o.y)).rgb - 0.86, 0.0);
-        b += max(texture2D(tColor, vUv + vec2(-o.x, -o.y)).rgb - 0.86, 0.0);
-        c += b * 0.4;
+        b += max(texture2D(tColor, vUv + vec2(o.x, o.y)).rgb - thresh, 0.0);
+        b += max(texture2D(tColor, vUv + vec2(-o.x, o.y)).rgb - thresh, 0.0);
+        b += max(texture2D(tColor, vUv + vec2(o.x, -o.y)).rgb - thresh, 0.0);
+        b += max(texture2D(tColor, vUv + vec2(-o.x, -o.y)).rgb - thresh, 0.0);
+        c += b * bloom;
+        if (bloom2 > 0.0) {                                    // wider, softer glow (night and sunset on high quality)
+          vec2 w = 8.0 / res; vec3 b2 = vec3(0.0);
+          b2 += max(texture2D(tColor, vUv + vec2(w.x, 0.0)).rgb - thresh, 0.0);
+          b2 += max(texture2D(tColor, vUv + vec2(-w.x, 0.0)).rgb - thresh, 0.0);
+          b2 += max(texture2D(tColor, vUv + vec2(0.0, w.y)).rgb - thresh, 0.0);
+          b2 += max(texture2D(tColor, vUv + vec2(0.0, -w.y)).rgb - thresh, 0.0);
+          c += b2 * bloom2;
+        }
+        c = c * tint + lift;
         float l = dot(c, vec3(0.299, 0.587, 0.114));
-        c = mix(vec3(l), c, 1.14);
-        c = (c - 0.5) * 1.05 + 0.5;
-        c *= 1.0 - 0.32 * dot(dir, dir);
+        c = mix(vec3(l), c, sat);
+        c = (c - 0.5) * con + 0.5;
+        c *= 1.0 - vig * dot(dir, dir);
         gl_FragColor = vec4(c, 1.0);
       }`,
     depthWrite: false, depthTest: false,
   });
   postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+  let gradeWide = 0;
+  function applyGrade(L) {
+    const G = L.grade || {}, u = postMat.uniforms;
+    u.tint.value.set(...(G.tint || [1, 1, 1])); u.lift.value.set(...(G.lift || [0, 0, 0]));
+    u.sat.value = G.sat != null ? G.sat : 1.14; u.con.value = G.con != null ? G.con : 1.05;
+    u.bloom.value = G.bloom != null ? G.bloom : 0.4; u.thresh.value = G.thresh != null ? G.thresh : 0.86; u.vig.value = G.vig != null ? G.vig : 0.32;
+    gradeWide = G.bloom2 || 0;
+  }
   function renderFrame(dt) {
+    updateSky(dt); updateNight(); cullFar();
+    postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
+    glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;
     const kmh = car.speed * 3.6;
     postMat.uniforms.blur.value = state === 'menu' ? 0 : clamp((kmh - 100) / 70, 0, 1) * (camMode === 3 ? 0.6 : 1);
     renderer.setRenderTarget(rtColor); renderer.render(scene, camera);

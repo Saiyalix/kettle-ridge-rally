@@ -120,6 +120,7 @@
       list.push({ x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, r: 220 + rng() * 260, h: 260 + rng() * 380, rot: rng() * 6 });
     }
     if (opts.extra) list.push(opts.extra);
+    if (opts.hideRandom) list.splice(0, list.length - (opts.extra ? 1 : 0));     // the painted backdrop (art/sky.js) replaces the random cones; the random numbers above are still drawn, so nothing else moves
     instanced(g, new THREE.MeshBasicMaterial({ color: base, fog: false }), list, (o, m) => { o.position.set(m.x, (opts.y || -40), m.z); o.rotation.set(0, m.rot, 0); o.scale.set(m.r, m.h, m.r); }, { shadow: false });
     instanced(cg, new THREE.MeshBasicMaterial({ color: cap, fog: false }), list, (o, m) => { const f = m.cap || 0.3; o.position.set(m.x, (opts.y || -40) + m.h * (1 - f), m.z); o.rotation.set(0, m.rot, 0); o.scale.set(m.r * f * 1.04, m.h * f, m.r * f * 1.04); }, { shadow: false });
   }

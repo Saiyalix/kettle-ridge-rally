@@ -264,3 +264,20 @@
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, H - 14 * s, W, 14 * s);                                                                                                            // damp at the foot
   }
   function facadeTex(stone) { return artTex(stone ? 'facadeStone' : 'facadePlaster', [512, 512], (g, W, H, S, r) => drawFacade(g, W, H, S, r, stone), stone ? 36 : 37, 8); }
+
+  // the same facade, black except the windows: used as the emissive map at night so the houses have lit windows
+  function facadeGlowTex(stone) {
+    return artTex(stone ? 'facadeStoneGlow' : 'facadePlasterGlow', [512, 512], (g, W, H, S, r) => {
+      g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+      const s = W / 512, cols = ['255,214,130', '255,190,100', '255,232,170', '250,246,230'];
+      const lit = (x, y, w, h, arch) => {
+        const c = cols[Math.floor(r() * cols.length)], a = r() < 0.2 ? 0.35 : 0.8 + r() * 0.2, gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},${a * 0.6})`);
+        g.fillStyle = gr;
+        if (arch) { g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + w / 2); g.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w, y + h); g.fill(); } else g.fillRect(x, y, w, h);
+        g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 3 * s; g.beginPath(); g.moveTo(x + w / 2, y); g.lineTo(x + w / 2, y + h); g.moveTo(x, y + h * 0.45); g.lineTo(x + w, y + h * 0.45); g.stroke();   // window bars
+      };
+      for (const x of [58, 214, 370]) lit(x * s, 66 * s, 84 * s, 128 * s, false);
+      lit(222 * s, 360 * s, 84 * s, 96 * s, true);
+      lit(372 * s, 372 * s, 96 * s, 84 * s, false);
+    }, stone ? 38 : 39, 8);
+  }
