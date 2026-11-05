@@ -21,6 +21,7 @@ art/night.js              # night extras: headlight pool, road posts, lamp and l
 art/textures.js           # generated textures: road per surface, grass/soil, stone, wood, rock, facades
 tracks/stage-build.js     # building helpers, ground mesh, road ribbon
 tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
+art/trees.js              # trees, rocks and roadside nature: 3D models, level of detail, wind
 art/roadside.js          # look-builders for tracks: stoneWall, woodFence, rockFace
 art/buildings.js         # detailed 3D houses (plaster, stone, japanese) and the neon-town detail
 tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs

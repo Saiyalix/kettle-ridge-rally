@@ -25,7 +25,7 @@ Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile wi
 2. **Colour-managed (sRGB) lighting pipeline**: follow-up from the three.js upgrade, split out of the cars step to keep it reviewable. In review on branch `gfx/5-srgb-lighting`: done on merge. (art)
 3. **Rival cars with their own liveries.** (art)
 4. ~~**Buildings as 3D models, including Japanese-style for Sakura Touge.**~~ Done (graphics step 7). (art)
-5. **Trees and nature**: denser, layered trees, grass, rocks; night colours of sakura trees and rice paddies. (art, tracks)
+5. **Trees and nature** (branch `gfx/8-trees-nature`, in review): done on merge. Real 3D trees (layered conifers, autumn broadleaf, cherry), faceted rocks with moss / snow caps, grass tufts, bushes, flowers, reeds, wind, three levels of detail; night colours of sakura trees and rice paddies fixed. (art)
 6. **Spectators, signs, gates and barriers as 3D models.** (art, tracks)
 7. **New low, close chase camera**: keep all existing cameras. (art)
 8. **SS2 drop wall clearance**: keep the drop-side wall at least 1 m clear of stacked road sections on hairpins. (tracks)

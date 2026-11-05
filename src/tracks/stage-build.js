@@ -57,7 +57,8 @@
           const fx = x / 16, fz = z / 16, fi = Math.floor(fx), fj = Math.floor(fz);
           const dike = (fx - fi) < 0.22 || (fz - fj) < 0.22;
           const t = ((fi * 73856093) ^ (fj * 19349663)) & 3;
-          const field = t === 0 || t === 3 ? [0.50, 0.74, 0.92] : t === 1 ? [0.46, 0.80, 0.30] : [0.30, 0.62, 0.26];
+          const nk = L.night ? 0.7 : 1;                                        // at night the moon does not light the paddies as bright as the day paints them
+          const field = t === 0 || t === 3 ? (L.night ? [0.27, 0.37, 0.5] : [0.50, 0.74, 0.92]) : t === 1 ? [0.46 * nk, 0.80 * nk, 0.30 * nk] : [0.30 * nk, 0.62 * nk, 0.26 * nk];
           c = mixc(c, dike ? [0.58, 0.50, 0.30] : field, smoothstep(clamp((d - half - 6) / 6, 0, 1)));
         }
         if (s0 > track.cityStart - 30 && d < 48) {                            // town: sidewalks and paving

@@ -36,7 +36,7 @@
       if (s0 < 560 && d > half + 7 && d < 170 && slopeAt(x, z) < 0.14) return false;     // keep paddies open
       return rng() < (d < 25 ? 0.6 : d < 80 ? 0.3 : 0.08) && !nearHouse(x, z) ? { s: 0.8 + rng() * 0.5 } : false;
     });
-    billboards(sakura, 'sakura', 7, 7.5);
+    treeStand(sakura, () => SPECIES.sakura);
     for (const t of sakura) if (t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
