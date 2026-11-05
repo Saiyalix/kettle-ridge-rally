@@ -4,15 +4,23 @@
   const sideXZ = (p, off) => [p.x - Math.cos(p.th) * off, p.z + Math.sin(p.th) * off];   // off > 0 = right of the road
   const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const dummy = new THREE.Object3D(), tmpCol = new THREE.Color();
+  // frees what a stage made on the graphics card. Textures and materials that are kept on purpose and shared by every stage
+  // (art textures, tree / crowd / sponsor pictures) carry userData.keep = true and are skipped.
+  // (Until round 8 this function was shadowed by the car's own disposeTree, so no stage texture was ever freed.)
   function disposeTree(root) {
+    const freeMat = (m) => {
+      if (!m || m.userData.keep) return;
+      for (const key of ['map', 'emissiveMap', 'alphaMap']) if (m[key] && !m[key].userData.keep) m[key].dispose();
+      m.dispose();
+    };
     root.traverse(o => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
-        for (const key of ['map', 'emissiveMap']) if (m[key]) m[key].dispose();
-        m.dispose();
-      }
+      if (o.isInstancedMesh) o.dispose();
+      if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) freeMat(m);
+      if (o.customDepthMaterial) freeMat(o.customDepthMaterial);
     });
   }
+  const keepTex = (t) => { t.userData.keep = true; return t; };
   function instanced(geo, mat, items, place, opts = {}) {
     const m = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length));
     items.forEach((it, i) => { place(dummy, it, i); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); if (opts.color) { opts.color(tmpCol, it, i); m.setColorAt(i, tmpCol); } });

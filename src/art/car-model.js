@@ -294,7 +294,7 @@
   }
 
   let carMatsLive = [];
-  function disposeTree(o) {
+  function disposeCarTree(o) {
     o.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.isMesh && c.material && c.userData.own) { const mm = Array.isArray(c.material) ? c.material : [c.material]; mm.forEach(x => { if (x.map && c.userData.plateTex) x.map.dispose(); x.dispose(); }); } });
   }
 
@@ -314,8 +314,8 @@
 
   function buildPlayerCar(ci, li, low) {
     const L = CONFIG.cars[ci].liveries[li], sp = ci === 0 ? KESTREL : STRADA;
-    while (bodyRoot.children.length) { const c = bodyRoot.children[0]; bodyRoot.remove(c); disposeTree(c); }
-    for (const wm of wheelMeshes) if (wm.flip) { wm.spinG.remove(wm.flip); disposeTree(wm.flip); wm.flip = null; }
+    while (bodyRoot.children.length) { const c = bodyRoot.children[0]; bodyRoot.remove(c); disposeCarTree(c); }
+    for (const wm of wheelMeshes) if (wm.flip) { wm.spinG.remove(wm.flip); disposeCarTree(wm.flip); wm.flip = null; }
     // livery texture
     const size = low ? 512 : 1024, key = ci + ':' + li + ':' + size;
     if (carTexKey !== key) {

@@ -59,7 +59,20 @@
     u.bloom.value = G.bloom != null ? G.bloom : 0.4; u.thresh.value = G.thresh != null ? G.thresh : 0.86; u.vig.value = G.vig != null ? G.vig : 0.32;
     gradeWide = G.bloom2 || 0;
   }
+  /* Shader pre-warm. three.js builds a shader program the first time a material is drawn; that is a hitch of a few ms to 100+ ms,
+     and it used to happen when the first rival car (or a new material) came into view. renderer.compile() builds the programs of every
+     material in the scene, visible or not (three 0.186 traverses invisible objects too), so after a stage loads or the quality changes we
+     dress all rivals, upload their pictures and compile once. It runs inside the first rendered frame, while the menu / pause menu is up.
+     The work the rivals needed anyway (painting 14 liveries, one per frame) is done here at once instead. */
+  let prewarmFor = null, prewarmQ = null;
+  function prewarm() {
+    dressAllRivals();
+    renderer.setRenderTarget(rtColor);                              // programs depend on the target (tone mapping and colour space differ on screen): compile for the one the scene is really drawn into
+    renderer.compile(scene, camera);
+    renderer.setRenderTarget(null);
+  }
   function renderFrame(dt) {
+    if (stageGroup && (prewarmFor !== stageGroup || prewarmQ !== quality)) { prewarmFor = stageGroup; prewarmQ = quality; prewarm(); }
     updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
     if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only

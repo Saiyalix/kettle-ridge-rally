@@ -11,6 +11,7 @@
     const w = low ? size[0] >> 1 : size[0], h = low ? size[1] >> 1 : size[1];
     const t = makeTex(w, h, (g, W, H) => draw(g, W, H, W / size[0], mulberry32(seed)));
     t.anisotropy = Math.min(low ? 2 : (aniso || 8), renderer.capabilities.getMaxAnisotropy());
+    t.userData.keep = true;                                         // shared by every stage: the stage dispose leaves it alone
     return (artCache[key] = t);
   }
   // draw fn fn(y) at y and at the wrapped copies, so long marks tile seamlessly in v
@@ -222,62 +223,47 @@
     }, 35, 4);
   }
 
-  // building front, 8 m x 8 m per repeat: two storeys. Windows with shutters and sills upstairs; arched door, arched window and shop window below.
-  function drawFacade(g, W, H, S, r, stone) {
-    if (stone) drawStoneBlocks(g, W, H, S, r, 'warm');
-    else {
+  // plain plaster for house walls (windows, doors and trim are real geometry now, art/buildings.js); 4 m x 4 m per repeat
+  function plasterTex() {
+    return artTex('plaster', [512, 512], (g, W, H, S, r) => {
       g.fillStyle = '#ece3cf'; g.fillRect(0, 0, W, H);
-      for (let i = 0; i < 40; i++) { const x = r() * W, y = r() * H, rad = (20 + r() * 60) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, r() < 0.5 ? '120,100,70' : '255,255,245', 0.06 + r() * 0.07)); }
-      for (let i = 0; i < 7000 * S * S; i++) { g.fillStyle = r() < 0.5 ? 'rgba(90,70,40,0.10)' : 'rgba(255,255,255,0.12)'; g.fillRect(r() * W, r() * H, S * 1.6, S * 1.6); }
-      for (let i = 0; i < 4; i++) {                                                                      // peeling plaster showing brick
-        const x = r() * W * 0.9, y = H * (0.05 + r() * 0.85), w = (30 + r() * 50) * S, h = (20 + r() * 40) * S;
+      for (let i = 0; i < 46; i++) { const x = r() * W, y = r() * H, rad = (20 + r() * 60) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, r() < 0.5 ? '120,100,70' : '255,255,245', 0.06 + r() * 0.07)); }
+      for (let i = 0; i < 9000 * S * S; i++) { g.fillStyle = r() < 0.5 ? 'rgba(90,70,40,0.10)' : 'rgba(255,255,255,0.12)'; g.fillRect(r() * W, r() * H, S * 1.6, S * 1.6); }
+      for (let i = 0; i < 3; i++) {                                                                      // a patch of plaster gone, brick showing
+        const x = r() * W * 0.8, y = H * (0.1 + r() * 0.7), w = (30 + r() * 50) * S, h = (20 + r() * 36) * S;
         g.fillStyle = 'rgba(70,50,30,0.35)'; g.fillRect(x - 2 * S, y - 2 * S, w + 4 * S, h + 4 * S);
         g.fillStyle = '#b4745a'; g.fillRect(x, y, w, h); g.strokeStyle = 'rgba(220,190,170,0.6)'; g.lineWidth = S;
         for (let k = 0; k < h; k += 7 * S) { g.beginPath(); g.moveTo(x, y + k); g.lineTo(x + w, y + k); g.stroke(); }
       }
-    }
-    const k = S, stoneTrim = stone ? '#e0d6bf' : '#d8ccb0';
-    const win = (x, y, w, h, arch, shutters) => {
-      if (shutters) { for (const sx of [-1, 1]) { const sw = w * 0.46, sxx = sx < 0 ? x - sw - 2 * k : x + w + 2 * k; g.fillStyle = '#3b5b49'; g.fillRect(sxx, y, sw, h); g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = k; for (let yy = y + 4 * k; yy < y + h; yy += 5 * k) { g.beginPath(); g.moveTo(sxx, yy); g.lineTo(sxx + sw, yy); g.stroke(); } g.strokeStyle = '#243a2e'; g.strokeRect(sxx, y, sw, h); } }
-      g.fillStyle = stoneTrim; if (arch) { g.beginPath(); g.moveTo(x - 6 * k, y + h + 4 * k); g.lineTo(x - 6 * k, y + w / 2); g.arc(x + w / 2, y + w / 2, w / 2 + 6 * k, Math.PI, 0); g.lineTo(x + w + 6 * k, y + h + 4 * k); g.fill(); } else g.fillRect(x - 6 * k, y - 6 * k, w + 12 * k, h + 10 * k);
-      const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#6f93b8'); gr.addColorStop(0.5, '#2c3d52'); gr.addColorStop(1, '#161c26'); g.fillStyle = gr;
-      if (arch) { g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + w / 2); g.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w, y + h); g.fill(); } else g.fillRect(x, y, w, h);
-      g.strokeStyle = '#2a2420'; g.lineWidth = 3 * k; g.beginPath(); g.moveTo(x + w / 2, y); g.lineTo(x + w / 2, y + h); g.moveTo(x, y + h * 0.45); g.lineTo(x + w, y + h * 0.45); g.stroke();
-      g.fillStyle = 'rgba(255,255,255,0.28)'; g.beginPath(); g.moveTo(x + 3 * k, y + h * 0.4); g.lineTo(x + w * 0.4, y + 3 * k); g.lineTo(x + w * 0.55, y + 3 * k); g.lineTo(x + 3 * k, y + h * 0.7); g.fill();
-      g.fillStyle = stoneTrim; g.fillRect(x - 10 * k, y + h + 4 * k, w + 20 * k, 7 * k); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x - 10 * k, y + h + 11 * k, w + 20 * k, 4 * k);   // sill + its shadow
-      g.fillStyle = 'rgba(40,30,20,0.10)'; g.fillRect(x + 4 * k, y + h + 15 * k, w - 8 * k, 70 * k);                                                                                    // rain stain
-    };
-    const s = W / 512;
-    for (const x of [58, 214, 370]) win(x * s, 66 * s, 84 * s, 128 * s, false, x !== 214);
-    g.strokeStyle = '#1e1a18'; g.lineWidth = 3 * k; g.beginPath(); g.moveTo(190 * s, 214 * s); g.lineTo(336 * s, 214 * s); g.moveTo(190 * s, 232 * s); g.lineTo(336 * s, 232 * s); g.stroke();   // balcony rail
-    for (let x = 192 * s; x <= 336 * s; x += 12 * s) { g.beginPath(); g.moveTo(x, 214 * s); g.lineTo(x, 232 * s); g.stroke(); }
-    g.fillStyle = stoneTrim; g.fillRect(0, 0, W, 22 * s); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 22 * s, W, 8 * s);                                                       // cornice
-    g.fillStyle = stoneTrim; g.fillRect(0, 262 * s, W, 14 * s); g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, 276 * s, W, 8 * s);                                                // belt course
-    const dx = 40 * s, dy = 332 * s, dw = 110 * s, dh = 180 * s;                                                                                                                       // arched door
-    g.fillStyle = stoneTrim; g.beginPath(); g.moveTo(dx - 12 * k, H); g.lineTo(dx - 12 * k, dy + dw / 2); g.arc(dx + dw / 2, dy + dw / 2, dw / 2 + 12 * k, Math.PI, 0); g.lineTo(dx + dw + 12 * k, H); g.fill();
-    g.fillStyle = '#3a2418'; g.beginPath(); g.moveTo(dx, H); g.lineTo(dx, dy + dw / 2); g.arc(dx + dw / 2, dy + dw / 2, dw / 2, Math.PI, 0); g.lineTo(dx + dw, H); g.fill();
-    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 2 * k; for (let x = dx + 14 * k; x < dx + dw; x += 16 * k) { g.beginPath(); g.moveTo(x, dy + dw / 2); g.lineTo(x, H); g.stroke(); }
-    g.fillStyle = '#c0a050'; g.beginPath(); g.arc(dx + dw * 0.78, dy + dh * 0.62, 3.5 * k, 0, 7); g.fill();
-    win(222 * s, 360 * s, 84 * s, 96 * s, true, false);
-    g.strokeStyle = '#1e1a18'; g.lineWidth = 2 * k; for (let x = 226 * s; x < 306 * s; x += 14 * s) { g.beginPath(); g.moveTo(x, 372 * s); g.lineTo(x, 460 * s); g.stroke(); }     // window grille
-    win(372 * s, 372 * s, 96 * s, 84 * s, false, false);
-    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, H - 14 * s, W, 14 * s);                                                                                                            // damp at the foot
+      for (let i = 0; i < 10; i++) { const x = r() * W; g.fillStyle = 'rgba(40,30,20,0.07)'; g.fillRect(x, 0, (3 + r() * 6) * S, H); }   // rain streaks
+    }, 37, 8);
   }
-  function facadeTex(stone) { return artTex(stone ? 'facadeStone' : 'facadePlaster', [512, 512], (g, W, H, S, r) => drawFacade(g, W, H, S, r, stone), stone ? 36 : 37, 8); }
-
-  // the same facade, black except the windows: used as the emissive map at night so the houses have lit windows
-  function facadeGlowTex(stone) {
-    return artTex(stone ? 'facadeStoneGlow' : 'facadePlasterGlow', [512, 512], (g, W, H, S, r) => {
-      g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-      const s = W / 512, cols = ['255,214,130', '255,190,100', '255,232,170', '250,246,230'];
-      const lit = (x, y, w, h, arch) => {
-        const c = cols[Math.floor(r() * cols.length)], a = r() < 0.2 ? 0.35 : 0.8 + r() * 0.2, gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},${a * 0.6})`);
-        g.fillStyle = gr;
-        if (arch) { g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + w / 2); g.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w, y + h); g.fill(); } else g.fillRect(x, y, w, h);
-        g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 3 * s; g.beginPath(); g.moveTo(x + w / 2, y); g.lineTo(x + w / 2, y + h); g.moveTo(x, y + h * 0.45); g.lineTo(x + w, y + h * 0.45); g.stroke();   // window bars
-      };
-      for (const x of [58, 214, 370]) lit(x * s, 66 * s, 84 * s, 128 * s, false);
-      lit(222 * s, 360 * s, 84 * s, 96 * s, true);
-      lit(372 * s, 372 * s, 96 * s, 84 * s, false);
-    }, stone ? 38 : 39, 8);
+  // neutral painted wood / stone trim, tinted by vertex colours (frames, sills, doors, shutters, beams); 1 m per repeat
+  function trimTex() {
+    return artTex('trim', [128, 128], (g, W, H, S, r) => {
+      g.fillStyle = '#f2f2ee'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 40; i++) { const y = r() * H, a = 0.05 + r() * 0.07; g.fillStyle = r() < 0.6 ? `rgba(60,50,40,${a})` : `rgba(255,255,255,${a * 1.4})`; g.fillRect(0, y, W, (0.5 + r() * 1.5) * S); }   // long grain
+      for (let i = 0; i < 500 * S * S; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)'; g.fillRect(r() * W, r() * H, S * 1.5, S * 1.5); }
+    }, 41, 4);
+  }
+  // dark glazed roof tiles (kawara) for the Japanese houses: pan and cover tiles run down the slope; 4 m x 4 m per repeat
+  function jpRoofTex() {
+    return artTex('jpRoof', [512, 512], (g, W, H, S, r) => {
+      g.fillStyle = '#3d4350'; g.fillRect(0, 0, W, H);
+      const cw = 32 * S, courses = 10, ch = H / courses;
+      for (let x = 0; x < W; x += cw) {                                                                 // cover tiles: a rounded ridge every second strip
+        const k = Math.round(x / cw) % 2;
+        const gr = g.createLinearGradient(x, 0, x + cw, 0);
+        if (k) { gr.addColorStop(0, '#2a2f3a'); gr.addColorStop(0.3, '#6a7384'); gr.addColorStop(0.55, '#4b5262'); gr.addColorStop(1, '#232733'); } else { gr.addColorStop(0, '#303644'); gr.addColorStop(0.5, '#262b36'); gr.addColorStop(1, '#303644'); }
+        g.fillStyle = gr; g.fillRect(x, 0, cw, H);
+      }
+      for (let y = 0; y < courses; y++) {                                                               // courses: a shadow under each tile end, a glint above
+        const yy = y * ch, gr = g.createLinearGradient(0, yy, 0, yy + ch); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.7, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)');
+        g.fillStyle = gr; g.fillRect(0, yy, W, ch);
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, yy + ch - 2 * S, W, 2 * S);
+      }
+      for (let i = 0; i < 26; i++) { const x = r() * W, y = r() * H, rad = (10 + r() * 28) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, r() < 0.6 ? '20,22,30' : '150,160,180', 0.07 + r() * 0.08)); }
+      for (let i = 0; i < 6000 * S * S; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(200,210,230,0.08)'; g.fillRect(r() * W, r() * H, S * 1.4, S * 1.4); }
+      for (let i = 0; i < 14; i++) { g.fillStyle = 'rgba(96,120,80,0.22)'; g.beginPath(); g.ellipse(r() * W, r() * H, (4 + r() * 8) * S, (2 + r() * 3) * S, 0, 0, 7); g.fill(); }   // moss
+    }, 42, 8);
   }

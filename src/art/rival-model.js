@@ -116,6 +116,12 @@
     o.tex.dispose(); rivalTexBytes -= o.bytes; r.lod = null; r.wheels = [];
   }
 
+  // dress every rival now and upload their pictures (used by prewarm() in art/post-process.js while a stage loads, instead of one rival per frame during the race)
+  function dressAllRivals() {
+    updateRivalLOD();
+    for (let i = 0; i < rivals.length; i++) if (!rivals[i].lod) dressRival(rivals[i], i);
+    for (const r of rivals) if (r.lod) { renderer.initTexture(r.lod.tex); for (const p of r.lod.plates) renderer.initTexture(p.material.map); }
+  }
   // once per drawn frame (art/post-process.js): rebuild after a quality change, dress one more rival if any are missing, pick the level of detail
   const _rlod = [];
   function updateRivalLOD() {
