@@ -7,8 +7,8 @@ const skidpad = require('./lib/skidpad');
 
 module.exports = async function handlingTest({ browser, base, expected }) {
   const T = expected.handling, checks = [], rows = [];
-  const g = await openGame(browser, base, {});
-  const carCount = await g.page.evaluate(() => CONFIG.cars.length);
+  const g = await openGame(browser, base, { probe: true });
+  const carCount = await g.page.evaluate(() => (window.__probe || window).CONFIG.cars.length);
   const run = a => g.page.evaluate(`(${skidpad.toString()})(${JSON.stringify(a)})`);
   for (let carIndex = 0; carIndex < carCount; carIndex++) {
     for (const surface of [...T.driveSurfaces, ...T.offRoadSurfaces]) {

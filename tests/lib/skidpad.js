@@ -6,8 +6,9 @@
 //   pathMs       key press → the direction of travel turning at 90% of its steady rate (how it feels)
 //   drift        whether a drift started (must never happen: no handbrake, no brake)
 //   radiusM      steady turning radius
-/* global Car, CONFIG */
 module.exports = function skidpad({ surface, kmh, carIndex }) {
+  // Car and CONFIG come from the probe (works when the game script is a module and they are not globals)
+  const { Car, CONFIG } = window.__probe || window;
   const prevCar = CONFIG.carIndex; CONFIG.carIndex = carIndex;
   const world = { groundAt(x, z, o) { o.h = 0; o.n.set(0, 1, 0); }, surfaceAt() { return surface; } };
   const car = new Car(); car.reset(0, 0.75, 0, 0);

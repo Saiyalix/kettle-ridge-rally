@@ -4,7 +4,7 @@ Every department (subagent) follows this file. If a department file and this fil
 
 ## The game
 
-- 3D arcade rally game in the browser. Players get one self-contained file, `index.html` (~256 KB), with three.js r128 from cdnjs.
+- 3D arcade rally game in the browser. Players get one self-contained file, `index.html` (~256 KB), with three.js 0.186.1 (loaded as an ES module from jsdelivr through an import map).
   Since Round 2 that file is **built** from the parts in `src/` by `tools/build.js` (plain gluing, no tools to install).
 - Live on GitHub Pages from the `main` branch root: https://saiyalix.github.io/kettle-ridge-rally/
   **Whatever lands on `main` is live for players.**
@@ -48,7 +48,7 @@ Measured targets (checked by `tests/handling.test.js` and `tests/bot.test.js`):
 | `docs/roadmap.md` | Done / next / ideas. |
 | `docs/decisions.md` | Design decisions with date and reason. Add an entry for every rule, target or expected value you set or change. |
 | `tests/` | QA test kit (owned by qa). `expected.json` holds every expected value. |
-| `package.json` | Test-only: pins three 0.128.0 so tests run when cdnjs is blocked. The game never uses `node_modules`. |
+| `package.json` | Test-only: three 0.186.1 plus `three-r128` (alias for the old version) so tests run when the CDN is blocked. The game never uses `node_modules`. |
 
 ## Changing the game: edit, build, test
 
@@ -85,7 +85,7 @@ Department ownership is in each `.claude/agents/*.md` file and in `src/README.md
 Run in the cloud session (never ask the owner to run anything):
 
 ```bash
-npm install          # once per session: three 0.128.0 for the test browser
+npm install          # once per session: three 0.186.1 + three-r128 for the test browser
 node tests/run.js    # everything, ~2 minutes. Or pick: node tests/run.js build handling bot
 ```
 

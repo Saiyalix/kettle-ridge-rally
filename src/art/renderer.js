@@ -1,9 +1,13 @@
   /* ---------- renderer, scene, lights ---------- */
   const canvas = document.getElementById('scene');
+  // The look was tuned on r128, which did no colour conversion: colours, textures and lighting all lived in one
+  // "display" space and the post-process shader worked on those values directly. Keep that on purpose (PS2 style).
+  THREE.ColorManagement.enabled = false;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;          // no conversion on output (see above); the post pass writes the final pixels
   renderer.setPixelRatio(1);                                      // the post pass renders at a lower internal resolution anyway
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   const scene = new THREE.Scene();
   const skyCol = new THREE.Color(0xc4e8ff);                     // horizon haze
   scene.background = skyCol;
@@ -61,10 +65,10 @@
     curLook = L;
     skyCol.setHex(L.horizon); scene.fog.color.setHex(L.horizon);        // (the fog keeps its own copy of the colour)
     scene.fog.near = L.fogNear; scene.fog.far = L.fogFar;
-    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi;
+    hemi.color.setHex(L.hemiSky); hemi.groundColor.setHex(L.hemiGround); hemi.intensity = L.hemi * Math.PI;      // x PI: r155+ lights are physical; this keeps the old strengths
     // the sun (or the moon at night): colour, strength and direction, from an elevation and compass bearing in degrees
     const el = (L.lightEl != null ? L.lightEl : L.sunEl) * Math.PI / 180, az = (L.lightAz != null ? L.lightAz : L.sunAz) * Math.PI / 180;      // lightEl / lightAz: when the light comes from somewhere other than the disc in the sky
-    sun.color.setHex(L.sun); sun.intensity = L.sunI;
+    sun.color.setHex(L.sun); sun.intensity = L.sunI * Math.PI;
     sunOffset.set(Math.sin(az) * Math.cos(el) * 140, Math.sin(el) * 140, Math.cos(az) * Math.cos(el) * 140);
     sun.shadow.bias = L.shadowBias != null ? L.shadowBias : -0.0008; sun.shadow.normalBias = L.shadowNormal || 0;
     inkColor.setHex(L.ink); dustK = L.dust != null ? L.dust : 1;

@@ -45,12 +45,15 @@ function build() {
     throw new Error(`src/${c.part} must end with a newline`);
   const html = chunks.map(c => c.text).join('');
   // the game's script must still be valid JavaScript once glued together
-  const m = html.match(/<script>\n([\s\S]*)<\/script>\s*<\/body>/);
+  const m = html.match(/<script type="module">\n([\s\S]*)<\/script>\s*<\/body>/);
   if (!m) throw new Error('could not find the main <script> block in the built page');
-  try { new vm.Script(m[1], { filename: 'main-script' }); }
+  // The script is an ES module (it starts with `import * as THREE from 'three'`), which vm.Script cannot parse.
+  // So check it as a strict classic script with the import lines blanked out (line numbers stay the same).
+  const body = "'use strict';" + m[1].replace(/^import .*$/gm, '');
+  try { new vm.Script(body, { filename: 'main-script' }); }
   catch (e) {
     const ln = Number(((e.stack || '').match(/main-script:(\d+)/) || [])[1]);
-    const before = html.slice(0, m.index + '<script>\n'.length).split('\n').length - 1;    // lines before the script body
+    const before = html.slice(0, m.index + '<script type="module">\n'.length).split('\n').length - 1;    // lines before the script body
     const at = ln ? ' at ' + locate(chunks, before + ln) : '';
     throw new Error(`the glued script is not valid JavaScript${at}: ${e.message}\n` + (e.stack || '').split('\n').slice(1, 3).join('\n'));
   }
