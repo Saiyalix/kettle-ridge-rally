@@ -6,7 +6,9 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const THREE_LOCAL = path.join(ROOT, 'node_modules', 'three', 'build', 'three.min.js');
+const NM = path.join(ROOT, 'node_modules');
+const THREE_R128_LOCAL = path.join(NM, 'three-r128', 'build', 'three.min.js');   // the classic global-THREE build (npm alias of three@0.128.0)
+const THREE_NEW_VERSION = JSON.parse(fs.readFileSync(path.join(NM, 'three', 'package.json'), 'utf8')).version;
 const PROBE = fs.readFileSync(path.join(__dirname, 'probe.js'), 'utf8');
 // The probe is added to a temporary copy of index.html just before this line, inside boot(), so it can
 // see the game's internals. index.html itself is never changed by the tests.
@@ -40,8 +42,19 @@ async function openGame(browser, base, opts = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push('page error: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console error: ' + m.text()); });
-  // three.js: the same r128 release from node_modules when installed (cloud sessions block some CDNs).
-  await page.route(/cdnjs\.cloudflare\.com\/.*three.*\.js/, route => fs.existsSync(THREE_LOCAL) ? route.fulfill({ path: THREE_LOCAL, contentType: 'text/javascript' }) : route.continue());
+  // three.js is always served from node_modules (cloud sessions block the CDNs).
+  // 1) classic r128 from cdnjs -> node_modules/three-r128
+  await page.route(/cdnjs\.cloudflare\.com\/.*three.*\.js/, route => fs.existsSync(THREE_R128_LOCAL) ? route.fulfill({ path: THREE_R128_LOCAL, contentType: 'text/javascript' }) : route.continue());
+  // 2) modern three (ES modules) from jsdelivr / unpkg: .../three@<version>/<build|examples/jsm>/... -> node_modules/three/<same path>
+  await page.route(/\/\/(cdn\.jsdelivr\.net\/npm|unpkg\.com)\/three@/, route => {
+    const m = /three@([^/]+)\/((?:build|examples\/jsm)\/[^?#]+)/.exec(route.request().url());
+    const fail = msg => { errors.push('console error: TEST KIT: ' + msg); return route.abort(); };
+    if (!m) return fail('unrecognised three.js URL ' + route.request().url() + ' (use .../three@<version>/build/... or .../examples/jsm/...)');
+    if (m[1] !== THREE_NEW_VERSION) return fail(`game asks for three@${m[1]} but node_modules has ${THREE_NEW_VERSION}; update package.json and the game together`);
+    const file = path.join(NM, 'three', m[2]);
+    if (!file.startsWith(path.join(NM, 'three') + path.sep) || !fs.existsSync(file)) return fail('file not in installed three: ' + m[2]);
+    return route.fulfill({ path: file, contentType: 'text/javascript', headers: { 'access-control-allow-origin': '*' } });
+  });
   // web fonts are cosmetic and often blocked in the cloud; the CSS has fallbacks
   await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* ignore */ } });

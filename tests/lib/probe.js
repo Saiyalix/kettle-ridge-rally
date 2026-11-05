@@ -60,5 +60,5 @@
       await loadStage(i);
       while (loading || stageIdx !== i) await new Promise(r => setTimeout(r, 50));
     }
-    return { driveStage, loadStage: loadStageAndWait, stageCount: STAGES.length, carCount: CONFIG.cars.length };
+    return { Car, CONFIG, driveStage, loadStage: loadStageAndWait, stageCount: STAGES.length, carCount: CONFIG.cars.length };
   })();
