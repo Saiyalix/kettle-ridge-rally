@@ -1,5 +1,5 @@
   /* ---------- per-frame visuals and HUD ---------- */
-  let lastHud = {}, callAhead = 120;
+  let lastHud = {}, callAhead = 120, mmTick = 0;
   function setText(el, key, v) { if (lastHud[key] !== v) { lastHud[key] = v; el.textContent = v; } }
 
   function updateVisuals(dt) {
@@ -65,8 +65,11 @@
     setText(elSurf, 'sf', wsurf ? CONFIG.surfaces[wsurf.surface].label : 'Airborne');
     setText(elRpmNum, 'rn', Math.round(car.rpm / 100) * 100 + ' rpm');
     drawTacho(car.rpm);
-    setText(elDone, 'dd', (Math.min(s, track.finishS) / 1000).toFixed(2) + ' km');
-    setText(elLeft, 'dl', Math.max(0, (track.finishS - s) / 1000).toFixed(2) + ' km to go');
+    // START-GOAL progress bar (updates only when it moves by half a percent) and the keyboard help (first 8 s only)
+    const prog = Math.round(clamp((s - startS) / (track.finishS - startS), 0, 1) * 200);
+    if (lastHud.pg !== prog) { lastHud.pg = prog; elProg.style.width = (prog / 2) + '%'; }
+    const helpOn = state === 'countdown' || (state === 'running' && raceTime < 8);
+    if (lastHud.kh !== helpOn) { lastHud.kh = helpOn; elKeys.classList.toggle('gone', !helpOn); }
 
     // pace notes
     // calls are timed by speed: about 3.4 s before the corner (60–175 m), so there is always time to react
@@ -93,14 +96,17 @@
     } else elPace.hidden = true;
 
     // minimap
-    mg.clearRect(0, 0, 340, 340);
-    mg.drawImage(mmBase, 0, 0);
-    const mx = mmX(car.pos.x), my = mmY(car.pos.z);
-    const ang = Math.atan2(car.fwd.x, car.fwd.z);
-    mg.save(); mg.translate(mx, my); mg.rotate(ang + Math.PI);
-    mg.fillStyle = '#ffffff'; mg.strokeStyle = '#0d1216'; mg.lineWidth = 3;
-    mg.beginPath(); mg.moveTo(0, -13); mg.lineTo(9, 10); mg.lineTo(0, 5); mg.lineTo(-9, 10); mg.closePath(); mg.stroke(); mg.fill();
-    mg.restore();
+    // on phones (low quality) the minimap is redrawn every other frame
+    if (quality !== 'low' || !(mmTick++ & 1)) {
+      mg.clearRect(0, 0, 340, 340);
+      mg.drawImage(mmBase, 0, 0);
+      const mx = mmX(car.pos.x), my = mmY(car.pos.z);
+      const ang = Math.atan2(car.fwd.x, car.fwd.z);
+      mg.save(); mg.translate(mx, my); mg.rotate(ang + Math.PI);
+      mg.fillStyle = '#ffffff'; mg.strokeStyle = '#0d1216'; mg.lineWidth = 3;
+      mg.beginPath(); mg.moveTo(0, -13); mg.lineTo(9, 10); mg.lineTo(0, 5); mg.lineTo(-9, 10); mg.closePath(); mg.stroke(); mg.fill();
+      mg.restore();
+    }
 
     updateCockpit();
     updateAudio(dt);

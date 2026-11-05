@@ -5,45 +5,44 @@
 
 <canvas id="scene" tabindex="0"></canvas>
 
+<div class="hud" id="progress" aria-hidden="true"><span class="pl">START</span><div class="bar"><i id="progFill"></i></div><span class="pr">GOAL</span></div>
+
 <div class="hud" id="timing">
-  <div class="lbl" id="stageLbl">SS1 · Kettle Ridge</div>
+  <div id="stageLbl">SS1 · Kettle Ridge</div>
+  <div class="stime"><span class="lbl">TIME</span><span id="time">0:00.00</span></div>
   <div class="posrow" title="Your position on time"><span class="poslbl">POS</span><span id="pos">15</span><span class="posof">/15</span></div>
-  <div class="stime"><span class="lbl">Stage</span><span id="time">0:00.00</span></div>
   <ul id="splits"></ul>
 </div>
 
-<div class="hud" id="clock" aria-live="off"><div class="clbl">TIME</div><div id="timeLeft">30</div></div>
-<div class="hud" id="banner" hidden></div>
+<div class="hud" id="clock" aria-live="off"><div class="clbl">TIME LEFT</div><div id="timeLeft">30</div></div>
+
+<div id="callbox">
+  <div class="hud" id="pace" hidden>
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path id="paceArrowBack" d="" fill="none" stroke="#0d1216" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path id="paceArrow" d="" fill="none" stroke="#ffd21f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span id="paceText">Left 3</span>
+    <span id="paceSub">120 m</span>
+    <span id="paceThen"></span>
+  </div>
+  <div class="hud" id="msg" hidden></div>
+  <div class="hud" id="banner" hidden></div>
+</div>
 
 <div class="hud" id="mapwrap">
   <canvas id="minimap" width="340" height="340"></canvas>
-  <div class="lbl"><span id="distDone">0.00 km</span><span id="distLeft"></span></div>
-</div>
-
-<div class="hud" id="pace" hidden>
-  <svg viewBox="0 0 48 48" aria-hidden="true"><path id="paceArrowBack" d="" fill="none" stroke="#0d1216" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><path id="paceArrow" d="" fill="none" stroke="#ffd21f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div>
-    <div id="paceText">Left 3</div>
-    <div id="paceSub">120 m</div>
-    <div id="paceThen"></div>
-  </div>
 </div>
 
 <div class="hud" id="dash">
-  <canvas id="tacho" width="440" height="440"></canvas>
-  <div id="speedBox"><span id="speed">0</span><span class="unit">km/h</span></div>
+  <canvas id="tacho" width="220" height="220"></canvas>
   <div id="gearBox"><span id="gear">1</span></div>
-  <div id="surfaceTag"><span id="surf">Tarmac</span><span id="rpmNum" hidden>0</span></div>
+  <div id="speedBox"><div class="sp"><span id="speed">0</span><span class="unit">km/h</span></div><div id="surfaceTag"><span id="surf">Tarmac</span><span id="rpmNum" hidden>0</span></div></div>
   <div id="rpm" hidden></div>
 </div>
 
 <div class="hud" id="keys">
-  <div><kbd>W</kbd><kbd>S</kbd> throttle / brake · <kbd>A</kbd><kbd>D</kbd> steer</div>
-  <div><kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>C</kbd> camera · <kbd>M</kbd> sound · <kbd>V</kbd> voice</div>
-  <div><kbd>Esc</kbd> pause · <kbd>⌫</kbd> restart · <kbd>F1</kbd> debug</div>
+  <div><kbd>W</kbd><kbd>S</kbd> gas / brake · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>Space</kbd> handbrake</div>
+  <div><kbd>R</kbd> reset · <kbd>C</kbd> camera · <kbd>M</kbd> sound · <kbd>V</kbd> voice · <kbd>Esc</kbd> pause</div>
 </div>
 
-<div class="hud" id="msg" hidden></div>
 <div id="touch" aria-hidden="true">
   <div class="tc-left"><button class="tc-steer" data-key="left">◀</button><button class="tc-steer" data-key="right">▶</button></div>
   <div class="tc-right"><button class="tc-hb" data-key="hb">HB</button><button class="tc-brake" data-key="down">BRAKE</button><button class="tc-gas" data-key="up">GAS</button></div>
@@ -55,6 +54,7 @@
 <div class="overlay" id="pauseMenu" hidden>
   <div class="card pause">
     <div class="eyebrow">Paused</div>
+    <p class="tip key-only"><kbd>W</kbd><kbd>S</kbd> gas / brake · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>C</kbd> camera · <kbd>M</kbd> sound · <kbd>V</kbd> voice · <kbd>⌫</kbd> restart · <kbd>F1</kbd> debug</p>
     <div class="pause-list">
       <button class="go" id="resumeBtn">Resume</button>
       <button class="ghost" id="restartBtn">Restart stage <kbd class="key-only">⌫</kbd></button>
