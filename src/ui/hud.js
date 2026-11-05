@@ -14,30 +14,31 @@
     [0, 0.45, 0.8, 1.25, 1.7].forEach((t, k) => { const x = sx + (W / 2 - sx) * t * 1.0, y = sy + (Hh / 2 - sy) * t * 1.0; flareParts[k].style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`; });
   }
 
-  /* ---------- analog rev counter, arcade style ---------- */
+  /* ---------- analog rev counter: small 220 px canvas (drawn in 440-unit space), redrawn only when the needle moves ---------- */
   const tacho = document.getElementById('tacho'), tg = tacho.getContext('2d');
-  let tachoNeedle = 0;
+  let tachoNeedle = 0, tachoDrawn = -1e9;
   function drawTacho(rpm) {
     tachoNeedle += (rpm - tachoNeedle) * 0.35;
-    const W = 440, cx = 220, cy = 220, R = 196, a0 = Math.PI * 0.75, a1 = Math.PI * 2.25, val = clamp(tachoNeedle / 9000, 0, 1);
+    if (Math.abs(tachoNeedle - tachoDrawn) < 25) return;       // nothing visible changed: skip the redraw
+    tachoDrawn = tachoNeedle;
+    const W = 440, cx = 220, cy = 220, R = 204, a0 = Math.PI * 0.75, a1 = Math.PI * 2.25, val = clamp(tachoNeedle / 9000, 0, 1);
+    tg.setTransform(tacho.width / W, 0, 0, tacho.width / W, 0, 0);
     tg.clearRect(0, 0, W, W);
     tg.lineCap = 'butt';
-    tg.strokeStyle = 'rgba(8,12,20,.72)'; tg.lineWidth = 52; tg.beginPath(); tg.arc(cx, cy, R - 22, a0, a1); tg.stroke();
-    // red zone
-    tg.strokeStyle = '#e53935'; tg.lineWidth = 16; tg.beginPath(); tg.arc(cx, cy, R - 8, a0 + (a1 - a0) * (7000 / 9000), a1); tg.stroke();
-    // lit arc up to the needle
+    tg.fillStyle = 'rgba(8,14,34,.62)'; tg.beginPath(); tg.arc(cx, cy, R, 0, 7); tg.fill();        // dark face
+    tg.strokeStyle = '#e53935'; tg.lineWidth = 18; tg.beginPath(); tg.arc(cx, cy, R - 12, a0 + (a1 - a0) * (7000 / 9000), a1); tg.stroke();   // red zone
     const grd = tg.createLinearGradient(0, W, W, 0); grd.addColorStop(0, '#ffe24a'); grd.addColorStop(1, '#ff7a1a');
-    tg.strokeStyle = grd; tg.lineWidth = 22; tg.beginPath(); tg.arc(cx, cy, R - 34, a0, a0 + (a1 - a0) * val); tg.stroke();
-    tg.fillStyle = '#ffffff'; tg.font = 'italic 34px "Russo One", "Arial Black", sans-serif'; tg.textAlign = 'center'; tg.textBaseline = 'middle';
+    tg.strokeStyle = grd; tg.lineWidth = 26; tg.beginPath(); tg.arc(cx, cy, R - 48, a0, a0 + (a1 - a0) * val); tg.stroke();   // lit arc up to the needle
+    tg.font = 'italic 52px "Russo One", "Arial Black", sans-serif'; tg.textAlign = 'center'; tg.textBaseline = 'middle';
     for (let k = 0; k <= 9; k++) {
       const a = a0 + (a1 - a0) * k / 9;
-      tg.strokeStyle = k >= 7 ? '#ff5a4a' : '#ffffff'; tg.lineWidth = 6; tg.beginPath(); tg.moveTo(cx + Math.cos(a) * (R - 2), cy + Math.sin(a) * (R - 2)); tg.lineTo(cx + Math.cos(a) * (R - 26), cy + Math.sin(a) * (R - 26)); tg.stroke();
-      tg.fillStyle = k >= 7 ? '#ff6a5a' : '#ffffff'; tg.fillText(String(k), cx + Math.cos(a) * (R - 66), cy + Math.sin(a) * (R - 66));
+      tg.strokeStyle = k >= 7 ? '#ff5a4a' : '#ffffff'; tg.lineWidth = 8; tg.beginPath(); tg.moveTo(cx + Math.cos(a) * (R - 4), cy + Math.sin(a) * (R - 4)); tg.lineTo(cx + Math.cos(a) * (R - 28), cy + Math.sin(a) * (R - 28)); tg.stroke();
+      if (k % 2 === 0) { tg.fillStyle = k >= 7 ? '#ff6a5a' : '#ffffff'; tg.fillText(String(k), cx + Math.cos(a) * (R - 92), cy + Math.sin(a) * (R - 92)); }
     }
     const a = a0 + (a1 - a0) * val;
-    tg.strokeStyle = '#0d1216'; tg.lineWidth = 14; tg.beginPath(); tg.moveTo(cx, cy); tg.lineTo(cx + Math.cos(a) * (R - 18), cy + Math.sin(a) * (R - 18)); tg.stroke();
-    tg.strokeStyle = '#ff2d2d'; tg.lineWidth = 7; tg.beginPath(); tg.moveTo(cx, cy); tg.lineTo(cx + Math.cos(a) * (R - 20), cy + Math.sin(a) * (R - 20)); tg.stroke();
-    tg.fillStyle = '#0d1216'; tg.beginPath(); tg.arc(cx, cy, 14, 0, 7); tg.fill();
+    tg.strokeStyle = '#0d1216'; tg.lineWidth = 20; tg.beginPath(); tg.moveTo(cx, cy); tg.lineTo(cx + Math.cos(a) * (R - 20), cy + Math.sin(a) * (R - 20)); tg.stroke();
+    tg.strokeStyle = '#ff2d2d'; tg.lineWidth = 11; tg.beginPath(); tg.moveTo(cx, cy); tg.lineTo(cx + Math.cos(a) * (R - 22), cy + Math.sin(a) * (R - 22)); tg.stroke();
+    tg.fillStyle = '#0d1216'; tg.beginPath(); tg.arc(cx, cy, 20, 0, 7); tg.fill();
   }
 
   /* ---------- minimap canvas ---------- */
@@ -47,7 +48,7 @@
   const $ = id => document.getElementById(id);
   const elTime = $('time'), elSplits = $('splits'), elSpeed = $('speed'), elGear = $('gear'), elSurf = $('surf'), elRpmNum = $('rpmNum');
   const elPace = $('pace'), elPaceText = $('paceText'), elPaceSub = $('paceSub'), elPaceThen = $('paceThen'), elArrow = $('paceArrow');
-  const elMsg = $('msg'), elDone = $('distDone'), elLeft = $('distLeft');
+  const elMsg = $('msg'), elProg = $('progFill'), elKeys = $('keys');
   const elPos = $('pos'), elClock = $('timeLeft'), elClockBox = $('clock'), elBanner = $('banner');
   const rpmEl = $('rpm');
   const rpmCells = [];

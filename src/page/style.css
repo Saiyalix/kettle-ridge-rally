@@ -29,70 +29,103 @@ html, body { height: 100%; margin: 0; overflow: hidden; background: var(--ink); 
 #flare .g4 { width: 46px; height: 46px; background: radial-gradient(circle, rgba(255,255,255,.4), rgba(255,255,255,0) 70%); }
 .hud { position: fixed; pointer-events: none; font-family: var(--f-display); font-variant-numeric: tabular-nums; }
 
-/* Timer + splits, top left */
-#timing {
-  top: calc(14px + env(safe-area-inset-top, 0px)); left: calc(14px + env(safe-area-inset-left, 0px));
-  background: var(--panel); border-left: 4px solid var(--accent); padding: 8px 14px 10px; min-width: 170px;
+/* ---------- HUD: small retro-arcade blocks hugging the edges; the middle of the screen stays clear ----------
+   Sizes come from variables so one set of rules serves desktop (default), short phones (max-height 520) and big screens. */
+:root {
+  --k: 1;
+  --outline: -1px -1px 0 #0d1216, 1px -1px 0 #0d1216, -1px 1px 0 #0d1216, 1px 1px 0 #0d1216, 0 2px 0 #0d1216;
+  --edge: 16px;
+  --d-time: calc(var(--k) * 30px); --d-pos: calc(var(--k) * 44px); --d-clock: calc(var(--k) * 52px);
+  --d-lbl: calc(var(--k) * 11px); --d-note: calc(var(--k) * 17px); --d-ban: calc(var(--k) * 30px); --d-goal: calc(var(--k) * 52px);
+  --d-sub: calc(var(--k) * 14px); --d-msg: calc(var(--k) * 64px);
+  --dial: calc(var(--k) * 124px); --mini: calc(var(--k) * 112px);
+  --top: calc(var(--k) * 24px);                         /* below the progress bar */
+  --stack: calc(var(--k) * 88px);                       /* where the note / banner stack starts, under the countdown */
 }
-#timing .lbl { font-size: 12px; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; }
-#time { font-size: 40px; font-weight: 800; line-height: 1; margin-top: 2px; }
-#splits { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 16px; }
-#splits li { display: flex; justify-content: space-between; gap: 14px; }
-#splits .d { font-weight: 700; }
+@media (min-height: 900px) { :root { --k: 1.2; } }
+@media (max-height: 520px) {
+  :root {
+    --k: 1; --edge: 12px;
+    --d-time: 20px; --d-pos: 24px; --d-clock: 34px; --d-lbl: 8px; --d-note: 13px; --d-ban: 20px; --d-goal: 32px; --d-sub: 10px; --d-msg: 42px;
+    --dial: 84px; --mini: 76px; --top: 19px; --stack: 63px;
+  }
+  #paceThen { display: none; }            /* short screens: one line only */
+}
 .up { color: var(--hot); } .down { color: var(--good); }
+@keyframes pulse { 50% { transform: scale(1.08); } }
+@keyframes splitFade { 0%, 72% { opacity: 1; } 100% { opacity: 0; } }
+.hud { text-shadow: var(--outline); color: #fff; }
 
-/* Minimap, top right */
-#mapwrap {
-  top: calc(14px + env(safe-area-inset-top, 0px)); right: calc(14px + env(safe-area-inset-right, 0px));
-  background: var(--panel); padding: 8px; display: grid; gap: 4px;
-}
-#minimap { width: 170px; height: 170px; display: block; }
-#mapwrap .lbl { font-size: 12px; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; display: flex; justify-content: space-between; }
+/* START - GOAL progress bar across the top */
+#progress { top: calc(5px + env(safe-area-inset-top, 0px)); left: calc(var(--edge) + env(safe-area-inset-left, 0px)); right: calc(var(--edge) + env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; gap: 6px; font-family: var(--f-arcade); font-size: var(--d-lbl); letter-spacing: .08em; }
+#progress .bar { flex: 1; height: calc(var(--d-lbl) * .75); background: rgba(8, 14, 34, .72); border: 2px solid #0d1216; box-shadow: 0 0 0 1px rgba(255, 255, 255, .5); }
+#progFill { display: block; height: 100%; width: 0; background: linear-gradient(180deg, #f2ff8a, #9be22b 50%, #3f9e18); }
 
-/* Co-driver pace note card, top centre */
-#pace {
-  top: calc(18px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%) rotate(-1.2deg);
-  background: var(--paper);
-  background-image: repeating-linear-gradient(to bottom, transparent 0 21px, var(--paper-rule) 21px 22px);
-  color: var(--pen); padding: 10px 18px 8px 14px; display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 6px 18px rgba(0,0,0,.35); border-left: 3px solid #e2777a; min-width: 200px;
-  transition: opacity .2s;
-}
-#pace svg { width: 42px; height: 42px; flex: none; }
-#paceText { font-family: var(--f-note); font-size: 28px; line-height: 1.05; }
-#paceSub { font-family: var(--f-display); font-size: 14px; letter-spacing: .08em; color: #4b5a68; text-transform: uppercase; }
-#paceThen { font-family: var(--f-note); font-size: 16px; color: #3b4a59; }
+/* Stage time (and the latest split, briefly) top left; position top right on big screens */
+#timing { top: calc(var(--top) + env(safe-area-inset-top, 0px)); left: calc(var(--edge) + env(safe-area-inset-left, 0px)); }
+#stageLbl { font-family: var(--f-arcade); font-size: var(--d-lbl); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 3px; }
+.stime .lbl, .poslbl, .clbl { font-family: var(--f-arcade); font-size: var(--d-lbl); letter-spacing: .1em; text-transform: uppercase; color: #ffd21f; display: block; line-height: 1.1; }
+#time, #pos, #timeLeft, #speed, #gear { font-family: var(--f-arcade); font-style: italic; font-variant-numeric: tabular-nums; }
+#time { font-size: var(--d-time); line-height: 1; display: block; }
+.posrow { position: fixed; top: calc(var(--top) + env(safe-area-inset-top, 0px)); right: calc(var(--edge) + env(safe-area-inset-right, 0px)); display: flex; align-items: baseline; gap: 4px; }
+.poslbl { color: #7be07b; margin-right: 4px; }
+#pos { font-size: var(--d-pos); line-height: 1; }
+.posof { font-family: var(--f-arcade); font-style: italic; font-size: calc(var(--d-pos) * .45); color: #ffd21f; }
+#splits { list-style: none; margin: 3px 0 0; padding: 0; font-family: var(--f-arcade); font-size: calc(var(--d-lbl) + 2px); }
+#splits li { display: flex; gap: 8px; animation: splitFade 4.5s forwards; }
+#splits .d { font-weight: 700; }
 
-/* Speedo, bottom right */
-#dash {
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px)); right: calc(14px + env(safe-area-inset-right, 0px));
-  background: var(--panel); padding: 10px 14px 12px; display: grid; grid-template-columns: auto auto; column-gap: 16px; align-items: end;
-}
-#speed { font-size: 58px; font-weight: 800; line-height: .9; text-align: right; min-width: 3ch; }
-#dash .unit { font-size: 13px; letter-spacing: .14em; color: var(--muted); text-align: right; }
-#gear { font-size: 58px; font-weight: 800; line-height: .9; color: var(--accent); text-align: center; min-width: 1.2ch; }
-#rpm { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; margin-top: 8px; width: 220px; }
-#rpm i { height: 10px; background: rgba(238,242,244,.12); display: block; }
-#rpm i.on { background: var(--text); }
-#rpm i.on.amber { background: var(--accent); }
-#rpm i.on.red { background: var(--hot); }
-#surfaceTag { grid-column: 1 / -1; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 6px; display: flex; justify-content: space-between; }
+/* Countdown clock, top centre: chunky yellow, moderate */
+#clock { top: calc(var(--top) - 3px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); text-align: center; }
+.clbl { text-align: center; letter-spacing: .16em; }
+#timeLeft { font-size: var(--d-clock); line-height: .95; background: linear-gradient(180deg, #fff6a0 0%, #ffd21f 45%, #ff8a00 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: 2px #0d1216; text-shadow: none; filter: drop-shadow(0 2px 0 #0d1216); }
+#clock.low #timeLeft { background: linear-gradient(180deg, #ffd0c8 0%, #ff4a3a 60%, #b3001b 100%); -webkit-background-clip: text; background-clip: text; animation: pulse .5s steps(2) infinite; }
 
-/* Keys, bottom left */
-#keys {
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: calc(14px + env(safe-area-inset-left, 0px));
-  font-size: 13px; color: var(--muted); letter-spacing: .05em; display: grid; gap: 3px; background: var(--panel); padding: 8px 12px;
-}
+/* Co-driver note, banners and the big countdown: one small stack under the clock, well above the car */
+#callbox { position: fixed; top: calc(var(--stack) + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px;
+  pointer-events: none; width: max-content; max-width: 70vw; z-index: 3; }
+#callbox .hud { position: static; }
+#pace { display: grid; grid-template-columns: auto auto auto; align-items: center; column-gap: calc(var(--d-note) * .5); padding: 2px calc(var(--d-note) * .7) 2px calc(var(--d-note) * .4);
+  background: rgba(8, 14, 34, .74); border-left: 3px solid #ffd21f; font-family: var(--f-display); font-weight: 800; font-style: italic; text-transform: uppercase; }
+#pace svg { width: calc(var(--d-note) * 1.5); height: calc(var(--d-note) * 1.5); }
+#paceText { font-size: var(--d-note); letter-spacing: .02em; white-space: nowrap; }
+#paceSub { font-size: var(--d-note); color: #ffd21f; white-space: nowrap; }
+#paceThen { grid-column: 2 / 4; font-size: calc(var(--d-note) * .72); font-weight: 600; color: #bcd4ff; white-space: nowrap; margin-top: -2px; }
+#paceThen:empty { display: none; }
+#msg { font-family: var(--f-arcade); font-style: italic; font-size: var(--d-msg); line-height: 1; text-align: center; letter-spacing: .02em; }
+#msg.small { font-family: var(--f-display); font-style: normal; font-weight: 800; font-size: calc(var(--d-note) * 1.05); background: rgba(8, 14, 34, .74); padding: 3px 12px; letter-spacing: .06em; text-transform: uppercase; }
+#banner { font-family: var(--f-arcade); font-style: italic; font-size: var(--d-ban); line-height: 1.05; text-align: center; white-space: nowrap; color: #ffd21f; background: rgba(8, 14, 34, .5); padding: 2px 14px 4px; transform: skewX(-8deg); }
+#banner.goal { color: #fff; font-size: var(--d-goal); }
+#banner.over { color: var(--hot); font-size: var(--d-goal); }
+#banner .sub { display: block; font-style: normal; font-size: var(--d-sub); letter-spacing: .05em; color: #fff; margin-top: 2px; }
+
+/* Minimap, right edge under the position */
+#mapwrap { top: calc(var(--top) + var(--d-pos) + 14px + env(safe-area-inset-top, 0px)); right: calc(var(--edge) + env(safe-area-inset-right, 0px)); }
+#minimap { width: var(--mini); height: var(--mini); display: block; filter: drop-shadow(1px 2px 0 rgba(0, 0, 0, .55)); }
+
+/* Rev dial + gear + speed, bottom left (reference-style) */
+#dash { left: calc(var(--edge) + env(safe-area-inset-left, 0px)); bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px)); display: flex; align-items: flex-end; }
+#tacho { width: var(--dial); height: var(--dial); display: block; }
+#gearBox { position: absolute; left: calc(var(--dial) * .64); bottom: calc(var(--dial) * .02); width: calc(var(--dial) * .26); height: calc(var(--dial) * .3); display: grid; place-items: center;
+  background: #0d1216; border: 2px solid #ffd21f; transform: skewX(-8deg); }
+#gear { font-size: calc(var(--dial) * .22); color: #ffd21f; line-height: 1; text-shadow: none; }
+#speedBox { padding-bottom: calc(var(--dial) * .04); }
+#speedBox .sp { display: flex; align-items: baseline; gap: 3px; }
+#speed { font-size: calc(var(--dial) * .36); line-height: 1; min-width: 3ch; text-align: right; }
+#dash .unit { font-family: var(--f-arcade); font-size: calc(var(--dial) * .12); color: #ffd21f; }
+#surfaceTag { font-family: var(--f-arcade); font-size: calc(var(--d-lbl) - 1px); letter-spacing: .1em; text-transform: uppercase; color: #cfd8e0; text-align: right; }
+
+/* Keyboard help: first seconds of a race only (desktop; the pause menu lists it too) */
+#keys { right: calc(var(--edge) + env(safe-area-inset-right, 0px)); bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px)); text-align: right; font-family: var(--f-display); font-size: 13px; line-height: 1.5; letter-spacing: .04em; transition: opacity .6s; }
+#keys.gone { opacity: 0; }
+
 kbd { font-family: var(--f-display); font-weight: 700; color: var(--text); border: 1px solid var(--line); border-bottom-width: 2px; padding: 0 5px; margin-right: 2px; font-size: 12px; }
 
 /* Centre message */
 #fade { position: fixed; inset: 0; background: #05070a; opacity: 0; pointer-events: none; transition: opacity .18s ease; z-index: 6; }
 #fade.on { opacity: 1; }
-#msg {
-  top: 60%; left: 50%; transform: translate(-50%, -50%); text-align: center;
-  font-size: 120px; font-weight: 800; color: var(--text); text-shadow: 0 4px 24px rgba(0,0,0,.5); letter-spacing: .02em;
-}
-#msg.small { font-size: 26px; background: var(--panel); padding: 8px 18px; text-shadow: none; letter-spacing: .06em; }
 
 /* Overlays */
 .overlay {
@@ -141,40 +174,8 @@ button.go:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
 .rp-inputs .gas { width: 120px; height: 10px; border: 2px solid rgba(255,255,255,.25); display: inline-block; }
 .rp-inputs .gas i { display: block; height: 100%; width: 0; background: #5fd38a; }
 .rp-help { margin-top: 8px; font-family: var(--f-body); font-size: 12px; color: #aab4c0; }
-body.replay-mode #keys, body.replay-mode #clock, body.replay-mode #pace, body.replay-mode #dash { display: none !important; }
+body.replay-mode #keys, body.replay-mode #clock, body.replay-mode #callbox, body.replay-mode #dash, body.replay-mode #progress { display: none !important; }
 
-/* Arcade HUD in the Sega Rally manner: no panels, chunky italic digits with heavy outlines */
-#timing, #mapwrap, #dash, #keys { background: transparent !important; border: 0 !important; }
-#timing { padding: 0; }
-#timing .lbl, #stageLbl { font-family: var(--f-arcade); color: #fff; letter-spacing: .08em; text-shadow: 2px 2px 0 #0d1216, -1px -1px 0 #0d1216; }
-.poslbl { font-family: var(--f-arcade); color: #ffd21f !important; text-shadow: 2px 2px 0 #0d1216; font-size: 20px !important; }
-#pos, .posof, #time, #timeLeft, #speed, #gear { font-family: var(--f-arcade); font-style: italic; }
-#pos { font-size: 72px !important; color: #fff; text-shadow: -3px -3px 0 #0d1216, 3px -3px 0 #0d1216, -3px 3px 0 #0d1216, 3px 3px 0 #0d1216, 0 6px 0 #0d1216; }
-.posof { color: #ffd21f !important; text-shadow: 2px 2px 0 #0d1216; font-size: 28px !important; }
-#time { color: #fff; text-shadow: 2px 2px 0 #0d1216, -1px -1px 0 #0d1216; }
-#splits { font-family: var(--f-arcade); text-shadow: 2px 2px 0 #0d1216; color: #fff; font-size: 15px; }
-.clbl { font-family: var(--f-arcade); color: #ffd21f !important; font-size: 22px !important; }
-#timeLeft { font-size: 96px !important; background: linear-gradient(180deg, #fff6a0 0%, #ffd21f 45%, #ff8a00 100%); -webkit-background-clip: text; background-clip: text; color: transparent !important;
-  -webkit-text-stroke: 3px #0d1216; text-shadow: none !important; filter: drop-shadow(0 5px 0 #0d1216); }
-#clock.low #timeLeft { background: linear-gradient(180deg, #ffd0c8 0%, #ff4a3a 60%, #b3001b 100%); -webkit-background-clip: text; background-clip: text; }
-#banner { font-family: var(--f-arcade); }
-#dash { width: 230px; height: 230px; padding: 0 !important; display: block !important; }
-#tacho { width: 230px; height: 230px; display: block; }
-#speedBox { position: absolute; left: 0; right: 0; bottom: 34px; justify-content: center; display: flex; align-items: baseline; gap: 4px; }
-#speed { font-size: 46px !important; color: #fff; text-shadow: -2px -2px 0 #0d1216, 2px -2px 0 #0d1216, -2px 2px 0 #0d1216, 2px 2px 0 #0d1216, 0 4px 0 #0d1216; min-width: 0 !important; }
-#speedBox .unit { font-family: var(--f-arcade); font-size: 14px; color: #ffd21f; text-shadow: 1px 1px 0 #0d1216; }
-#gearBox { position: absolute; left: 92px; top: 46px; width: 46px; height: 52px; display: grid; place-items: center; background: #0d1216; border: 3px solid #ffd21f; transform: skewX(-8deg); }
-#gear { font-size: 40px !important; color: #ffd21f; line-height: 1; }
-#surfaceTag { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-family: var(--f-arcade) !important; color: #fff !important; text-shadow: 2px 2px 0 #0d1216; justify-content: center !important; }
-#pace { background: transparent !important; box-shadow: none !important; border: 0 !important; transform: translateX(-50%) !important; padding: 0 !important; flex-direction: column; gap: 0 !important; min-width: 0 !important; }
-#pace svg { width: 74px !important; height: 74px !important; }
-#paceText { font-family: var(--f-arcade) !important; font-style: italic; font-size: 30px !important; color: #fff !important; text-transform: uppercase; text-align: center;
-  text-shadow: -2px -2px 0 #0d1216, 2px -2px 0 #0d1216, -2px 2px 0 #0d1216, 2px 2px 0 #0d1216, 0 4px 0 #0d1216; white-space: nowrap; }
-#paceSub { font-family: var(--f-arcade) !important; color: #ffd21f !important; text-align: center; text-shadow: 2px 2px 0 #0d1216; }
-#paceThen { font-family: var(--f-arcade) !important; color: #fff !important; font-size: 15px !important; text-align: center; text-shadow: 2px 2px 0 #0d1216; text-transform: uppercase; }
-#minimap { filter: drop-shadow(2px 3px 0 rgba(0,0,0,.55)); }
-#mapwrap .lbl { font-family: var(--f-arcade); color: #fff !important; text-shadow: 2px 2px 0 #0d1216; }
-#keys { color: #fff !important; text-shadow: 1px 1px 0 #0d1216; }
 .logo { display: flex; flex-direction: column; line-height: .85; transform: skewX(-10deg); margin: 4px 0 2px 6px; }
 .logo span { font-family: var(--f-arcade); font-style: italic; background: linear-gradient(180deg, #fff6a0 0%, #ffd21f 40%, #ff6a00 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 2px #0d1216; filter: drop-shadow(3px 4px 0 #0d1216); }
 .logo .l1 { font-size: 40px; letter-spacing: .02em; }
@@ -190,31 +191,10 @@ button.ghost { font-family: var(--f-arcade) !important; font-style: italic; tran
 .card { background: linear-gradient(180deg, rgba(10,24,64,.95), rgba(8,14,34,.95)) !important; border-top-color: #ffd21f !important; }
 .big.pos { font-family: var(--f-arcade) !important; }
 
-/* Arcade HUD: position, big countdown clock, banners */
-#timing .posrow { display: flex; align-items: baseline; gap: 4px; margin-top: 2px; }
-.poslbl { font-size: 15px; letter-spacing: .14em; color: var(--accent); margin-right: 6px; font-weight: 700; }
-#pos { font-size: 56px; font-weight: 800; line-height: .9; }
-.posof { font-size: 22px; color: var(--muted); font-weight: 700; }
-#timing .stime { display: flex; gap: 10px; align-items: baseline; margin-top: 4px; }
-#timing .stime .lbl { font-size: 12px; }
-#time { font-size: 22px; font-weight: 700; line-height: 1; margin: 0; }
-#clock { top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); text-align: center; }
-.clbl { font-size: 16px; font-weight: 800; letter-spacing: .3em; color: var(--accent); text-shadow: 0 2px 0 #0d1216, 0 0 6px rgba(0,0,0,.5); padding-left: .3em; }
-#timeLeft { font-size: 78px; font-weight: 800; line-height: .85; color: #fff; font-style: italic;
-  text-shadow: -3px -3px 0 #0d1216, 3px -3px 0 #0d1216, -3px 3px 0 #0d1216, 3px 3px 0 #0d1216, 0 6px 0 #0d1216; }
-#clock.low #timeLeft { color: var(--hot); animation: pulse .5s steps(2) infinite; }
-@keyframes pulse { 50% { transform: scale(1.08); } }
-#banner { top: 44%; left: 50%; transform: translate(-50%, -50%) skewX(-8deg); white-space: nowrap; font-size: 64px; font-weight: 800; font-style: italic; letter-spacing: .02em;
-  color: var(--accent); text-shadow: -3px -3px 0 #0d1216, 3px -3px 0 #0d1216, -3px 3px 0 #0d1216, 3px 3px 0 #0d1216, 0 7px 0 #0d1216; }
-#banner.goal { color: #fff; font-size: 110px; }
-#banner .sub { display: block; font-size: 24px; font-style: normal; letter-spacing: .06em; color: #fff; text-align: center; margin-top: 4px;
-  text-shadow: -2px -2px 0 #0d1216, 2px -2px 0 #0d1216, -2px 2px 0 #0d1216, 2px 2px 0 #0d1216; }
 .tbl-title { font-family: var(--f-display); font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 14px 0 6px; }
 .classif { display: grid; grid-template-columns: auto 1fr auto auto; gap: 3px 16px; font-family: var(--f-display); font-size: 17px; font-variant-numeric: tabular-nums; }
 .classif .h { color: var(--muted); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
 .classif .me { color: var(--accent); font-weight: 800; }
-#banner.over { color: var(--hot); font-size: 104px; }
-#pace { top: calc(118px + env(safe-area-inset-top, 0px)); }
 .big.pos { font-family: var(--f-display); font-weight: 800; font-style: italic; font-size: 96px; line-height: .95; color: var(--text); }
 .big.pos.p1 { color: var(--accent); }
 .big.pos.over { color: var(--hot); font-size: 72px; }
@@ -270,25 +250,12 @@ button.ghost:focus-visible { outline: 3px solid var(--text); outline-offset: 3px
 .menu-panel > * { flex-shrink: 0; }            /* short screens: scroll instead of squashing rows together */
 @media (hover: none) and (pointer: coarse) { .touchnote { display: block; } }
 @media (max-width: 640px) {
-  #keys { display: none; }
-  #minimap { width: 110px; height: 110px; }
-  #time { font-size: 18px; }
-  #pos { font-size: 46px !important; }
-  #timeLeft { font-size: 62px !important; }
-  #dash, #tacho { width: 160px !important; height: 160px !important; }
-  #speed { font-size: 32px !important; } #speedBox { bottom: 22px; } #gearBox { left: 63px; top: 30px; width: 34px; height: 38px; } #gear { font-size: 28px !important; }
-  #paceText { font-size: 22px !important; } #pace svg { width: 52px !important; height: 52px !important; }
   .logo .l1 { font-size: 28px; } .logo .l2 { font-size: 54px; }
-  #banner { font-size: 40px; } #banner.goal, #banner.over { font-size: 64px; }
-  #speed, #gear { font-size: 42px; }
-  #rpm { width: 160px; }
-  #pace { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
   .card h1 { font-size: 48px; }
   .menu-panel { width: 100%; background: linear-gradient(0deg, rgba(13,18,22,.95) 0%, rgba(13,18,22,.88) 70%, rgba(13,18,22,.55) 100%); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-left: max(20px, env(safe-area-inset-left, 0px)); }
   .menu-panel h1 { font-size: 40px; }
   .menu-panel .ctrl, .menu-panel .tip { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { #pace { transition: none; } }
 
 /* ---------- phones and tablets: on-screen controls, landscape layout ---------- */
 html { -webkit-tap-highlight-color: transparent; }
@@ -320,22 +287,14 @@ body.touch .rp-help { display: none; }
 .rp-btns { display: none; gap: 8px; margin-top: 8px; }
 body.touch .rp-btns { display: flex; }
 .rp-btns button { font-family: var(--f-arcade); font-size: 14px; padding: 8px 14px; background: rgba(255,255,255,.1); color: #fff; border: 2px solid rgba(255,255,255,.3); }
-/* the HUD on a phone held sideways: smaller, with the dash moved off the right thumb */
-body.touch #dash, body.touch #tacho { width: 132px !important; height: 132px !important; }
-body.touch #dash { right: auto !important; left: 50% !important; transform: translateX(-50%); bottom: 4px !important; }
-body.touch #speed { font-size: 26px !important; } body.touch #speedBox { bottom: 18px; } body.touch #gearBox { left: 52px; top: 24px; width: 28px; height: 30px; } body.touch #gear { font-size: 22px !important; }
-body.touch #surfaceTag { display: none !important; }
-body.touch #mapwrap { top: calc(56px + env(safe-area-inset-top, 0px)); padding: 0; }
-body.touch #minimap { width: 92px; height: 92px; }
-body.touch #mapwrap .lbl { font-size: 10px; }
+/* the HUD on a phone held sideways: rev dial sits above the left thumb, minimap under the top-right buttons */
+body.touch #dash { bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + clamp(86px, 34vh, 140px) + 6px); }
+body.touch.tilt #dash { bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px)); }
+body.touch #surfaceTag, body.touch #stageLbl, body.touch #progress .pl, body.touch #progress .pr { display: none; }
+body.touch #progress { right: calc(176px + env(safe-area-inset-right, 0px)); top: calc(4px + env(safe-area-inset-top, 0px)); }
+body.touch .posrow { position: static; margin-top: 2px; }
+body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 @media (max-height: 520px) {
-  #timeLeft { font-size: 56px !important; } .clbl { font-size: 14px !important; }
-  #pos { font-size: 40px !important; } .posof { font-size: 18px !important; } .poslbl { font-size: 14px !important; }
-  #time { font-size: 16px; } #splits { font-size: 12px; } #timing .lbl { font-size: 11px; }
-  #pace { top: calc(78px + env(safe-area-inset-top, 0px)) !important; bottom: auto !important; }
-  #paceText { font-size: 19px !important; } #pace svg { width: 44px !important; height: 44px !important; } #paceThen, #paceSub { font-size: 11px !important; }
-  #banner { font-size: 36px; } #banner.goal, #banner.over { font-size: 58px; } #banner .sub { font-size: 15px; }
-  #msg { font-size: 72px; } #msg.small { font-size: 17px; }
   .card { padding: 16px 20px 18px; } .card h1 { font-size: 40px; } .big.pos { font-size: 60px; } .ftime { font-size: 24px; }
   .classif { font-size: 14px; } .result { margin-bottom: 12px; }
   .menu-panel { gap: 8px; padding-block: 12px; } .logo .l1 { font-size: 24px; } .logo .l2 { font-size: 44px; } .menu-panel h1 { font-size: 22px !important; }

@@ -52,6 +52,26 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   const hud = await rectsOf(g.page, ['#timing', '#clock', '#mapwrap', '#dash']);
   const th = []; for (const a of touch) for (const b of hud) if (overlap(a, b)) th.push(`${a.name} × ${b.name}`);
   checks.push({ name: 'race: touch controls do not overlap the HUD', pass: th.length === 0, detail: th.length ? th.join(', ') : 'ok' });
+  // The pace note and the banners must stay out of the middle of the screen (the owner said they "block the view").
+  // We force a long note and a big banner on screen, then check the middle band (40% wide x 40% high) around the car stays clear.
+  const band = await g.page.evaluate(() => {
+    const show = (id, html) => { const e = document.getElementById(id); e.hidden = false; if (html != null) e.innerHTML = html; return e; };
+    show('pace'); document.getElementById('paceText').textContent = 'Long medium left, don\'t cut';
+    document.getElementById('paceSub').textContent = '120 m'; document.getElementById('paceThen').textContent = 'Into long medium right, don\'t cut';
+    const b = show('banner', 'EXTENDED TIME +29<span class="sub">Split P1 +1.2 s</span>'); b.className = 'hud goal';
+    const m = show('msg', '3'); m.className = 'hud';
+    const W = innerWidth, H = innerHeight, bx = [W * .3, W * .7], by = [H * .3, H * .7], out = {};
+    for (const id of ['pace', 'banner', 'msg']) {
+      const r = document.getElementById(id).getBoundingClientRect();
+      const w = Math.max(0, Math.min(r.right, bx[1]) - Math.max(r.left, bx[0])), h = Math.max(0, Math.min(r.bottom, by[1]) - Math.max(r.top, by[0]));
+      out[id] = +(100 * w * h / ((bx[1] - bx[0]) * (by[1] - by[0]))).toFixed(1);
+    }
+    return out;
+  });
+  const bandMax = expected.mobile.maxCentreCoveragePct;   // per element: { pace, banner, msg }
+  const bandBad = Object.entries(band).filter(([k, v]) => v > bandMax[k]).map(([k, v]) => `#${k} covers ${v}%`);
+  checks.push({ name: `race: pace note and banners keep the centre clear (pace ≤ ${bandMax.pace}%, banner ≤ ${bandMax.banner}%)`, pass: bandBad.length === 0,
+    detail: bandBad.length ? bandBad.join(', ') : 'centre covered: ' + Object.entries(band).map(([k, v]) => `#${k} ${v}%`).join(', ') });
   const errs = g.errors();
   checks.push({ name: 'phone: no console errors', pass: errs.length === 0, detail: errs.length ? errs.slice(0, 5).join(' | ') : '0 errors' });
   await g.ctx.close();

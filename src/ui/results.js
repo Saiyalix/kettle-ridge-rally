@@ -2,16 +2,16 @@
     if (!text) { elMsg.hidden = true; return; }
     elMsg.hidden = false; elMsg.textContent = text; elMsg.className = 'hud' + (small ? ' small' : '');
   }
+  // only the latest split is shown, and it fades out by itself (CSS) after a few seconds
   function renderSplits() {
     elSplits.innerHTML = '';
-    splits.forEach((t, i) => {
-      const li = document.createElement('li');
-      const b = best && best.splits && best.splits[i];
-      let d = '';
-      if (b != null) { const dd = t - b; d = `<span class="d ${dd > 0 ? 'up' : 'down'}">${dd > 0 ? '+' : '−'}${Math.abs(dd).toFixed(2)}</span>`; }
-      li.innerHTML = `<span>CP${i + 1} ${fmtTime(t)}</span>${d}`;
-      elSplits.appendChild(li);
-    });
+    if (!splits.length) return;
+    const i = splits.length - 1, t = splits[i], li = document.createElement('li');
+    const b = best && best.splits && best.splits[i];
+    let d = '';
+    if (b != null) { const dd = t - b; d = `<span class="d ${dd > 0 ? 'up' : 'down'}">${dd > 0 ? '+' : '−'}${Math.abs(dd).toFixed(2)}</span>`; }
+    li.innerHTML = `<span>CP${i + 1} ${fmtTime(t)}</span>${d}`;
+    elSplits.appendChild(li);
   }
   function rowsHtml(rows, cols) {
     const fmtGap = (r, lead) => r.time == null ? 'DNF' : r.pos === 1 ? fmtTime(r.time) : '+' + (r.time - lead).toFixed(2);
