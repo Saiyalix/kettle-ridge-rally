@@ -143,6 +143,7 @@
     });
     const vendMat = new THREE.MeshBasicMaterial({ map: vendTex });
     const lampHeads = [], lampPoles = [], lanterns = [], vends = [];
+    const townB = [];                                  // look only: the buildings, for the 3D detail (art/buildings.js townDetail)
     for (const side of [-1, 1]) {
       let s = city0 + 10;
       while (s < track.length - 10) {
@@ -155,7 +156,7 @@
         const nearEnd = clamp((sc - city0) / (track.finishS - city0), 0, 1);
         const hh = 7 + rng() * 12 + nearEnd * rng() * 22;
         const y = terrain.heightAt(cx, cz) - 1.5;
-        const m = new THREE.Mesh(building(w, d, hh), bMat); m.position.set(cx, y, cz); m.rotation.y = p.th + Math.PI / 2; m.castShadow = m.receiveShadow = true; add(m);
+        const m = new THREE.Mesh(building(w, d, hh), bMat); m.position.set(cx, y, cz); m.rotation.y = p.th + Math.PI / 2; m.castShadow = m.receiveShadow = true; add(m); townB.push({ x: cx, y, z: cz, yaw: p.th + Math.PI / 2, w, d, h: hh, side });
         { // the footprint as four wall segments (w along the road, d away from it), matching the mesh
           const ax = -Math.cos(p.th) * d / 2, az = Math.sin(p.th) * d / 2, bx = Math.sin(p.th) * w / 2, bz = Math.cos(p.th) * w / 2;
           const c = [[cx + ax + bx, cz + az + bz], [cx + ax - bx, cz + az - bz], [cx - ax - bx, cz - az - bz], [cx - ax + bx, cz - az + bz]];
@@ -181,6 +182,7 @@
     instanced(new THREE.BoxGeometry(0.5, 0.18, 0.5), new THREE.MeshBasicMaterial({ color: 0xfff1c9 }), lampHeads, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
     instanced(new THREE.CylinderGeometry(0.26, 0.26, 0.6, 10), new THREE.MeshBasicMaterial({ color: 0xff4a36 }), lanterns, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
     instanced(new THREE.BoxGeometry(1.0, 1.9, 0.75).translate(0, 0.95, 0), [lit({ color: 0xd8342c }), lit({ color: 0xd8342c }), lit({ color: 0xd8342c }), lit({ color: 0xd8342c }), vendMat, lit({ color: 0xd8342c })], vends, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th, 0); o.scale.setScalar(1); });
+    townDetail(townB);
     // zebra crossing just before the finish
     const stripes = [];
     { const p = sampleAt(track.finishS - 25); for (let k = -4; k <= 4; k++) { const [x, z] = sideXZ(p, k * (half / 4.6)); stripes.push({ x, z, y: terrain.heightAt(x, z) + 0.06, th: p.th }); } }
@@ -199,6 +201,7 @@
       g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; g.fillRect(0, 6, w, 4); g.fillRect(0, h - 10, w, 4);
       g.font = 'italic 900 58px "Arial Black", "Saira Condensed", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = fg; g.fillText(txt, w / 2, h / 2 + 2);
     }), side: THREE.DoubleSide }));
+    for (const m of sponsorMats) { m.userData.keep = true; m.map.userData.keep = true; }     // cached for every stage: the stage dispose leaves them
     return sponsorMats;
   }
   function getCrowdTex() {

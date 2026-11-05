@@ -25,7 +25,6 @@
   }
   function roadsideMesh(geo, map, opts = {}) {
     const mat = lit({ map, vertexColors: true, side: THREE.FrontSide });
-    if (opts.glow) { mat.emissiveMap = opts.glow; mat.emissive.setHex(0xffffff); mat.emissiveIntensity = 1.15; }       // lit windows at night
     const m = new THREE.Mesh(geo, mat);
     m.castShadow = opts.shadow !== false; m.receiveShadow = true; add(m); return m;
   }
@@ -100,56 +99,9 @@
     return roadsideMesh(b.build(), woodTex());
   }
 
-  /* buildings(list, opt): plaster or stone buildings with windows, arched doors and clay-tile roofs. One call = at most 4 draw calls
-     (walls + roofs for each of the two styles used), however many buildings are in the list.
-       list: [{ x, y, z, yaw, w, d, h, style, tint, roof }, ...]
-         x,y,z   ground position of the middle of the building (y = terrain height there; the walls go 1 m below it)
-         yaw     rotation.y in radians. The FRONT (windows + door) faces local +z. To face the road use
-                 yaw = facingYaw(x, z, roadX, roadZ)
-         w, d    width of the front (6..20 m), depth (5..12 m)
-         h       wall height, about 8 m for the two storeys on the texture (6..10 looks fine; it stretches a little)
-         style   'plaster' (default) or 'stone'
-         tint    [r,g,b] 0..1 multiplier for the wall colour, e.g. [1,0.9,0.75] sand, [1,0.82,0.8] pink, [0.85,0.9,1] pale blue
-         roof    'hip' (default, clay tiles) or 'flat' (low parapet)
-     Returns an array of the meshes made. */
+  /* buildings(list, opt): detailed 3D houses (plaster, stone, japanese) live in art/buildings.js. facingYaw is used to turn a house to the road:
+       yaw = facingYaw(x, z, roadX, roadZ) makes the FRONT (local +z) look at the point (roadX, roadZ). */
   const facingYaw = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
-  function buildings(list, opt = {}) {
-    const out = [];
-    for (const style of ['plaster', 'stone']) {
-      const items = list.filter(it => (it.style || 'plaster') === style);
-      if (!items.length) continue;
-      const wb = geoBuilder(), rb = geoBuilder();
-      for (const it of items) {
-        const c = Math.cos(it.yaw || 0), s = Math.sin(it.yaw || 0), tint = it.tint || [1, 1, 1], hw = it.w / 2, hd = it.d / 2, h = it.h || 8, sink = 1;
-        const T = (lx, ly, lz) => [it.x + lx * c + lz * s, it.y + ly, it.z - lx * s + lz * c];             // local -> world (yaw about y)
-        const dir = (lx, lz) => [lx * c + lz * s, 0, -lx * s + lz * c];
-        const V = (b, p, u, v, col) => b.v(p[0], p[1], p[2], u, v, col);
-        const wall = (lx0, lz0, lx1, lz1, len, out) => {
-          const u1 = len / 8, v0 = -sink / 8, v1 = h / 8, col = [tint[0], tint[1], tint[2]];
-          wb.quad(V(wb, T(lx0, -sink, lz0), 0, v0, col), V(wb, T(lx1, -sink, lz1), u1, v0, col), V(wb, T(lx1, h, lz1), u1, v1, col), V(wb, T(lx0, h, lz0), 0, v1, col), dir(out[0], out[1]));
-        };
-        wall(-hw, hd, hw, hd, it.w, [0, 1]); wall(hw, hd, hw, -hd, it.d, [1, 0]); wall(hw, -hd, -hw, -hd, it.w, [0, -1]); wall(-hw, -hd, -hw, hd, it.d, [-1, 0]);
-        const dark = [0.78, 0.78, 0.8], ov = 0.45;
-        if (it.roof === 'flat') {
-          const q = (lx, ly, lz) => V(rb, T(lx, ly, lz), lx / 4, lz / 4, dark);
-          rb.quad(q(-hw, h + 0.5, hd), q(hw, h + 0.5, hd), q(hw, h + 0.5, -hd), q(-hw, h + 0.5, -hd), [0, 1, 0]);
-        } else {
-          const rise = Math.min(hd, hw) * 0.55, rl = Math.max(0, hw - hd * 0.9), col = [0.95, 0.95, 0.95];
-          const q = (lx, ly, lz, u, v) => V(rb, T(lx, ly, lz), u, v, col);
-          const ridgeY = h + rise, ex = hw + ov, ez = hd + ov, y0 = h - 0.2;
-          // four slopes: front, back, left, right
-          const sl = Math.hypot(ez, rise);
-          rb.quad(q(-ex, y0, ez, 0, 0), q(ex, y0, ez, ex * 2 / 4, 0), q(rl, ridgeY, 0, (rl + ex) / 4, sl / 4), q(-rl, ridgeY, 0, (ex - rl) / 4, sl / 4), dir(0, 1).map((v, i) => i === 1 ? rise : v * 1));
-          rb.quad(q(ex, y0, -ez, 0, 0), q(-ex, y0, -ez, ex * 2 / 4, 0), q(-rl, ridgeY, 0, (rl + ex) / 4, sl / 4), q(rl, ridgeY, 0, (ex - rl) / 4, sl / 4), dir(0, -1).map((v, i) => i === 1 ? rise : v * 1));
-          const sw = Math.hypot(ex - rl, rise);
-          rb.quad(q(ex, y0, ez, 0, 0), q(ex, y0, -ez, ez * 2 / 4, 0), q(rl, ridgeY, 0, ez / 4, sw / 4), q(rl, ridgeY, 0, ez / 4, sw / 4), dir(1, 0).map((v, i) => i === 1 ? rise : v * 1));
-          rb.quad(q(-ex, y0, -ez, 0, 0), q(-ex, y0, ez, ez * 2 / 4, 0), q(-rl, ridgeY, 0, ez / 4, sw / 4), q(-rl, ridgeY, 0, ez / 4, sw / 4), dir(-1, 0).map((v, i) => i === 1 ? rise : v * 1));
-        }
-      }
-      out.push(roadsideMesh(wb.build(), facadeTex(style === 'stone'), { glow: ST.look && ST.look.night ? facadeGlowTex(style === 'stone') : null }), roadsideMesh(rb.build(), roofTex(), { shadow: true }));
-    }
-    return out;
-  }
 
   /* rockFace(pts, opt): a layered cliff face (strata, joints), faceted, one mesh. Good for the rock wall beside the road or a backdrop.
        pts: [{x,y,z}, ...] along the FOOT of the cliff (points every 4-8 m)
