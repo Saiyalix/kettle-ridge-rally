@@ -24,7 +24,9 @@ tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
 art/roadside.js          # look-builders for tracks: stoneWall, woodFence, buildings, rockFace
 tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs
 tracks/stage-load.js      # start/checkpoint/finish gates, minimap shape, loadStage()
-art/car-model.js          # the car model, livery, cockpit interior
+art/car-geo.js            # geometry helpers for the player car (lofts, parts, UV atlas layout)
+art/car-livery.js         # livery choice (remembered per car) and the livery painter
+art/car-model.js          # the car model, applyLivery, cockpit interior
 art/effects.js            # dust particles, hit effects (sparks, shake)
 tracks/rivals.js          # the 14 rival crews: pace, start gaps, positions, bumping
 ui/hud.js                 # lens flare, rev counter, HUD element references
