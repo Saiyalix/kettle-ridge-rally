@@ -170,7 +170,8 @@
         tops((t) => { for (let k = 0; k < 6; k++) { const z = 2.15 - k * 0.2; poly(t, [[z, -0.65], [z - 0.2, -0.65], [z - 0.1, 0.65 - k * 0.0]], k % 2 ? C.a : C.b); } rect(t, 0.4, 0.62, -1.0, -0.62, C.a); rect(t, 0.4, 0.1, -1.0, -0.1, C.b); });
       },
     };
-    (D[L.design] || D.ridgeline)();
+    const RD = RIVAL_DESIGNS[L.design];                                       // rival crews' designs live in art/rival-liveries.js
+    if (D[L.design]) D[L.design](); else if (RD) RD({ sides, tops, poly, rect, circ, line, word, C, spons, L, ci }); else D.ridgeline();
     // common to every livery: shut lines, handle, fuel cap, number panels
     sides((t) => {
       // wing / spoiler endplate panel (the plates sample this part of the side tile)

@@ -3,7 +3,6 @@
      a little extra saturation and contrast, a vignette, and radial motion blur at high speed. */
   const RENDER_SCALE = 0.72;
   // the scene is drawn here in linear light (half float, so bright highlights are not clipped before the tone mapping); a plain 8-bit target if the phone can't
-  const hdrOk = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
   const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: hdrOk ? THREE.HalfFloatType : THREE.UnsignedByteType });
   const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMat = new THREE.ShaderMaterial({
@@ -61,7 +60,7 @@
     gradeWide = G.bloom2 || 0;
   }
   function renderFrame(dt) {
-    updateSky(dt); updateNight(); cullFar();
+    updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
     if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;

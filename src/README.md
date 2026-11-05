@@ -28,6 +28,7 @@ The build checks that the glued script is valid JavaScript and says which file a
 | `art/textures.js`, `art/roadside.js` | art | Generated textures (road per surface, grass/soil, stone, wood, rock, facades) and look-builders for tracks: `stoneWall`, `woodFence`, `buildings`, `rockFace` (argument docs in the file) |
 | `art/car-model.js` | art | Player car: two modelled bodies (Kestrel, Strada), wheels, brake lights, `applyLivery`, cockpit interior. Rebuilt when car / livery / quality changes |
 | `art/car-geo.js`, `art/car-livery.js` | art | Geometry helpers (lofts, parts, livery atlas layout); livery choice API (`liveryList`, `liveryIndex`, `setLivery`) and the livery painter. Livery data: `CONFIG.cars[i].liveries` |
+| `art/rival-liveries.js`, `art/rival-model.js` | art | The 14 rival liveries (designs + palettes + sponsors) and the shared rival models with three levels of detail (`updateRivalLOD`, called from `renderFrame`) |
 | `art/*` | art | Lights, sky, fog, effects, cameras, post-processing (high quality) |
 | `audio/audio.js` | audio | All synthesized sound |
 | `core/game-flow.js` | shared | Co-driver voice (`say`, `pickVoice`, `setVoice`) → audio. Game flow (start, rescue, championship) → producer assigns, qa reviews closely |

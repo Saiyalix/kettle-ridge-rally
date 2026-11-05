@@ -6,29 +6,11 @@
   const FIELD = 15, START_GAP = 10;          // 15 crews, each starting 10 seconds after the one before
   const DRIVERS = ['K. Lindqvist', 'M. Duval', 'A. Rossetti', 'T. Kanzaki', 'J. Okafor', 'P. Novák', 'S. Haraldsen', 'L. Moreau', 'D. Kowalski', 'R. Ishikawa', 'E. Varga', 'H. Brandt', 'C. Oyelaran', 'F. Castell'];
   const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-  const LIVERIES = [[0x2d6cdf, 0xffffff], [0x1f9a5a, 0xffc928], [0xf08a1c, 0x1b1d20], [0x8e3fd6, 0xffffff], [0xe2392b, 0xffc928], [0x14a3b8, 0xffffff], [0xf4f6f8, 0xe2392b],
-    [0x1b1d20, 0xf08a1c], [0xffc928, 0x1f4fa3], [0x5aa02c, 0xffffff], [0xc2185b, 0xffffff], [0x3949ab, 0xffc928], [0x8d6e63, 0xf4f6f8], [0x00897b, 0xffc928]];
   const rivals = [];
-  {
-    const bodyG = new THREE.BoxGeometry(1.66, 0.5, 4.05), skirtG = new THREE.BoxGeometry(1.68, 0.16, 4.07), stripeG = new THREE.BoxGeometry(0.34, 0.02, 1.4), wingG = new THREE.BoxGeometry(1.7, 0.06, 0.38);
-    const cabG = new THREE.BoxGeometry(1.56, 0.52, 2.0); const cp = cabG.attributes.position;
-    for (let i = 0; i < cp.count; i++) if (cp.getY(i) > 0) { cp.setX(i, cp.getX(i) * 0.86); if (cp.getZ(i) > 0) cp.setZ(i, cp.getZ(i) - 0.45); }
-    cabG.computeVertexNormals();
-    const wheelG = new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12); wheelG.rotateZ(Math.PI / 2);
-    const glassM = glassMat(), darkM = lit({ color: 0x1b1d20 }), tyreM = lit({ color: 0x18191b });
-    LIVERIES.forEach(([c1, c2], i) => {
-      const g = new THREE.Group(), paint = paintMat(c1), stripe = paintMat(c2);
-      const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
-      add(bodyG, paint, 0, -0.04, 0); add(cabG, glassM, 0, 0.47, -0.25); add(skirtG, stripe, 0, -0.18, 0);
-      add(stripeG, stripe, 0.26, 0.215, 1.25); add(stripeG, stripe, -0.26, 0.215, 1.25); add(wingG, darkM, 0, 0.62, -1.9);
-      const nc = document.createElement('canvas'); nc.width = nc.height = 128; drawNumber(nc, String(i + 10));
-      const nm = new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(nc)), transparent: true });
-      const p1 = add(new THREE.PlaneGeometry(0.5, 0.5), nm, 0.835, 0, 0.1); p1.rotation.y = Math.PI / 2; p1.castShadow = false;
-      const p2 = add(new THREE.PlaneGeometry(0.5, 0.5), nm, -0.835, 0, 0.1); p2.rotation.y = -Math.PI / 2; p2.castShadow = false;
-      const wheels = [[0.79, 1.24], [-0.79, 1.24], [0.79, -1.33], [-0.79, -1.33]].map(([x, z]) => add(wheelG, tyreM, x, -0.19, z));
-      g.visible = false; scene.add(g);
-      rivals.push({ g, wheels, name: DRIVERS[i], pace: 0.9 + 0.022 * i, s: 0, lane: 0, laneT: 0, v: 0, yawVis: 0, dust: 0, spin: 0, tab: null, offset: 0, stageTime: 0 });
-    });
+  for (let i = 0; i < DRIVERS.length; i++) {
+    // the car models are dressed on by art/rival-model.js (one per frame once the game runs); until then the group is empty
+    const g = new THREE.Group(); g.visible = false; scene.add(g);
+    rivals.push({ g, wheels: [], name: DRIVERS[i], pace: 0.9 + 0.022 * i, s: 0, lane: 0, laneT: 0, v: 0, yawVis: 0, dust: 0, spin: 0, tab: null, offset: 0, stageTime: 0 });
   }
   let curvS = new Float32Array(1);
   function computeCurvature() {

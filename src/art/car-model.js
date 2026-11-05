@@ -62,7 +62,7 @@
   /* the lower body: sill to bonnet / boot, with the wheel wells dished into the sides */
   const SIDE_F = [0.1, 0.22, 0.36, 0.5, 0.64, 0.78, 0.9];
   function lowerBody(sp, P, low) {
-    const st = [], step = low ? 0.16 : 0.08, n = Math.ceil((sp.z1 - sp.z0) / step);
+    const st = [], step = low === 2 ? 0.5 : low ? 0.16 : 0.08, n = Math.ceil((sp.z1 - sp.z0) / step);
     for (let i = 0; i <= n; i++) {
       const z = sp.z0 + (sp.z1 - sp.z0) * i / n, yb = sp.yb(z), w = sp.w(z), ys = sp.ys(z), yt = ys + sp.crown(z), ws = w - sp.tumble, h = ys - yb;
       const half = [[0, yb, 0], [0.42, yb, 0], [w - 0.09, yb, 0]];
@@ -89,7 +89,7 @@
 
   /* the cabin: roof, pillars, glass. Everything above the belt line; hidden in the cockpit view */
   function cabinLoft(sp, P, low) {
-    const c = sp.cabin, st = [], step = low ? 0.12 : 0.06, n = Math.ceil(Math.abs(c.z1 - c.z0) / step);
+    const c = sp.cabin, st = [], step = low === 2 ? 0.4 : low ? 0.12 : 0.06, n = Math.ceil(Math.abs(c.z1 - c.z0) / step);
     for (let i = 0; i <= n; i++) {
       const z = c.z0 + (c.z1 - c.z0) * i / n, yB = sp.ys(z) + 0.003, H = Math.max(0.006, c.yR(z) - yB), wB = c.wB(z), wT = wB - c.tumble, wR = wT - 0.035;
       const half = [[0, yB], [wB, yB], [wB - 0.012, yB + 0.1 * H], [wT, yB + 0.9 * H], [wR, yB + 0.965 * H], [wR * 0.5, yB + 0.995 * H], [0, yB + H + 0.008]];
@@ -268,6 +268,12 @@
     return { frontPlate: [0, -0.2, 1.9, 0], rearPlate: [0, 0.0, -1.905, Math.PI] };
   }
 
+  // high quality paint: clear-coated, mirroring the blurred sky. Devices that cannot make the blurred sky (no float targets) get the plain glossy paint
+  function glossPaint(map) {
+    const env = envPMREM();
+    if (!env) return new THREE.MeshPhongMaterial({ map, vertexColors: true, specular: 0x666666, shininess: 80, envMap, reflectivity: 0.22, combine: THREE.MixOperation });
+    return new THREE.MeshPhysicalMaterial({ map, vertexColors: true, roughness: 0.4, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, envMap: env, envMapIntensity: 0.65 });
+  }
   function carMaterials(low, L) {
     const m = {};
     if (low) {
@@ -276,7 +282,7 @@
       m.glass = new THREE.MeshLambertMaterial({ color: 0x2a3d50 });
     } else {
       // glossy clear-coated paint: a satin base under a sharp lacquer layer that mirrors the sky (physical material, high quality only)
-      m.paint = new THREE.MeshPhysicalMaterial({ map: carTex, vertexColors: true, roughness: 0.4, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, envMap: envPMREM(), envMapIntensity: 0.65 });
+      m.paint = glossPaint(carTex);
       m.dark = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x333333, shininess: 30, envMap, reflectivity: 0.12, combine: THREE.MixOperation });
       m.trim = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0xffffff, shininess: 90, envMap, reflectivity: 0.5, combine: THREE.MixOperation });
       m.glass = new THREE.MeshPhongMaterial({ color: 0x22364a, specular: 0xffffff, shininess: 140, envMap, reflectivity: 0.55, combine: THREE.MixOperation });
@@ -290,6 +296,20 @@
   let carMatsLive = [];
   function disposeTree(o) {
     o.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.isMesh && c.material && c.userData.own) { const mm = Array.isArray(c.material) ? c.material : [c.material]; mm.forEach(x => { if (x.map && c.userData.plateTex) x.map.dispose(); x.dispose(); }); } });
+  }
+
+  // all the parts of one car body (also used for the rival cars, art/rival-model.js): { P: parts by material, det: plate positions }
+  function buildCarParts(ci, L, low, mats) {
+    const sp = ci === 0 ? KESTREL : STRADA;
+    const P = { body: newPart(), cabin: newPart(), glass: newPart(), dark: newPart(), trim: newPart(), lamp: newPart(), tail: newPart() };
+    lowerBody(sp, P, low); cabinLoft(sp, P, low);
+    if (low === 2) {                                                  // far away (rival cars only): bare shell plus lamp strips, no details
+      const red = hx3(0x8c1014), lens = hx3(0xf4f1dc), sp2 = ci === 0 ? KESTREL : STRADA;
+      box(P.tail, 0.95, 0.07, 0.03, 0, ci === 0 ? 0.1 : 0.2, sp2.z0 - 0.005, red); box(P.lamp, 0.95, 0.08, 0.03, 0, 0.16, sp2.z1 + 0.005, lens);
+      return { P, det: { frontPlate: [0, 0, 0, 0], rearPlate: [0, 0, 0, 0] } };
+    }
+    const det = ci === 0 ? buildKestrelDetails(P, L, low, mats) : buildStradaDetails(P, L, low, mats);
+    return { P, det };
   }
 
   function buildPlayerCar(ci, li, low) {
@@ -307,9 +327,7 @@
     }
     for (const m of carMatsLive) m.dispose();
     const mats = carMaterials(low, L); carMatsLive = [...new Set(Object.values(mats))];
-    const P = { body: newPart(), cabin: newPart(), glass: newPart(), dark: newPart(), trim: newPart(), lamp: newPart(), tail: newPart() };
-    lowerBody(sp, P, low); cabinLoft(sp, P, low);
-    const det = ci === 0 ? buildKestrelDetails(P, L, low, mats) : buildStradaDetails(P, L, low, mats);
+    const { P, det } = buildCarParts(ci, L, low, mats);
     // the cabin mesh carries the roof extras too (they are black parts on the paint material), so they hide together
     const mk = (part, mat, shadow, cab) => {
       if (!part.pos.length) return null;
