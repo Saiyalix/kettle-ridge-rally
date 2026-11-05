@@ -46,7 +46,12 @@
       "width": 800,
       "height": 360
     },
-    "minTouchPx": 40
+    "minTouchPx": 40,
+    "maxCentreCoveragePct": {
+      "pace": 5,
+      "banner": 45,
+      "msg": 10
+    }
   },
   "knownIssues": {}
 }

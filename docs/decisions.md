@@ -122,3 +122,6 @@ touch controls must exist, be on screen, be at least 40 px, and not overlap each
 **Measured:** on 800×360 the menu is 747 px tall, so Start is below the fold (the menu scrolls, by design). The minimap
 distance label overlaps the top of the HB button by ~14 px: logged as a known issue in `tests/expected.json` and on the roadmap.
 **Reason:** 40 px is a comfortable thumb target on a phone; the game's smallest buttons (camera/pause/reset) are 46×40.
+
+## 2026-11-05 · QA: centre-screen clearance check (mobile test)
+Owner complained the co-driver note and banners block the view. New `mobile` check: on 800x360 the note, the (goal-size) banner and the big countdown digit are forced on screen and the middle band (40% wide x 40% high) must stay mostly clear. Thresholds measured on branch `ui/compact-hud` (note 0%, banner 36.2%, countdown 1.3%) and set with headroom: note ≤ 5%, banner ≤ 45%, countdown ≤ 10%. Also removed the knownIssues entry "touch controls do not overlap the HUD" (fixed by the compact HUD).
