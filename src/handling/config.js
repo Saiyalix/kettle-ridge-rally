@@ -169,6 +169,8 @@ const CONFIG = {
     grass:  { label: 'Off road', grip: 0.70, peakSlipAngleDeg: 12.0, peakSlipRatio: 0.20, falloff: 1.25, rolling: 5.0, drag: 38, dust: [0.45, 0.4, 0.3] },
   },
 
-  camera: { chaseDistance: 6.6, chaseHeight: 2.3, chaseLag: 7.0, rallyDistance: 15, rallyHeight: 6.8, rallyLookAhead: 15 },
+  camera: { chaseDistance: 6.6, chaseHeight: 2.3, chaseLag: 7.0, rallyDistance: 15, rallyHeight: 10.5, rallyLookAhead: 7,
+    // extra camera mode 4 (low far view, shows the sky): same follow as the far rally camera, lower and looking further ahead
+    lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15 },
 };
 

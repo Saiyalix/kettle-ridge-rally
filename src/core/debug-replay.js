@@ -59,7 +59,7 @@
     else if (code === 'ArrowRight') { replay.playing = false; replay.f = Math.min(replay.n - 1, replay.f + 1); applyReplayFrame(); }
     else if (code === 'ArrowUp') replay.speed = Math.min(2, replay.speed * 2);
     else if (code === 'ArrowDown') replay.speed = Math.max(0.125, replay.speed / 2);
-    else if (code === 'KeyC') camMode = (camMode + 1) % 4;
+    else if (code === 'KeyC') camMode = (camMode + 1) % CAM_MODES;
     else if (code === 'Home') { replay.f = 0; applyReplayFrame(); }
   }
   function applyReplayFrame() {
