@@ -199,7 +199,7 @@
     g.fillStyle = '#16335f'; g.fillRect(0, 0, 40, 64); g.fillStyle = '#fff'; g.font = `800 20px ${LFONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('KR', 20, 32);
     g.fillStyle = '#111'; g.font = `800 46px ${LFONT}`; g.fillText(text, 150, 35);
     g.strokeStyle = '#111'; g.lineWidth = 4; g.strokeRect(2, 2, 252, 60);
-    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return srgb(t);
   }
   // round door-number disc (also used by the rival cars in tracks/rivals.js)
   function drawNumber(c, num) {

@@ -275,7 +275,7 @@
       m.dark = new THREE.MeshLambertMaterial({ vertexColors: true }); m.trim = m.dark;
       m.glass = new THREE.MeshLambertMaterial({ color: 0x2a3d50 });
     } else {
-      m.paint = new THREE.MeshPhongMaterial({ map: carTex, vertexColors: true, specular: 0xffffff, shininess: 110, envMap, reflectivity: 0.5, combine: THREE.MixOperation });
+      m.paint = new THREE.MeshPhongMaterial({ map: carTex, vertexColors: true, specular: 0xffffff, shininess: 110, envMap, reflectivity: 0.3, combine: THREE.MixOperation });
       m.paint.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <envmap_fragment>', 'specularStrength *= 0.14 + 1.0 * pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.2);\n#include <envmap_fragment>'); };
       m.paint.customProgramCacheKey = () => 'carpaint';
       m.dark = new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x333333, shininess: 30, envMap, reflectivity: 0.12, combine: THREE.MixOperation });
@@ -303,7 +303,7 @@
       const cv = document.createElement('canvas'); cv.width = size; cv.height = Math.round(size * CT.H / CT.W);
       paintLivery(cv, ci, L);
       if (carTex) carTex.dispose();
-      carTex = new THREE.CanvasTexture(cv); carTex.anisotropy = maxAniso; carTex.colorSpace = THREE.NoColorSpace; carTexKey = key;
+      carTex = new THREE.CanvasTexture(cv); carTex.anisotropy = maxAniso; carTex.colorSpace = THREE.SRGBColorSpace; carTexKey = key;
       carStats.texBytes = Math.round(cv.width * cv.height * 4 * 1.33);
     }
     for (const m of carMatsLive) m.dispose();
@@ -418,7 +418,7 @@
       if (major) { tg.fillStyle = red ? '#ff4b3e' : '#e9ecef'; tg.font = '700 30px "Saira Condensed", sans-serif'; tg.textAlign = 'center'; tg.textBaseline = 'middle'; tg.fillText(String(v / 1000), 128 + Math.sin(a) * 70, 128 - Math.cos(a) * 70); }
     }
     tg.fillStyle = '#93a2ad'; tg.font = '600 16px "Saira Condensed", sans-serif'; tg.fillText('x1000 rpm', 128, 190);
-    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.058, 32), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(tc) }));
+    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.058, 32), new THREE.MeshBasicMaterial({ map: srgb(new THREE.CanvasTexture(tc)) }));
     dial.position.set(DRV, 0.425, 0.298); dial.rotation.y = Math.PI; cockpit.add(dial);
     needle = new THREE.Group(); needle.position.z = 0.002; dial.add(needle);
     const nm = new THREE.Mesh(new THREE.PlaneGeometry(0.005, 0.05), new THREE.MeshBasicMaterial({ color: 0xff7a1a })); nm.position.y = 0.022; needle.add(nm);

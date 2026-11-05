@@ -2,7 +2,9 @@
      The scene renders at a lower internal resolution and is scaled up, with a soft bloom on bright areas,
      a little extra saturation and contrast, a vignette, and radial motion blur at high speed. */
   const RENDER_SCALE = 0.72;
-  const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  // the scene is drawn here in linear light (half float, so bright highlights are not clipped before the tone mapping); a plain 8-bit target if the phone can't
+  const hdrOk = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
+  const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: hdrOk ? THREE.HalfFloatType : THREE.UnsignedByteType });
   const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -36,6 +38,10 @@
           b2 += max(texture2D(tColor, vUv + vec2(0.0, -w.y)).rgb - thresh, 0.0);
           c += b2 * bloom2;
         }
+        gl_FragColor = vec4(c, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        c = gl_FragColor.rgb;                                  // from here on: display (sRGB) values, the grade works like it always did
         c = c * tint + lift;
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         c = mix(vec3(l), c, sat);

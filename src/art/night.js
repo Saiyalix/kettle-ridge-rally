@@ -7,9 +7,9 @@
      Other files add glow dots with glowSpots.push({ x, y, z, c: 0xrrggbb, size }) while they build the stage. */
   const glowSpots = [];
   const NIGHT = { pool: null, grid: null };
-  function glowTexture(size, falloff) {
+  function glowTexture(size, falloff) {          // (glow is added in linear light now: the 0.55 power keeps the old brightness)
     const c = skyCanvas(size, size), g = c.getContext('2d'), R = size / 2, gr = g.createRadialGradient(R, R, 0, R, R, R);
-    for (let i = 0; i <= 8; i++) { const t = i / 8, v = Math.pow(1 - t, falloff); gr.addColorStop(t, `rgba(255,255,255,${v})`); }
+    for (let i = 0; i <= 8; i++) { const u = i / 8, v = Math.pow(Math.pow(1 - u, falloff), 0.55); gr.addColorStop(u, `rgba(255,255,255,${v})`); }
     g.fillStyle = gr; g.fillRect(0, 0, size, size);
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
   }
@@ -57,7 +57,7 @@
     }
     if (pools.length) {
       const m = new THREE.MeshBasicMaterial({ map: glowTexture(64, 1.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
-      const warm = [new THREE.Color(0.7, 0.55, 0.32), new THREE.Color(0.8, 0.4, 0.14)];
+      const warm = [new THREE.Color(0.9, 0.78, 0.55), new THREE.Color(0.95, 0.55, 0.28)];
       const im = instanced(new THREE.PlaneGeometry(12, 12).rotateX(-Math.PI / 2), m, pools, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(q.s); }, { shadow: false, color: (c, q) => c.copy(warm[q.c]) });
       im.renderOrder = 4;
     }
@@ -76,7 +76,7 @@
     const tex = skyCanvas(128, 256), g = tex.getContext('2d'), img = g.createImageData(128, 256);
     for (let y = 0; y < 256; y++) for (let x = 0; x < 128; x++) {
       const u = x / 127 * 2 - 1, v = 1 - y / 255, a = Math.exp(-Math.pow((Math.abs(u) - 0.3) / 0.38, 2)), b = Math.exp(-u * u / 0.5), k = (0.4 * a + 0.6 * b) * Math.pow(1 - v, 1.7) * Math.min(1, v * 14 + 0.25) * (1 - Math.pow(Math.abs(u), 3));
-      const o = (y * 128 + x) * 4; img.data[o] = 255 * k; img.data[o + 1] = 240 * k; img.data[o + 2] = 205 * k; img.data[o + 3] = 255;
+      const o = (y * 128 + x) * 4, kk = Math.pow(k, 0.5); img.data[o] = 255 * kk; img.data[o + 1] = 240 * kk; img.data[o + 2] = 205 * kk; img.data[o + 3] = 255;
     }
     g.putImageData(img, 0, 0);
     const pt = new THREE.CanvasTexture(tex); pt.wrapS = pt.wrapT = THREE.ClampToEdgeWrapping;

@@ -110,7 +110,7 @@
     const r2 = mulberry32(77);
     const litTex = canvasTex(256, 256, (g) => {
       g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256);
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r2() < (ST.look.night ? 0.8 : 0.55)) { g.fillStyle = r2() < 0.7 ? '#ffd38a' : '#bfe3ff'; g.fillRect(i * 64 + 12, j * 64 + 14, 40, 34); }
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r2() < (ST.look.night ? 0.8 : 0.55)) { g.fillStyle = r2() < 0.7 ? '#fff0b8' : '#d4ecff'; g.fillRect(i * 64 + 12, j * 64 + 14, 40, 34); }
     });
     for (const t of [winTex, litTex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
     const bMat = lit({ map: winTex, emissiveMap: litTex, emissive: 0xffffff, emissiveIntensity: ST.look.night ? 1.05 : 0.85, vertexColors: true });

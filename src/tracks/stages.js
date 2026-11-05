@@ -40,7 +40,7 @@ const STAGES = [
     // look: bright day. Big painted cumulus on deep blue, crisp sun. (sunEl / sunAz = degrees above the horizon / compass bearing, 0 = start direction)
     look: {
       skyTop: 0x1a5fd8, skyMid: 0x4a9cf2, horizon: 0xcfe8ff, fogNear: 150, fogFar: 640,
-      hemiSky: 0xdcefff, hemiGround: 0x6a7fb0, hemi: 0.5, sun: 0xfff1d8, sunI: 0.95, sunEl: 52, sunAz: -123,
+      hemiSky: 0xdcefff, hemiGround: 0x5c7050, hemi: 1.1, sun: 0xfff1d8, sunI: 3.6, exposure: 1.1, sunEl: 52, sunAz: -123,
       ink: 0x1c2440, env: [0x7ab8ff, 0xeaf5ff, 0x5a6a3a],
       sky: { clouds: 'cumulus', seed: 5, sunCol: 0xfffbe8, sunSize: 0.03, glowCol: 0xfff0c0, glowAmt: 0.35, band: 0, shade: 0x9fb8e0, lit: 0xffffff, rim: 0xfff4cc },
       ridge: [
@@ -76,8 +76,8 @@ const STAGES = [
     ],
     // look: late-afternoon sunset. Low warm sun, long shadows, orange-purple sky, purple haze in the distance
     look: {
-      skyTop: 0x241a68, skyMid: 0x9a4f9e, horizon: 0xc882a6, fogNear: 200, fogFar: 900,
-      hemiSky: 0xb8a4ec, hemiGround: 0x50407a, hemi: 0.7, sun: 0xffb06a, sunI: 1.2, sunEl: 17, sunAz: -60,
+      skyTop: 0x241a68, skyMid: 0x9a4f9e, horizon: 0xb877a8, fogNear: 200, fogFar: 900,
+      hemiSky: 0xb8a4ec, hemiGround: 0x50407a, hemi: 2.2, sun: 0xffbf86, sunI: 6.2, exposure: 1.0, sunEl: 17, sunAz: -60,
       ink: 0x2a1c44, env: [0x6a4a9a, 0xff9a70, 0x4a3050], shadowBias: -0.0006, shadowNormal: 0.05, dust: 0.8,
       sky: { clouds: 'sunset', seed: 12, sunCol: 0xfff2c0, sunSize: 0.05, glowCol: 0xff9238, glowAmt: 0.9, band: 0.9, shade: 0x4a2a70, lit: 0xff9a52, rim: 0xffe08a },
       ridge: [
@@ -87,7 +87,7 @@ const STAGES = [
         { col: 0x5b3d7e, base: -36, amp: 46, per: 10, oct: 3, jag: 0, mist: 0.3, trees: 1 },
       ],
       noPeaks: true,
-      grade: { tint: [1.04, 0.98, 0.95], lift: [0.012, 0.0, 0.03], sat: 1.15, con: 1.08, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
+      grade: { tint: [1.04, 0.98, 0.95], lift: [0.012, 0.0, 0.03], sat: 1.0, con: 1.1, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
       grassA: [0.42, 0.62, 0.30], grassB: [0.56, 0.68, 0.34], dirt: [0.70, 0.56, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.50, 0.43, 0.47],
     },
   },
@@ -113,7 +113,7 @@ const STAGES = [
     look: {
       night: true, flare: false, dust: 0.45,
       skyTop: 0x03051a, skyMid: 0x0e1650, horizon: 0x1f2658, fogNear: 110, fogFar: 560,
-      hemiSky: 0x8a9af0, hemiGround: 0x2e2e60, hemi: 0.72, sun: 0xa8b8ff, sunI: 0.5, sunEl: 10, sunAz: 12, lightEl: 38, lightAz: 12,
+      hemiSky: 0x7080e8, hemiGround: 0x20285a, hemi: 1.5, sun: 0x9fb0ff, sunI: 2.0, exposure: 0.85, sunEl: 10, sunAz: 12, lightEl: 38, lightAz: 12,
       ink: 0x10142c, env: [0x141a48, 0x3a4090, 0x10142c], shadowBias: -0.0006, shadowNormal: 0.04,
       sky: { clouds: 'night', seed: 31, stars: 1, moon: 1, city: 1, cityAt: 0, sunCol: 0xf6f2e4, sunSize: 0.045, glowCol: 0x7c88e8, glowAmt: 0.5, band: 0.35, shade: 0x070a1e, lit: 0x4a5a98, rim: 0x9fb0f0 },
       ridge: [
@@ -121,7 +121,7 @@ const STAGES = [
         { col: 0x090c26, base: -6, amp: 20, per: 9, oct: 3, jag: 0, mist: 0.1, trees: 1 },
       ],
       noPeaks: true, peak: [0x0c1138, 0x4a528c],
-      nightGlow: { road: 0x9aa4c8, roadI: 0.36, reach: 40, pool: 0.5 },
+      nightGlow: { road: 0x9aa4c8, roadI: 0.36, reach: 40, pool: 1.2 },
       grade: { tint: [0.95, 0.98, 1.06], lift: [0.004, 0.008, 0.024], sat: 1.12, con: 1.1, bloom: 0.55, thresh: 0.78, bloom2: 0.4, vig: 0.42 },
       grassA: [0.36, 0.60, 0.30], grassB: [0.50, 0.68, 0.30], dirt: [0.72, 0.58, 0.42], snow: [0.9, 0.94, 1.0], rock: [0.60, 0.56, 0.62],
     },
