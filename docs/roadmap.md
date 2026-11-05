@@ -3,6 +3,7 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **Graphics step 3: three.js upgrade** (2026-11-05, PR #7): r128 -> 0.186.1, ES module + import map, same look by design.
 - **Graphics step 2: Skies and lighting** (2026-11-05, PR #6): SS1 painted-cloud day, SS2 sunset, SS3 night (stars, moon, city skyline, lit windows, lamps, headlight pool, reflector posts); far hills ring, per-stage colour grade; fog now follows each stage. Old far camera kept as default, a lower far view added as camera mode 4 (owner's choice).
 - **Graphics step 6: Retro HUD / compact HUD** (2026-11-05, branch `ui/compact-hud`, done out of order because the owner asked after phone testing): HUD covers 15.5% -> 7.0% of an 800x360 phone screen (19.4% -> 8.4% with a corner call, 21.6% -> 8.6% with a banner); desktop 15.1% -> 5.1%; a corner call no longer covers the centre (33% -> ~4%). One-line pace-note chip, small banners, thin START-GOAL progress bar, small rev dial + gear + speed, smaller minimap. Also fixes the known issue "map label overlaps the HB button" and covers "Better HUD".
 - **Graphics step 1: Road and roadside** (2026-11-05, PR #4): per-surface road textures; roadside walls, fences, rock faces and village houses placed close to the road and solid; SS2 drop side covered 1766/1776 samples (582 before). Owner tested on phone: "Game runs fine. No issues on phone."
@@ -18,9 +19,9 @@ Kept up to date by the producer department. Newest changes at the top of each se
 ## Next (in this order unless the owner says otherwise)
 **Graphics overhaul** (owner request 2026-11-04, extended 2026-11-05 with real 3D models built in code; one PR per step; qa checks each, then it is merged).
 Style: a modern rendition of a 1990s arcade rally look, retro styling at higher resolution; original designs only. Handling tests must still pass at every step.
-Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile with each step. Steps 1, 2 and 6 are done.
-1. **three.js upgrade r128 -> 0.186.1** (branch `gfx/3-threejs-upgrade`): in review; same look on purpose. Move to Done when merged. (art, qa)
-2. **Player cars as detailed 3D models + 4 liveries each, menu picker**: Kestrel = 90s Japanese 4WD rally coupe, Strada = boxy hot hatch; liveries remembered; includes the colour-managed (sRGB) pipeline. (art, ui-mobile)
+Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile with each step. Steps 1, 2, 3 and 6 are done.
+1. **Player cars as detailed 3D models + 4 liveries each, menu picker** (branch `gfx/4-cars-liveries`): in review; will be Done on merge. Kestrel GT4 = wide 4WD coupe (two-element wing, splitter, lit pop-up-style headlights), Strada HF = boxy hatch (bolted box flares, roof spoiler); glossy sky-reflecting paint, brake lights; 4 liveries each (Kestrel: Ridgeline, Midnight Blue, Magma, Alpine Mint; Strada: Signal Red, Lime Rush, Violet Storm, Arctic Shard), "Paint" picker in the menu, remembered per car; simpler car on Low quality. (art, ui-mobile)
+2. **Colour-managed (sRGB) lighting pipeline**: follow-up from the three.js upgrade, split out of the cars step to keep it reviewable. (art)
 3. **Rival cars with their own liveries.** (art)
 4. **Buildings as 3D models, including Japanese-style for Sakura Touge.** (art, tracks)
 5. **Trees and nature**: denser, layered trees, grass, rocks; night colours of sakura trees and rice paddies. (art, tracks)
