@@ -26,7 +26,9 @@ The build checks that the glued script is valid JavaScript and says which file a
 | `tracks/scenery.js`, `themes.js`, `stage-load.js` | tracks + art | Where and how many, what you can hit → tracks. Textures, colours, materials, shapes → art |
 | `tracks/rivals.js` | tracks + art | Rival pace, start gaps, bumping → tracks. Rival car models and colours → art |
 | `art/textures.js`, `art/roadside.js` | art | Generated textures (road per surface, grass/soil, stone, wood, rock, facades) and look-builders for tracks: `stoneWall`, `woodFence`, `buildings`, `rockFace` (argument docs in the file) |
-| `art/*` | art | Lights, sky, fog, car model, effects, cameras, post-processing (high quality) |
+| `art/car-model.js` | art | Player car: two modelled bodies (Kestrel, Strada), wheels, brake lights, `applyLivery`, cockpit interior. Rebuilt when car / livery / quality changes |
+| `art/car-geo.js`, `art/car-livery.js` | art | Geometry helpers (lofts, parts, livery atlas layout); livery choice API (`liveryList`, `liveryIndex`, `setLivery`) and the livery painter. Livery data: `CONFIG.cars[i].liveries` |
+| `art/*` | art | Lights, sky, fog, effects, cameras, post-processing (high quality) |
 | `audio/audio.js` | audio | All synthesized sound |
 | `core/game-flow.js` | shared | Co-driver voice (`say`, `pickVoice`, `setVoice`) → audio. Game flow (start, rescue, championship) → producer assigns, qa reviews closely |
 | `ui/*`, `page/*` | ui-mobile | Menus, HUD, touch, CSS, HTML, `setQuality`; plus every `quality === 'low'` path and the low render scale in `art/post-process.js` |
@@ -38,7 +40,7 @@ The build checks that the glued script is valid JavaScript and says which file a
 |---|---|---|---|
 | handling/car.js | 497 | tracks/themes.js | 310 |
 | page/style.css | 345 | tracks/track.js | 242 |
-| art/car-model.js | 185 | handling/config.js | 174 |
+| art/car-model.js | 477 | handling/config.js | 190 |
 | tracks/rivals.js | 166 | audio/audio.js | 155 |
 | page/body.html | 126 | tracks/scenery.js | 126 |
 | ui/visuals-hud.js | 123 | tracks/stage-build.js | 123 |

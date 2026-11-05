@@ -73,11 +73,8 @@
           const outline = (dy) => ridge.map(p => [p[0], p[1] + dy]).concat([[-2.4, -0.8], [2.3, -0.8]]);
           poly(t, outline(0.045), C.a); poly(t, outline(0), C.b);
           rect(t, -2.3, 0.215, 2.3, 0.245, C.a);                                // belt line
-          rect(t, 0.2, 0.6, -1.5, 0.78, 'rgba(0,0,0,0)');
-          rect(t, -1.0, 0.86, -1.4, 0.78, C.b);
-          circ(t, 0.55, 0.0, 0.0, C.a);
-          if (t) word(t, spons[0], 1.25, -0.215, 0.085, C.base, { spacing: 0.012 });
-          word(t, spons[1], -1.45, 0.075, 0.07, C.b, { spacing: 0.01 });
+          word(t, spons[0], 1.2, -0.2, 0.1, C.base, { spacing: 0.012 });
+          word(t, spons[1], -1.2, -0.17, 0.085, C.base, { spacing: 0.01 });
         });
         tops((t) => {
           poly(t, [[2.2, 0.62], [2.2, -0.62], [1.1, -0.2], [1.1, 0.2]], C.b);
@@ -93,8 +90,8 @@
           line(t, [[1.9, -0.18], [1.3, 0.05], [0.5, 0.185], [-0.6, 0.235], [-2.3, 0.27]], C.b, 0.018);
           poly(t, [[-1.0, -0.3], [-1.28, -0.3], [-1.05, 0.0], [-0.77, 0.0]], C.b);
           rect(t, -2.3, -0.3, 2.3, -0.24, C.c);
-          word(t, spons[0], 1.0, 0.25 - 0.42, 0.07, C.b, { spacing: 0.02 });
-          word(t, spons[1], -1.4, 0.065, 0.06, C.c, { spacing: 0.01 });
+          word(t, spons[0], 1.0, -0.17, 0.085, C.b, { spacing: 0.02 });
+          word(t, spons[1], -1.35, 0.07, 0.075, C.c, { spacing: 0.01 });
         });
         tops((t) => {
           for (let k = 0; k < 4; k++) { const z = 2.0 - k * 0.3; poly(t, [[z, 0.0], [z - 0.36, 0.5], [z - 0.52, 0.5], [z - 0.16, 0.0], [z - 0.52, -0.5], [z - 0.36, -0.5]], k % 2 ? C.b : C.a); }
@@ -109,8 +106,8 @@
             poly(t, [[z0 - 0.04, -0.3], [z0 - 0.3, -0.3], [z0 - 0.42, -0.3 + h * 0.5]], C.b);
           }
           rect(t, -2.3, -0.3, 2.3, -0.26, C.a);
-          word(t, spons[0], 0.5, 0.215 - 0.0, 0.0, C.b);
-          word(t, spons[1], -1.55, 0.04, 0.07, C.b, { spacing: 0.012 });
+          word(t, spons[0], 1.15, 0.1, 0.085, C.b, { spacing: 0.012 });
+          word(t, spons[1], -1.4, 0.1, 0.08, C.b, { spacing: 0.012 });
         });
         tops((t) => {
           for (let k = 0; k < 5; k++) { const z = 2.15 - k * 0.27; poly(t, [[z, 0.8], [z - 0.12, 0.8], [z - 0.3, 0.0], [z - 0.12, -0.0]], C.a); poly(t, [[z, -0.8], [z - 0.12, -0.8], [z - 0.3, 0.0], [z - 0.12, 0.0]], C.a); }
@@ -122,8 +119,8 @@
           poly(t, [[2.3, -0.8], [2.3, -0.02], [1.5, -0.02], [0.9, 0.0], [-2.3, 0.0], [-2.3, -0.8]], C.a);
           for (let k = 0; k < 66; k++) { const z = 2.3 - k * 0.07; for (let r = 0; r < 2; r++) if ((k + r) % 2 === 0) rect(t, z, 0.0 + r * 0.07, z - 0.07, 0.07 + r * 0.07 - 0.0, C.b); }
           poly(t, [[0.15, 0.26], [-0.45, 0.26], [-0.9, 0.0], [-0.3, 0.0]], C.a);
-          word(t, spons[0], 1.3, -0.17, 0.085, C.b, { spacing: 0.012 });
-          word(t, spons[1], -1.45, 0.11, 0.06, C.a, { spacing: 0.01 });
+          word(t, spons[0], 1.3, -0.17, 0.095, C.b, { spacing: 0.012 });
+          word(t, spons[1], -1.45, 0.1, 0.075, C.a, { spacing: 0.01 });
         });
         tops((t) => {
           poly(t, [[2.2, 0.6], [2.2, -0.6], [1.0, -0.38], [1.0, 0.38]], C.a);
@@ -136,10 +133,9 @@
           poly(t, [[2.0, -0.2], [0.6, -0.03], [-1.2, 0.2], [-2.3, 0.3], [-2.3, 0.14], [-1.2, 0.0], [0.4, -0.2], [1.6, -0.3]], C.a);
           poly(t, [[2.3, -0.3], [2.3, -0.23], [1.9, -0.27], [1.7, -0.3]], C.b);
           rect(t, -2.3, -0.3, 2.3, -0.2 - 0.0, C.b);
-          poly(t, [[2.0, -0.2], [0.6, -0.03], [-1.2, 0.2], [-2.3, 0.3]], 'rgba(0,0,0,0)');
           line(t, [[2.0, -0.2], [0.6, -0.03], [-1.2, 0.2], [-2.3, 0.3]], C.b, 0.02);
-          word(t, spons[0], -1.45, 0.1, 0.07, C.base, { spacing: 0.012, italic: true });
-          word(t, spons[1], 1.2, -0.25, 0.06, C.a, { spacing: 0.012 });
+          word(t, spons[0], -1.5, 0.0, 0.085, C.base, { spacing: 0.012, italic: true });
+          word(t, spons[1], 1.1, -0.25, 0.07, C.a, { spacing: 0.012 });
         });
         tops((t) => { rect(t, 2.2, 0.28, -2.2, 0.16, C.a); rect(t, 2.2, -0.16, -2.2, -0.28, C.a); rect(t, 2.2, 0.31, -2.2, 0.28, C.b); rect(t, 2.2, -0.28, -2.2, -0.31, C.b); });
       },
@@ -148,8 +144,8 @@
           for (let k = 0; k < 6; k++) { const z = -0.1 - k * 0.3; poly(t, [[z + 0.1, 0.3], [z - 0.06, 0.3], [z - 0.46, -0.3], [z - 0.3, -0.3]], C.a); }
           rect(t, -2.3, -0.3, 2.3, -0.2, C.b); rect(t, -2.3, -0.2, 2.3, -0.17, C.a);
           poly(t, [[2.3, 0.22], [1.0, 0.22], [0.85, 0.06], [2.3, 0.06]], C.a);
-          word(t, spons[0], 1.55, 0.14, 0.07, C.base, { spacing: 0.012 });
-          word(t, spons[1], 0.85, -0.04, 0.0, C.a);
+          word(t, spons[0], 1.55, 0.14, 0.085, C.base, { spacing: 0.012 });
+          word(t, spons[1], 0.1, -0.25, 0.06, C.base, { spacing: 0.012 });
         });
         tops((t) => { poly(t, [[2.2, 0.36], [2.2, -0.36], [0.95, -0.1], [0.95, 0.1]], C.a); for (let k = 0; k < 5; k++) rect(t, 2.1 - k * 0.22, 0.7, 2.0 - k * 0.22, 0.45, C.a), rect(t, 2.1 - k * 0.22, -0.7, 2.0 - k * 0.22, -0.45, C.a); rect(t, 0.4, 0.7, -0.98, -0.7, C.a); });
       },
@@ -158,8 +154,8 @@
           const bolt = [[2.0, -0.05], [1.2, 0.13], [1.35, 0.0], [0.4, 0.2], [0.55, 0.04], [-0.4, 0.22], [-0.25, 0.06], [-1.3, 0.24], [-1.15, 0.08], [-2.3, 0.26]];
           line(t, bolt, C.b, 0.075); line(t, bolt, C.a, 0.045);
           rect(t, -2.3, -0.3, 2.3, -0.2, C.c); rect(t, -2.3, -0.2, 2.3, -0.185, C.a);
-          word(t, spons[0], 0.9, -0.255, 0.05, C.b, { spacing: 0.02 });
-          word(t, spons[1], -1.5, -0.1, 0.07, C.b, { spacing: 0.012 });
+          word(t, spons[0], 0.9, -0.255, 0.055, C.b, { spacing: 0.02 });
+          word(t, spons[1], -1.5, -0.1, 0.085, C.b, { spacing: 0.012 });
         });
         tops((t) => { line(t, [[2.2, 0.3], [1.6, -0.05], [1.9, -0.05], [1.0, -0.4]], C.a, 0.1); rect(t, 0.4, 0.62, -1.0, -0.62, C.c); rect(t, 0.4, 0.05, -1.0, -0.05, C.a); });
       },
@@ -168,8 +164,8 @@
           for (let k = 0; k < 13; k++) { const z = 2.35 - k * 0.37, h = 0.17 + 0.17 * ((k * 7) % 5) / 4; poly(t, [[z, -0.3], [z - 0.37, -0.3], [z - 0.18, -0.3 + h]], k % 3 === 0 ? C.b : C.a); }
           rect(t, -2.3, -0.3, 2.3, -0.26, C.a);
           for (let k = 0; k < 7; k++) { const z = 2.3 - k * 0.65; poly(t, [[z, 0.26], [z - 0.3, 0.26], [z - 0.62, 0.12], [z - 0.32, 0.12]], k % 2 ? C.a : C.b); }
-          word(t, spons[0], 0.4, -0.01, 0.0, C.a);
-          word(t, spons[1], -1.45, 0.185, 0.0, C.a);
+          word(t, spons[0], 1.3, 0.1, 0.08, C.a, { spacing: 0.012 });
+          word(t, spons[1], -1.4, 0.0, 0.08, C.a, { spacing: 0.012 });
         });
         tops((t) => { for (let k = 0; k < 6; k++) { const z = 2.15 - k * 0.2; poly(t, [[z, -0.65], [z - 0.2, -0.65], [z - 0.1, 0.65 - k * 0.0]], k % 2 ? C.a : C.b); } rect(t, 0.4, 0.62, -1.0, -0.62, C.a); rect(t, 0.4, 0.1, -1.0, -0.1, C.b); });
       },
@@ -177,6 +173,10 @@
     (D[L.design] || D.ridgeline)();
     // common to every livery: shut lines, handle, fuel cap, number panels
     sides((t) => {
+      // wing / spoiler endplate panel (the plates sample this part of the side tile)
+      const wl = ((L.wing >> 16) & 255) * 0.3 + ((L.wing >> 8) & 255) * 0.59 + (L.wing & 255) * 0.11, wcol = hexS(L.wing);
+      if (ci === 0) { rect(t, -2.1, 0.45, -1.55, 0.9, wcol); word(t, spons[2] || spons[0], -1.83, 0.69, 0.07, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
+      else { rect(t, -1.95, 0.8, -1.4, 0.9, wcol); word(t, 'KRR', -1.68, 0.86, 0.05, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
       const d = B.door, ln = 'rgba(8,10,14,0.55)';
       line(t, [[d[0], B.belt], [d[0], B.sill]], ln, 0.011); line(t, [[d[1], B.belt], [d[1], B.sill]], ln, 0.011);
       line(t, [[d[0], B.sill], [d[1], B.sill]], ln, 0.008);
@@ -187,7 +187,8 @@
     });
     tops((t) => {
       numPanel(t, ci === 0 ? 1.45 : 1.25, 0.0, 0.2, false);
-      if (L.pod || true) word(t, 'KRR', ci === 0 ? -0.2 : -0.3, 0.0, 0.09, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
+      word(t, 'KRR', ci === 0 ? -0.2 : -0.3, 0.0, 0.09, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
+      word(t, spons[2] || spons[0], ci === 0 ? 1.92 : 1.72, 0.0, 0.085, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
     });
   }
 

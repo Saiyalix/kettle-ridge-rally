@@ -8,6 +8,7 @@
   const exteriorCabin = [];          // hidden in cockpit view so the camera sees the interior
   const wheelMeshes = car.wheels.map(() => { const steerG = new THREE.Group(), spinG = new THREE.Group(); steerG.add(spinG); carGroup.add(steerG); return { steerG, spinG, flip: null }; });
   scene.add(carGroup);
+  let carTailMat = null;
   let carBuilt = null;               // { ci, li, low } of the model on screen
   let carTex = null, carTexKey = '', carStats = { tris: 0, calls: 0, texBytes: 0 };
 
@@ -138,17 +139,34 @@
     m.userData.plateTex = tex; return m;
   }
 
+  // exhaust tailpipe: flared chrome tip with a dark bore, pointing back
+  function exhaust(P, x, y, z, low) {
+    const g = new THREE.CylinderGeometry(0.05, 0.036, 0.2, low ? 8 : 12, 1, true);
+    addGeo(P.trim, g, xf(x, y, z, Math.PI / 2), hx3(0xc4cad0)); g.dispose();
+    cyl(P.dark, 0.036, 0.04, x, y, z + 0.0, hx3(0x08080a), { rx: Math.PI / 2, low });
+  }
   function buildKestrelDetails(P, L, low, mats) {
-    const sp = KESTREL, dk = hx3(DARK), lens = hx3(0xf4f1dc), red = hx3(0xc8161a), chrome = hx3(0xc4cad0);
-    // headlights: swept lenses along the nose slope, dark housing behind
+    const sp = KESTREL, dk = hx3(DARK), lens = hx3(0xf4f1dc), red = hx3(0x8c1014), chrome = hx3(0xc4cad0);
+    // headlights: a dark bezel with a raised rim, an angled lit lens, a projector and an inner reflector, set into the nose slope
     both((s) => {
-      const z = 1.97, y = topY(sp, z, 0.56) + 0.005, sl = -Math.atan((topY(sp, z + 0.1, 0.56) - topY(sp, z - 0.1, 0.56)) / 0.2);
-      box(P.dark, 0.38, 0.014, 0.17, s * 0.55, y + 0.004, z + 0.05, dk, { rx: sl, ry: s * 0.12 });
-      box(P.lamp, 0.31, 0.014, 0.1, s * 0.55, y + 0.01, z + 0.075, lens, { rx: sl, ry: s * 0.12 });
+      const z = 1.96, x = s * 0.55, y = topY(sp, z, 0.55), sl = -Math.atan((topY(sp, z + 0.1, 0.55) - topY(sp, z - 0.1, 0.55)) / 0.2);
+      box(P.dark, 0.4, 0.03, 0.2, x, y + 0.002, z + 0.04, dk, { rx: sl, ry: s * 0.14 });
+      box(P.trim, 0.37, 0.006, 0.17, x, y + 0.017, z + 0.045, hx3(0x8d949c), { rx: sl, ry: s * 0.14 });
+      box(P.lamp, 0.33, 0.012, 0.13, x, y + 0.02, z + 0.05, lens, { rx: sl - 0.12, ry: s * 0.14 });
+      cyl(P.lamp, 0.048, 0.01, x + s * 0.06, y + 0.026, z + 0.055, hx3(0xffffff), { rx: sl, low });
+      cyl(P.trim, 0.056, 0.008, x + s * 0.06, y + 0.022, z + 0.055, hx3(0x6a7078), { rx: sl, low });
+      box(P.dark, 0.06, 0.03, 0.12, s * 0.8, y - 0.03, z - 0.08, dk, { rx: sl, ry: s * 0.5 });          // side marker / fender corner
     });
-    // front intake, splitter, bonnet pins, tow loop
-    box(P.dark, 0.74, 0.1, 0.02, 0, -0.14, 2.12, dk); box(P.trim, 0.7, 0.012, 0.025, 0, -0.14, 2.125, chrome); box(P.trim, 0.7, 0.012, 0.025, 0, -0.105, 2.125, chrome);
-    box(P.dark, 1.3, 0.025, 0.12, 0, -0.285, 2.1, dk, { rx: 0.05 });
+    // front intake, side intakes, grille bars, and a tapered splitter on two struts
+    box(P.dark, 0.74, 0.1, 0.02, 0, -0.14, 2.12, dk);
+    for (let k = 0; k < 4; k++) box(P.trim, 0.012, 0.09, 0.026, -0.27 + k * 0.18, -0.14, 2.124, chrome);
+    box(P.trim, 0.7, 0.012, 0.026, 0, -0.105, 2.126, chrome);
+    both((s) => {
+      box(P.dark, 0.22, 0.075, 0.04, s * 0.58, -0.17, 2.07, dk, { ry: s * 0.45 });
+      box(P.trim, 0.2, 0.008, 0.04, s * 0.58, -0.13, 2.075, chrome, { ry: s * 0.45 });
+      box(P.dark, 0.03, 0.05, 0.04, s * 0.42, -0.28, 2.0, dk);
+    });
+    loft([[1.98, 0.64], [2.08, 0.66], [2.19, 0.52]].map(a => ({ z: a[0], ring: BOXRING(0, -0.292 + (a[0] - 1.98) * 0.1, a[1], 0.011) })), () => ({ part: P.dark, col: dk, uv: false }), { N: 4, crease: 50 });
     both((s) => { for (const zz of [1.62, 0.95]) cyl(P.trim, 0.018, 0.012, s * 0.45, topY(sp, zz, 0.45) + 0.006, zz, chrome, { low }); });
     // bonnet: two vents and a power bulge with an intake
     both((s) => { for (let k = 0; k < 4; k++) box(P.dark, 0.2, 0.01, 0.025, s * 0.4, topY(sp, 1.24 + k * 0.055, 0.4) + 0.008, 1.24 + k * 0.055, dk, { rx: -0.03 }); });
@@ -159,17 +177,18 @@
     // tail lights, exhaust, rear plate area
     both((s) => { box(P.tail, 0.46, 0.065, 0.025, s * 0.5, 0.1, -2.11, red); box(P.dark, 0.5, 0.1, 0.02, s * 0.5, 0.1, -2.1, dk); });
     box(P.tail, 0.3, 0.02, 0.02, 0, 0.12, -2.115, red);
-    cyl(P.trim, 0.042, 0.2, -0.46, -0.26, -2.14, chrome, { rx: Math.PI / 2, low }); cyl(P.dark, 0.03, 0.21, -0.46, -0.26, -2.14, dk, { rx: Math.PI / 2, low });
-    box(P.dark, 0.9, 0.04, 0.1, 0, -0.26, -2.08, dk, { rx: -0.08 });                         // diffuser
+    exhaust(P, -0.46, -0.26, -2.14, low);
+    both((s) => slab(P.dark, [[-2.04, -0.25], [-2.14, -0.25], [-2.17, -0.2], [-2.1, -0.2]], s * 0.2, s * 0.62, dk));        // diffuser, tapered
     // rear wing: endplates, uprights, main plane, flap
     const wc = hx3(L.wing), wz = -1.83, wy = 0.68;
+    // thin endplates about as tall as the wing is deep, airfoil-section planes, tapered uprights
     both((s) => {
-      slab(P.body, [[wz + 0.2, wy - 0.1], [wz + 0.2, wy + 0.1], [wz + 0.1, wy + 0.16], [wz - 0.15, wy + 0.18], [wz - 0.3, wy + 0.12], [wz - 0.3, wy - 0.1], [wz - 0.05, wy - 0.13]], s * 0.9, s * 0.915, wc, { uv: false });
-      box(P.dark, 0.05, 0.38, 0.06, s * 0.52, wy - 0.22, wz + 0.02, dk, { rx: -0.08 });
+      slab(P.body, [[wz + 0.2, wy - 0.07], [wz + 0.2, wy + 0.09], [wz + 0.05, wy + 0.14], [wz - 0.2, wy + 0.16], [wz - 0.23, wy + 0.08], [wz - 0.23, wy - 0.09], [wz, wy - 0.09]], s * 0.9, s * 0.914, wc, { uv: true });
+      slab(P.dark, [[wz + 0.07, wy - 0.24], [wz - 0.03, wy - 0.24], [wz - 0.04, wy], [wz + 0.04, wy]], s * 0.5, s * 0.55, dk);
     });
-    box(P.body, 1.8, 0.03, 0.4, 0, wy + 0.02, wz, wc, { rx: -0.12 });
-    box(P.body, 1.8, 0.025, 0.18, 0, wy + 0.1, wz - 0.18, wc, { rx: -0.35 });
-    box(P.dark, 1.8, 0.04, 0.012, 0, wy + 0.13, wz - 0.27, dk);
+    slab(P.trim, [[wz + 0.19, wy - 0.005], [wz + 0.15, wy + 0.025], [wz, wy + 0.04], [wz - 0.2, wy + 0.07], [wz - 0.22, wy + 0.05], [wz - 0.02, wy - 0.015]], -0.9, 0.9, wc, { uv: false });
+    slab(P.trim, [[wz - 0.12, wy + 0.1], [wz - 0.16, wy + 0.135], [wz - 0.3, wy + 0.2], [wz - 0.3, wy + 0.17], [wz - 0.2, wy + 0.1]], -0.9, 0.9, wc, { uv: false });
+    box(P.dark, 1.8, 0.03, 0.012, 0, wy + 0.2, wz - 0.3, dk, { rx: -0.3 });
     // mirrors and wipers, roof vent, aerial
     both((s) => {
       box(P.dark, 0.1, 0.014, 0.014, s * 0.78, 0.4, 0.6, dk, { rz: s * 0.5 });
@@ -182,7 +201,7 @@
     // side skirt blades and mudflaps
     both((s) => {
       box(P.dark, 0.05, 0.05, 1.5, s * 0.865, -0.265, -0.07, dk, { rx: 0 });
-      for (const zc of [1.24, -1.33]) box(P.dark, 0.012, 0.14, 0.13, s * 0.84, -0.36, zc - 0.46, dk);
+      for (const zc of [1.24, -1.33]) slab(P.dark, [[zc - 0.4, -0.27], [zc - 0.55, -0.27], [zc - 0.53, -0.43], [zc - 0.43, -0.43]], s * 0.835, s * 0.85, dk);
     });
     // front fog / rally light pod
     if (L.pod) {
@@ -197,7 +216,7 @@
   }
 
   function buildStradaDetails(P, L, low, mats) {
-    const sp = STRADA, dk = hx3(DARK), lens = hx3(0xf4f1dc), red = hx3(0xc8161a), chrome = hx3(0xc4cad0), amber = hx3(0xff9a1a);
+    const sp = STRADA, dk = hx3(DARK), lens = hx3(0xf4f1dc), red = hx3(0x8c1014), chrome = hx3(0xc4cad0), amber = hx3(0xff9a1a);
     // boxy lamps with a dark surround, amber indicators in the bumper
     both((s) => {
       box(P.dark, 0.34, 0.16, 0.02, s * 0.54, 0.16, 1.88, dk);
@@ -217,22 +236,29 @@
     // rear: tall tail lamps, bumper, exhaust, wiper, hatch handle
     both((s) => { box(P.tail, 0.14, 0.34, 0.025, s * 0.78, 0.2, -1.89, red, { ry: s * -0.25 }); box(P.dark, 0.18, 0.38, 0.02, s * 0.78, 0.2, -1.885, dk, { ry: s * -0.25 }); });
     box(P.dark, 1.4, 0.07, 0.03, 0, -0.2, -1.9, dk); box(P.dark, 0.3, 0.04, 0.03, 0, 0.3, -1.9, dk);
-    cyl(P.trim, 0.04, 0.2, 0.46, -0.27, -1.96, chrome, { rx: Math.PI / 2, low }); cyl(P.dark, 0.028, 0.21, 0.46, -0.27, -1.96, dk, { rx: Math.PI / 2, low });
+    exhaust(P, 0.46, -0.27, -1.96, low);
     // roof spoiler with end fins, roof vent, aerial
     const wc = hx3(L.wing);
-    box(P.body, 1.12, 0.03, 0.22, 0, 0.88, -1.43, wc, { rx: 0.18 });
+    box(P.trim, 1.12, 0.03, 0.22, 0, 0.88, -1.43, wc, { rx: 0.18 });
     both((s) => slab(P.body, [[-1.28, 0.88], [-1.28, 0.93], [-1.4, 0.96], [-1.58, 0.92], [-1.6, 0.84]], s * 0.55, s * 0.565, wc, { uv: false }));
     box(P.cabin, 0.38, 0.035, 0.28, 0, 0.935, -0.45, dk); box(P.cabin, 0.3, 0.04, 0.05, 0, 0.945, -0.36, [0, 0, 0]);
     cyl(P.dark, 0.008, 0.3, 0.45, 0.42, -1.5, dk, { rx: -0.35, low });
-    // mirrors, wipers, arch trim, mudflaps, sills
+    // mirrors, wipers, arch flares, mudflaps, sills
     both((s) => {
+      for (const zc of [1.24, -1.33]) {                     // bolted-on box flares, a little wider than the body, with bolt heads
+        const R = 0.44, yc = -0.2, pts = [[zc - 0.55, -0.31], [zc - 0.55, 0.33], [zc + 0.55, 0.33], [zc + 0.55, -0.31], [zc + Math.sqrt(R * R - 0.11 * 0.11), -0.31]];
+        for (let a = -14; a <= 194; a += low ? 26 : 13) pts.push([zc + R * Math.cos(a * Math.PI / 180), yc + R * Math.sin(a * Math.PI / 180)]);
+        pts.push([zc - Math.sqrt(R * R - 0.11 * 0.11), -0.31]);
+        slab(P.body, pts, s * 0.86, s * 0.95, [1, 1, 1], { uv: true });
+        for (const [bz, by] of [[-0.48, 0.28], [0.48, 0.28], [-0.48, -0.26], [0.48, -0.26], [0, 0.29]]) cyl(P.trim, 0.016, 0.01, s * 0.957, by, zc + bz, hx3(0x9aa0a8), { rz: Math.PI / 2, low });
+      }
       box(P.dark, 0.09, 0.014, 0.014, s * 0.76, 0.43, 0.5, dk, { rz: s * 0.4 });
       box(P.body, 0.11, 0.09, 0.15, s * 0.9, 0.48, 0.46, [1, 1, 1], { ry: s * 0.12, uv: true });
       box(P.dark, 0.09, 0.07, 0.01, s * 0.9, 0.48, 0.38, dk, { ry: s * 0.12 });
       box(P.dark, 0.3, 0.008, 0.012, s * 0.3, 0.37, 0.56, dk, { ry: s * 0.15, rz: s * 0.1 });
       box(P.dark, 0.06, 0.05, 1.3, s * 0.845, -0.265, -0.05, dk);
       for (const zc of [1.24, -1.33]) {
-        box(P.dark, 0.012, 0.14, 0.13, s * 0.835, -0.36, zc - 0.46, dk);
+        slab(P.dark, [[zc - 0.4, -0.27], [zc - 0.55, -0.27], [zc - 0.53, -0.43], [zc - 0.43, -0.43]], s * 0.83, s * 0.845, dk);
       }
     });
     if (L.pod) {
@@ -258,7 +284,7 @@
       m.glass.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <envmap_fragment>', 'specularStrength *= 0.25 + 0.9 * pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.0);\n#include <envmap_fragment>'); };
       m.glass.customProgramCacheKey = () => 'carglass';
     }
-    m.lamp = new THREE.MeshBasicMaterial({ vertexColors: true }); m.tail = m.lamp;
+    m.lamp = new THREE.MeshBasicMaterial({ vertexColors: true }); m.tail = new THREE.MeshBasicMaterial({ vertexColors: true });      // tail lamps get brighter under braking (carTailMat.color)
     return m;
   }
 
@@ -291,8 +317,7 @@
       const m = new THREE.Mesh(partGeo(part), mat); m.castShadow = shadow; m.userData.own = false; bodyRoot.add(m); if (cab) exteriorCabin.push(m); return m;
     };
     exteriorCabin.length = 0;
-    // the tail lamps share the lamp material
-    for (const k of Object.keys(P.tail)) P.lamp[k].push(...P.tail[k]);
+    carTailMat = mats.tail; mk(P.tail, mats.tail, false, false);
     mk(P.body, mats.paint, true, false); mk(P.cabin, mats.paint, true, true); mk(P.glass, mats.glass, false, true);
     mk(P.dark, mats.dark, true, false); if (P.trim.pos.length) mk(P.trim, mats.trim, false, false); mk(P.lamp, mats.lamp, false, false);
     const mk2 = (pt, pl) => { const m = numberPlate(ci, L, pl); m.position.set(pt[0], pt[1], pt[2]); m.rotation.y = pt[3]; m.userData.own = true; bodyRoot.add(m); };
@@ -307,7 +332,7 @@
       if (w.local.x < 0) flip.rotation.y = Math.PI;
       wheelMeshes[i].spinG.add(flip); wheelMeshes[i].flip = flip;
     });
-    carStats.tris = (P.body.pos.length + P.cabin.pos.length + P.glass.pos.length + P.dark.pos.length + P.trim.pos.length + P.lamp.pos.length) / 9 + 4 * wp.pos.length / 9 + 4;
+    carStats.tris = (P.body.pos.length + P.cabin.pos.length + P.glass.pos.length + P.dark.pos.length + P.trim.pos.length + P.lamp.pos.length + P.tail.pos.length) / 9 + 4 * wp.pos.length / 9 + 4;
     carStats.calls = bodyRoot.children.length + 4;
     carBuilt = { ci, li, low };
   }
@@ -427,7 +452,8 @@
   }
   const _hw = new THREE.Vector3(), _el = new THREE.Vector3(), _wr = new THREE.Vector3(), _cf = new THREE.Vector3();
   function updateCockpit() {
-    if (carBuilt && carBuilt.low !== (quality === 'low')) applyLivery();            // graphics quality changed: rebuild the car
+    if (carBuilt && carBuilt.low !== (quality === 'low')) applyLivery();
+    if (carTailMat) carTailMat.color.setScalar(car.brakeIn > 0.15 ? 1.9 : 1);          // brake lights            // graphics quality changed: rebuild the car
     const inside = camMode === 3;
     cockpit.visible = inside;
     for (const m of exteriorCabin) m.visible = !inside;
