@@ -26,7 +26,7 @@ Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile wi
 3. **Rival cars with their own liveries.** (art)
 4. ~~**Buildings as 3D models, including Japanese-style for Sakura Touge.**~~ Done (graphics step 7). (art)
 5. **Trees and nature** (branch `gfx/8-trees-nature`, in review): done on merge. Real 3D trees (layered conifers, autumn broadleaf, cherry), faceted rocks with moss / snow caps, grass tufts, bushes, flowers, reeds, wind, three levels of detail; night colours of sakura trees and rice paddies fixed. (art)
-6. **Spectators, signs, gates and barriers as 3D models.** (art, tracks)
+6. **Spectators, signs, gates and barriers as 3D models** (branch `gfx/9-spectators-gates`, in review): 3D people (6 poses, varied clothes, cheering animation), inflatable and truss gates, 3D boards, tape lines and guard rails, plus detail builders (hay bales, marshal post, tents, TV tower, loos, parked cars, signposts) for tracks to place next. (art, tracks)
 7. **New low, close chase camera**: keep all existing cameras. (art)
 8. **SS2 drop wall clearance**: keep the drop-side wall at least 1 m clear of stacked road sections on hairpins. (tracks)
 9. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. Checked with every graphics step; this item is for anything left over. (ui-mobile, art)

@@ -27,6 +27,10 @@ The build checks that the glued script is valid JavaScript and says which file a
 | `tracks/rivals.js` | tracks + art | Rival pace, start gaps, bumping → tracks. Rival car models and colours → art |
 | `art/textures.js`, `art/roadside.js` | art | Generated textures (road per surface, grass/soil, stone, wood, rock, plaster, trim, roof tiles) and look-builders for tracks: `stoneWall`, `woodFence`, `rockFace` (argument docs in the file) |
 | `art/buildings.js` | art | `buildings(list)`: 3D houses (plaster, stone, japanese) from a list of footprints; `townDetail(list)`: depth for the SS3 neon town. Argument docs in the file |
+| `art/modeller.js` | art | `modeller()`: tiny kit that merges boxes, tubes, spheres, quads and swept profiles into one vertex-coloured geometry (argument docs in the file) |
+| `art/people.js` | art | 3D spectators: six poses, palette per person, shader animation, near / far level of detail. `crowdGroup(spot)`, `crowdAdd(list)` for tracks |
+| `art/structures.js` | art | 3D gates (inflatable arch, truss), sign boards, sponsor boards, tape lines, guard rails |
+| `art/details.js` | art | Builders for tracks to place: `hayBales`/`hayRow`, `flagPoles`, `marshalPosts`, `photographers`, `serviceTents`, `tvTowers`, `portaLoos`, `parkedCars`, `signPosts`, `spectatorGroup` (argument docs in the file) |
 | `art/car-model.js` | art | Player car: two modelled bodies (Kestrel, Strada), wheels, brake lights, `applyLivery`, cockpit interior. Rebuilt when car / livery / quality changes |
 | `art/car-geo.js`, `art/car-livery.js` | art | Geometry helpers (lofts, parts, livery atlas layout); livery choice API (`liveryList`, `liveryIndex`, `setLivery`) and the livery painter. Livery data: `CONFIG.cars[i].liveries` |
 | `art/rival-liveries.js`, `art/rival-model.js` | art | The 14 rival liveries (designs + palettes + sponsors) and the shared rival models with three levels of detail (`updateRivalLOD`, called from `renderFrame`) |

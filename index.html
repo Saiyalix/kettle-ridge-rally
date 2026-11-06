@@ -4035,7 +4035,7 @@ function boot() {
      Level of detail: every person is stored once (matrix + palette numbers in typed arrays), grouped in clusters (one per crowd spot).
      updateCrowd() (called from renderFrame) runs when the camera has moved 4 m or turned about 10 degrees: it drops clusters behind the camera or
      beyond the fog, and copies each person into a "near" mesh (full model, per pose) or the "far" mesh (a 40 triangle figure, two kinds: arms down / arms up).
-     Low quality: coarser models, near distance 22 m instead of 38, far people are drawn to 70 % of the fog distance and only every second one past 60 m, no shadows.
+     Low quality: coarser models, near distance 16 m instead of 38, far people are drawn to 70 % of the fog distance and only every second one past 40 m, no shadows.
 
      For tracks:
        crowdAdd(list)      list of persons {x, z, y?, yaw?, pose?, kid?, shirt?, pants?, skin?, hair?, hat?, long?, amp?, s?}, all of one group (the group is one cluster for culling).
@@ -4189,7 +4189,7 @@ function boot() {
   const _cs = { x: 0, z: 0, fx: 0, fz: 0, fog: 0, ar: 0, q: '', g: null, n: 0 };
   let crowdList = [], crowdClusters = [], crowdDirty = false;
   function crowdReset() { crowdList = []; crowdClusters = []; crowdState = null; crowdDirty = false; }
-  const CROWD_NEAR = { high: 38, low: 22 };
+  const CROWD_NEAR = { high: 38, low: 16 };
   function crowdAdd(list) {
     if (!list.length) return;
     const dummyO = new THREE.Object3D(), cl = { a: crowdList.length, b: 0, x: 0, z: 0, r: 0 };
@@ -4264,7 +4264,7 @@ function boot() {
     const fog = scene.fog.far;
     if (_cs.g === stageGroup && _cs.q === quality && _cs.fog === fog && _cs.ar === camera.aspect && _cs.n === S.n && Math.hypot(cp.x - _cs.x, cp.z - _cs.z) < 4 && fx * _cs.fx + fz * _cs.fz > 0.985) return;
     _cs.g = stageGroup; _cs.x = cp.x; _cs.z = cp.z; _cs.fx = fx; _cs.fz = fz; _cs.q = quality; _cs.fog = fog; _cs.ar = camera.aspect; _cs.n = S.n;
-    const nearD = low ? CROWD_NEAR.low : CROWD_NEAR.high, far = fog * (low ? 0.7 : 0.9), nearD2 = nearD * nearD, thinFrom2 = 60 * 60;
+    const nearD = low ? CROWD_NEAR.low : CROWD_NEAR.high, far = fog * (low ? 0.7 : 0.9), nearD2 = nearD * nearD, thinFrom2 = (low ? 40 : 60) * (low ? 40 : 60);
     const tanH = Math.tan(camera.fov * Math.PI / 360) * camera.aspect * 1.12 + 0.25, M = S.M, A = S.A, B = S.B;
     const nM = S.near.map(m => m.instanceMatrix.array), nA = S.near.map(m => m.userData.la.array), nB = S.near.map(m => m.userData.lb.array);
     const fM = S.far.map(m => m.instanceMatrix.array), fA = S.far.map(m => m.userData.la.array), fB = S.far.map(m => m.userData.lb.array);
