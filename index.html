@@ -2504,13 +2504,13 @@ function boot() {
 
   /* ---------- extra woods: dense layered stands beside the road ----------
      Extra trees are planned here with their own generator (ST.seed * 7919 + salt), never the stage rng, so no older tree, rock or board moves.
-     Rows go from a near row (trunk collision) to back rows (not collidable); each row has its own step, offset band and size.
+     Rows go from a near row (visual only inside 8 m of the road edge, and only on straights) to rows (trunk collision from 8 m) to back rows (not collidable); each row has its own step, offset band and size.
      Kept clear: gates, the start/finish areas and village (frameKeepOut), houses, the torii tunnel, existing trees (spacing), and
      the inside of every corner (20 m deep, from 30 m before it) (so you see where the road goes). Collision does not depend on graphics quality.
      o: { salt, a, b, minLen, maxLen, gapMin, gapMax, colMax, rows: [{ o0, o1, step, p, s0, s1, sep }], ok(p, side, off, x, z, y, s) } */
   function woodExtras(existing, o) {
     const wr = mulberry32(ST.seed * 7919 + o.salt), keep = frameKeepOut(), out = [];
-    const gates = [16, ...ST.checkpoints, track.finishS], inside = [];
+    const gates = [16, ...ST.checkpoints, track.finishS], inside = [], turns = track.turns.map(t => [t.s0 - 20, t.s1 + 60]);
     for (const t of track.turns) if (t.r <= 120) inside.push([t.s0 - 30, t.s1 + 4, t.dir === 'R' ? 1 : -1]);
     const grid = new Map(), gk = (i, j) => i * 100003 + j, CELL = 4;
     const put = (x, z) => { const k = gk(Math.floor(x / CELL), Math.floor(z / CELL)); let c = grid.get(k); if (!c) grid.set(k, c = []); c.push(x, z); };
@@ -2526,13 +2526,14 @@ function boot() {
         if (ss < o.a || ss > o.b || r1 > row.p * Math.min(1, Math.min(ss - a, b - ss) / 25)) continue;
         const off = row.o0 + r2 * (row.o1 - row.o0);
         if (off < 16 && (keep(ss, side) || gates.some(g => Math.abs(ss - g) < 24))) continue;
+        if (off < 8 && turns.some(r => ss >= r[0] && ss <= r[1])) continue;                  // the near row (visual only) stays off corners and 60 m after them
         if (inside.some(r => r[2] === side && ss >= r[0] && ss <= r[1] && off < 20)) continue;
         const p = sampleAt(ss), [x, z] = sideXZ(p, side * (half + off)), y = terrain.heightAt(x, z);
         if (terrain.distAt(x, z) < half + Math.min(off, 12) - 1.2 || nearHouse(x, z) || crowded(x, z, row.sep)) continue;
         if (o.ok && !o.ok(p, side, off, x, z, y, ss)) continue;
         const s0 = terrain.sAt(x, z);
         put(x, z);
-        out.push({ x, z, y, d: terrain.distAt(x, z), s0, r: r3 * 6.28, s: row.s0 + r4 * (row.s1 - row.s0), snow: !!(o.snow && o.snow(s0)), col: off <= o.colMax });
+        out.push({ x, z, y, d: terrain.distAt(x, z), s0, r: r3 * 6.28, s: row.s0 + r4 * (row.s1 - row.s0), snow: !!(o.snow && o.snow(s0)), col: off >= 8 && off <= o.colMax && terrain.distAt(x, z) - half >= 8.2 });
       }
     }
     return out;
