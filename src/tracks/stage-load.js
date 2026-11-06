@@ -10,15 +10,18 @@
       }
     });
   }
-  function makeGate(s, text, bg, fg, checker) {
+  // look = { kind: 'arch' | 'truss', lights: 'start' | 'finish' | 'cp' }: the 3D structure is built in art/structures.js (gateModel)
+  function makeGate(s, text, bg, fg, checker, look = { kind: 'arch' }) {
     const p = sampleAt(s), g = new THREE.Group(), w = half * 2 + 3.4;
-    const postMat = lit({ color: 0x2b2f33 });
-    for (const sx of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.32, 5.6, 0.32), postMat); post.position.set(sx * w / 2, 2.8, 0); post.castShadow = true; g.add(post); }
+    const M = gateModel(look.kind, w, { c1: cssRGB(bg), c2: cssRGB(fg), checker, lights: look.lights });
+    const body = new THREE.Mesh(M.struct, structMat()); body.castShadow = body.receiveShadow = true; g.add(body);
+    g.add(new THREE.Mesh(M.beacons, beaconMat()));
     const mat = new THREE.MeshBasicMaterial({ map: labelTexture(text, bg, fg, checker), side: THREE.FrontSide, fog: true });
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, (w + 0.3) / 8), mat); front.position.set(0, 5.0, 0.02);
-    const back = front.clone(); back.rotation.y = Math.PI; back.position.z = -0.02;
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(M.bw, M.bh), mat); front.position.set(0, M.bannerY, M.bannerZ);
+    const back = front.clone(); back.rotation.y = Math.PI; back.position.z = -M.bannerZ;
     g.add(front, back);
     g.position.set(p.x, terrain.heightAt(p.x, p.z), p.z); g.rotation.y = p.th;
+    if (ST.look.night) for (const [lx, ly, lz, c] of M.glows) glowSpots.push({ x: g.position.x + lx * Math.cos(p.th) + lz * Math.sin(p.th), y: g.position.y + ly, z: g.position.z - lx * Math.sin(p.th) + lz * Math.cos(p.th), c, size: 1.4 });
     add(g);
   }
 
@@ -50,16 +53,18 @@
     if (stageGroup) { scene.remove(stageGroup); disposeTree(stageGroup); }
     stageGroup = new THREE.Group(); scene.add(stageGroup);
     track = buildTrack(ST); terrain = buildTerrain(track, ST); world = makeWorld(track, terrain, ST); P = track.samples;
-    obstacles = [];
+    obstacles = []; crowdReset();
     castleL = ST.castle ? castleLayout(track, ST) : null;      // SS4: the castle, planned before the ground so the courtyard can be tinted
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
     if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
-    makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff');
-    ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216'));
-    makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true);
+    makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
+    ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216', false, { kind: 'truss', lights: 'cp' }));
+    makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
+    eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
+    crowdBuild();
     hashObstacles();
     buildMinimap();
     applyLook(ST.look);
