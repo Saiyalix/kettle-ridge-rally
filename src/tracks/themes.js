@@ -5,7 +5,14 @@
       if (rng() > (d < 30 ? 0.75 : d < 90 ? 0.45 : 0.18)) return false;
       return nearHouse(x, z) ? false : { snow: s0 > ST.snowFrom - 40 };
     });
-    conifers(trees, (c, t) => t.snow ? c.setRGB(0.80 + rng() * 0.1, 0.88 + rng() * 0.08, 0.95) : c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+    const fin = track.finishS, snowS = ST.snowFrom - 40;
+    const lvl = { snow: s0 => s0 > snowS, ok: (p, side, off, x, z, y) => Math.abs(y - p.y) < 7 && slopeAt(x, z) < 0.5 };
+    const woods = woodExtras(trees, Object.assign({ salt: 1, a: 480, b: snowS, minLen: 220, maxLen: 520, gapMin: 12, gapMax: 40, colMax: 14, rows: [
+      { o0: 5.6, o1: 8.2, step: 3.8, p: 0.9, s0: 0.9, s1: 1.3, sep: 3.2 }, { o0: 9, o1: 14, step: 3.4, p: 0.95, s0: 1.0, s1: 1.5, sep: 3.4 },
+      { o0: 15, o1: 24, step: 3.2, p: 0.95, s0: 1.1, s1: 1.6, sep: 3.6 }, { o0: 25, o1: 40, step: 3.4, p: 0.9, s0: 1.2, s1: 1.8, sep: 4 }] }, lvl));
+    const crest = woodExtras(trees.concat(woods), Object.assign({ salt: 2, a: snowS, b: fin - 90, minLen: 25, maxLen: 55, gapMin: 70, gapMax: 160, colMax: 14, rows: [
+      { o0: 7, o1: 12, step: 5, p: 0.6, s0: 1.0, s1: 1.5, sep: 3.4 }, { o0: 13, o1: 24, step: 5, p: 0.55, s0: 1.1, s1: 1.6, sep: 3.8 }] }, lvl));
+    conifers(trees.concat(woods, crest), (c, t) => t.snow ? c.setRGB(0.80 + rng() * 0.1, 0.88 + rng() * 0.08, 0.95) : c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
     rocks(rng, roadsideRocks(rng, 320).filter(r => !nearHouse(r.x, r.z)));
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
@@ -16,7 +23,13 @@
       if (d < half + 7 || y > ST.snowLine - 6 || slopeAt(x, z) > 0.45) return false;
       return rng() < (d < 40 ? 0.4 : d < 140 ? 0.22 : 0.1);
     });
-    conifers(pines, (c) => c.setRGB(0.10 + rng() * 0.05, 0.38 + rng() * 0.1, 0.30 + rng() * 0.05), { tall: 1.25, wide: 0.8 });
+    const upOf = (p, side) => side > 0 ? p.upR : p.upL;
+    const ridge = { salt: 3, a: 40, b: track.finishS - 40, minLen: 180, maxLen: 420, gapMin: 12, gapMax: 50, colMax: 14,
+      ok: (p, side, off, x, z, y) => { const u = upOf(p, side); if (y > ST.snowLine - 6 || slopeAt(x, z) > 0.5) return false;
+        return u > 0.6 ? off >= 11 : u < 0.4 ? off >= 16 && y < p.y - 2 : off >= 13; },
+      rows: [{ o0: 9, o1: 16, step: 4, p: 0.85, s0: 1.0, s1: 1.4, sep: 3.6 }, { o0: 17, o1: 28, step: 3.5, p: 0.9, s0: 1.1, s1: 1.6, sep: 4 }, { o0: 29, o1: 48, step: 3.6, p: 0.9, s0: 1.2, s1: 1.8, sep: 4.4 }] };
+    const woods = woodExtras(pines, ridge);
+    conifers(pines.concat(woods), (c) => c.setRGB(0.10 + rng() * 0.05, 0.38 + rng() * 0.1, 0.30 + rng() * 0.05), { tall: 1.25, wide: 0.8 });
     // boulders at the foot of the rock walls (solid), loose rocks across steep ground
     const wallRocks = roadsideRocks(rng, 160, (p, side) => (side > 0 ? p.upR : p.upL) > 0.6).map(r => Object.assign(r, { size: r.size * 1.6 }));
     const scree = scatter(rng, 420, 9000, (x, z, d, y) => d > half + 6 && slopeAt(x, z) > 0.55 ? { size: 0.4 + rng() * 1.4, solid: false } : false);
@@ -36,14 +49,22 @@
       if (s0 < 560 && d > half + 7 && d < 170 && slopeAt(x, z) < 0.14) return false;     // keep paddies open
       return rng() < (d < 25 ? 0.6 : d < 80 ? 0.3 : 0.08) && !nearHouse(x, z) ? { s: 0.8 + rng() * 0.5 } : false;
     });
-    billboards(sakura, 'sakura', 7, 7.5);
-    for (const t of sakura) if (t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    const lining = woodExtras(sakura, { salt: 4, a: 140, b: tun[0] - 40, minLen: 90, maxLen: 200, gapMin: 50, gapMax: 130, colMax: 12,
+      ok: (p, side, off, x, z, y) => Math.abs(y - p.y) < 3 && slopeAt(x, z) < 0.4,
+      rows: [{ o0: 5, o1: 8, step: 6.5, p: 0.75, s0: 0.9, s1: 1.3, sep: 4.5 }, { o0: 10, o1: 15, step: 9, p: 0.4, s0: 0.9, s1: 1.4, sep: 5 }] });
+    const sakuraAll = sakura.concat(lining);
+    treeStand(sakuraAll, () => SPECIES.sakura);
+    for (const t of sakuraAll) if (t.col !== undefined ? t.col : t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
       if (d < half + 5 || s0 < 690 || s0 > city0 - 60 || inTunnel(s0)) return false;
       return rng() < (d < 50 ? 0.7 : d < 150 ? 0.4 : 0.15) && !nearHouse(x, z) ? { s: 0.9 + rng() * 0.5 } : false;
     });
-    conifers(cedars, (c) => c.setRGB(0.10 + rng() * 0.04, 0.34 + rng() * 0.08, 0.26 + rng() * 0.05), { tall: 1.6, wide: 0.7 });
+    const groves = woodExtras(cedars, { salt: 5, a: tun[1] + 30, b: city0 - 70, minLen: 220, maxLen: 520, gapMin: 12, gapMax: 40, colMax: 14,
+      ok: (p, side, off, x, z, y) => Math.abs(y - p.y) < 12 && slopeAt(x, z) < 0.55,
+      rows: [{ o0: 6, o1: 9, step: 3.8, p: 0.9, s0: 0.9, s1: 1.3, sep: 3.4 }, { o0: 10, o1: 15, step: 3.4, p: 0.95, s0: 1.0, s1: 1.5, sep: 3.6 },
+        { o0: 16, o1: 26, step: 3.2, p: 0.95, s0: 1.1, s1: 1.6, sep: 3.8 }, { o0: 27, o1: 42, step: 3.4, p: 0.9, s0: 1.2, s1: 1.8, sep: 4.2 }] });
+    conifers(cedars.concat(groves), (c) => c.setRGB(0.10 + rng() * 0.04, 0.34 + rng() * 0.08, 0.26 + rng() * 0.05), { tall: 1.6, wide: 0.7 });
     rocks(rng, roadsideRocks(rng, 90, p => p.s > 700 && p.s < city0 - 60));
     // white guardrails on the pass
     cornerRails(t => t.r <= 80 && t.s0 > 680 && t.s1 < city0 - 30, { postColor: 0x8d939c, railColor: 0xeef1f5, railH: 0.32, railY: 0.62, offset: 1.4, postH: 0.8, solid: true });

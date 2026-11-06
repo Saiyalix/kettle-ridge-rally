@@ -1,62 +1,55 @@
   /* ---------- shared scenery pieces ---------- */
-  // Billboard trees: two crossed textured quads, the classic trick of the era
-  const treeTex = {};
-  function drawPine(g, w, h, snowy, narrow) {
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = '#5b3d26'; g.fillRect(w * 0.46, h * 0.78, w * 0.08, h * 0.22);
-    const tiers = narrow ? 9 : 7, top = h * 0.03, bottom = h * 0.86;
-    for (let k = 0; k < tiers; k++) {
-      const t = k / (tiers - 1), y0 = top + (bottom - top) * t * 0.92, y1 = y0 + (bottom - top) * (narrow ? 0.2 : 0.26);
-      const half = w * (narrow ? 0.12 + 0.24 * t : 0.1 + 0.38 * t);
-      const base = snowy ? [70, 128, 92] : narrow ? [48, 112, 70] : [62, 140, 70];
-      g.fillStyle = `rgb(${base[0]},${base[1]},${base[2]})`;
-      g.beginPath(); g.moveTo(w / 2, y0);
-      for (let x = -half; x <= half; x += half / 6) g.lineTo(w / 2 + x, y1 - (Math.abs(x) / half) * 8 + (Math.round(x / half * 6) % 2 ? 6 : 0));
-      g.closePath(); g.fill();
-      g.fillStyle = 'rgba(255,255,220,0.16)'; g.beginPath(); g.moveTo(w / 2, y0 + 4); g.lineTo(w / 2 - half * 0.85, y1 - 6); g.lineTo(w / 2 - half * 0.2, y1 - 8); g.closePath(); g.fill();
-      if (snowy) { g.fillStyle = 'rgba(246,250,255,0.92)'; g.beginPath(); g.moveTo(w / 2, y0); g.lineTo(w / 2 - half * 0.7, y0 + (y1 - y0) * 0.55); g.lineTo(w / 2 + half * 0.6, y0 + (y1 - y0) * 0.45); g.closePath(); g.fill(); }
-    }
-  }
-  function drawSakura(g, w, h) {
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = '#4e3330'; g.fillRect(w * 0.45, h * 0.55, w * 0.1, h * 0.45);
-    g.strokeStyle = '#4e3330'; g.lineWidth = 8; g.beginPath(); g.moveTo(w * 0.5, h * 0.62); g.lineTo(w * 0.28, h * 0.42); g.moveTo(w * 0.5, h * 0.6); g.lineTo(w * 0.72, h * 0.4); g.stroke();
-    const r = mulberry32(5);
-    for (let i = 0; i < 70; i++) { const a = r() * Math.PI * 2, d = r(); const x = w / 2 + Math.cos(a) * d * w * 0.4, y = h * 0.36 + Math.sin(a) * d * h * 0.26, rad = 14 + r() * 22;
-      g.fillStyle = `rgb(${245 + r() * 10 | 0},${170 + r() * 40 | 0},${200 + r() * 30 | 0})`; g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill(); }
-    for (let i = 0; i < 40; i++) { const x = w * (0.2 + r() * 0.6), y = h * (0.15 + r() * 0.3); g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(x, y, 5 + r() * 8, 0, 7); g.fill(); }
-  }
-  function getTreeTex(kind) {
-    if (!treeTex[kind]) {
-      const t = makeTex(128, 256, (g, w, h) => kind === 'sakura' ? drawSakura(g, w, h) : drawPine(g, w, h, kind === 'snow', kind === 'cedar'));
-      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.userData.keep = true; treeTex[kind] = t;
-    }
-    return treeTex[kind];
-  }
-  function crossedQuads(w, h) {
-    const a = new THREE.PlaneGeometry(w, h), b = new THREE.PlaneGeometry(w, h); b.rotateY(Math.PI / 2);
-    const g = new THREE.BufferGeometry(), pos = [], uv = [], nrm = [], idx = [];
-    [a, b].forEach((q, qi) => {
-      const p = q.attributes.position, u = q.attributes.uv;
-      for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i) + h / 2, p.getZ(i)); uv.push(u.getX(i), u.getY(i)); nrm.push(0, 1, 0); }
-      for (let i = 0; i < q.index.count; i++) idx.push(q.index.getX(i) + qi * 4);
-    });
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setIndex(idx);
-    return g;
-  }
-  function billboards(list, kind, w, h) {
-    if (!list.length) return;
-    const tex = getTreeTex(kind);
-    const m = instanced(crossedQuads(w, h), lit({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }), list,
-      (o, t) => { o.position.set(t.x, t.y - 0.2, t.z); o.rotation.set(0, t.r, 0); o.scale.setScalar(t.s); },
-      { color: (c) => { const v = 0.82 + Math.random() * 0.18; c.setRGB(v, v, v); } });
-    m.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.5 });
-  }
+  // Trees are real 3D models now (art/trees.js). Here: which species stands where (decided from the tree's position only, so no
+  // random number of the stage is drawn) and the trunk collision, which is exactly what it always was.
   function conifers(list, colorFn, shape = {}) {
-    const cedar = shape.tall > 1.4;
-    billboards(list.filter(t => !t.snow), cedar ? 'cedar' : 'pine', cedar ? 3.8 : 5.0, (cedar ? 12.5 : 8.5) * (shape.tall > 1 && !cedar ? 1.15 : 1));
-    billboards(list.filter(t => t.snow), 'snow', 5.0, 8.5);
-    for (const t of list) if (t.d < 40) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    const alpine = ST.theme === 'alpine', cedar = shape.tall > 1.4;
+    treeStand(list, (t) => {
+      const h = hash2(t.x, t.z);
+      if (t.snow) return SPECIES[h < 0.3 ? 'snowFir' : 'snow'];
+      if (alpine) return SPECIES[h < 0.45 ? 'pineT' : 'firT'];
+      if (cedar) return SPECIES[h < 0.5 ? 'cedar' : 'cedar2'];
+      const pBroad = 0.55 * (1 - smoothstep(clamp((t.s0 - 650) / 950, 0, 1)));      // autumn broadleaf trees in the lower forest
+      if (h < pBroad) return SPECIES.broad;
+      return SPECIES[hash2(t.z, t.x) < 0.38 ? 'fir' : 'spruce'];
+    });
+    for (const t of list) if (t.col !== undefined ? t.col : t.d < 40) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+  }
+
+  /* ---------- extra woods: dense layered stands beside the road ----------
+     Extra trees are planned here with their own generator (ST.seed * 7919 + salt), never the stage rng, so no older tree, rock or board moves.
+     Rows go from a near row (visual only inside 8 m of the road edge, and only on straights) to rows (trunk collision from 8 m) to back rows (not collidable); each row has its own step, offset band and size.
+     Kept clear: gates, the start/finish areas and village (frameKeepOut), houses, the torii tunnel, existing trees (spacing), and
+     the inside of every corner (20 m deep, from 30 m before it) (so you see where the road goes). Collision does not depend on graphics quality.
+     o: { salt, a, b, minLen, maxLen, gapMin, gapMax, colMax, rows: [{ o0, o1, step, p, s0, s1, sep }], ok(p, side, off, x, z, y, s) } */
+  function woodExtras(existing, o) {
+    const wr = mulberry32(ST.seed * 7919 + o.salt), keep = frameKeepOut(), out = [];
+    const gates = [16, ...ST.checkpoints, track.finishS], inside = [], turns = track.turns.map(t => [t.s0 - 20, t.s1 + 60]);
+    for (const t of track.turns) if (t.r <= 120) inside.push([t.s0 - 30, t.s1 + 4, t.dir === 'R' ? 1 : -1]);
+    const grid = new Map(), gk = (i, j) => i * 100003 + j, CELL = 4;
+    const put = (x, z) => { const k = gk(Math.floor(x / CELL), Math.floor(z / CELL)); let c = grid.get(k); if (!c) grid.set(k, c = []); c.push(x, z); };
+    const crowded = (x, z, sep) => {
+      const i0 = Math.floor(x / CELL), j0 = Math.floor(z / CELL), r = Math.ceil(sep / CELL);
+      for (let i = i0 - r; i <= i0 + r; i++) for (let j = j0 - r; j <= j0 + r; j++) { const c = grid.get(gk(i, j)); if (c) for (let q = 0; q < c.length; q += 2) if (Math.hypot(c[q] - x, c[q + 1] - z) < sep) return true; }
+      return false;
+    };
+    for (const t of existing) put(t.x, t.z);
+    for (const side of [-1, 1]) for (const [a, b] of chunksOf(wr, o.a, o.b, o.minLen, o.maxLen, o.gapMin, o.gapMax)) for (const row of o.rows) {
+      for (let s = a; s <= b; s += row.step) {
+        const ss = s + (wr() - 0.5) * row.step, r1 = wr(), r2 = wr(), r3 = wr(), r4 = wr();
+        if (ss < o.a || ss > o.b || r1 > row.p * Math.min(1, Math.min(ss - a, b - ss) / 25)) continue;
+        const off = row.o0 + r2 * (row.o1 - row.o0);
+        if (off < 16 && (keep(ss, side) || gates.some(g => Math.abs(ss - g) < 24))) continue;
+        if (off < 8 && turns.some(r => ss >= r[0] && ss <= r[1])) continue;                  // the near row (visual only) stays off corners and 60 m after them
+        if (inside.some(r => r[2] === side && ss >= r[0] && ss <= r[1] && off < 20)) continue;
+        const p = sampleAt(ss), [x, z] = sideXZ(p, side * (half + off)), y = terrain.heightAt(x, z);
+        if (terrain.distAt(x, z) < half + Math.min(off, 12) - 1.2 || nearHouse(x, z) || crowded(x, z, row.sep)) continue;
+        if (o.ok && !o.ok(p, side, off, x, z, y, ss)) continue;
+        const s0 = terrain.sAt(x, z);
+        put(x, z);
+        out.push({ x, z, y, d: terrain.distAt(x, z), s0, r: r3 * 6.28, s: row.s0 + r4 * (row.s1 - row.s0), snow: !!(o.snow && o.snow(s0)), col: off >= 8 && off <= o.colMax && terrain.distAt(x, z) - half >= 8.2 });
+      }
+    }
+    return out;
   }
   function scatter(rng, count, tries, accept) {
     const out = [];
@@ -70,9 +63,13 @@
   }
   const slopeAt = (x, z) => Math.hypot(terrain.heightAt(x + 2, z) - terrain.heightAt(x - 2, z), terrain.heightAt(x, z + 2) - terrain.heightAt(x, z - 2)) / 4;
   function rocks(rng, list, color = [0.66, 0.64, 0.68]) {
-    instanced(new THREE.DodecahedronGeometry(1, 0), lit({ color: 0xffffff, map: TEX.rock, flatShading: true }), list,
-      (o, r) => { o.position.set(r.x, r.y - r.size * 0.3, r.z); o.rotation.set(rng() * 3, rng() * 3, rng() * 3); o.scale.set(r.size * 1.2, r.size * 0.8, r.size); },
-      { color: (c) => c.setRGB(color[0] + rng() * 0.1, color[1] + rng() * 0.1, color[2] + rng() * 0.1) });
+    // the random draws are the same as ever (3 for the turn, 3 for the colour, per rock); the shape is art/trees.js
+    const items = list.map((r) => {
+      const rot = [rng() * 3, rng() * 3, rng() * 3], col = [color[0] + rng() * 0.1, color[1] + rng() * 0.1, color[2] + rng() * 0.1];
+      const cap = ST.theme === 'alpine' ? (r.y > ST.snowLine - 8 ? 'snow' : 'moss') : (ST.snowFrom != null && terrain.sAt(r.x, r.z) > ST.snowFrom - 30 ? 'snow' : 'moss');
+      return { x: r.x, y: r.y, z: r.z, size: r.size, rot, col, cap };
+    });
+    rockStand(items);
     for (const r of list) if (r.solid) obstacles.push({ x: r.x, z: r.z, r: r.size * 1.05, mu: 0.35 });
   }
   function roadsideRocks(rng, count, sideOk) {
