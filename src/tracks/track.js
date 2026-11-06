@@ -42,9 +42,11 @@ function buildTrack(ST = CONFIG.stage) {
   if (ST.elevation) h = pts.map(p => ST.elevation(p.s));
   else {
     // terrain under the road, heavily smoothed so gradients stay drivable
-    h = pts.map(p => ST.height(p.x, p.z));
-    for (let pass = 0; pass < 3; pass++) {
-      const W = 35, out = new Array(n);
+    // (ST.roadHeight = a ground function without ditches and the like, ST.roadSmooth = { W, passes }: SS4 follows its castle hill closely)
+    const rs = ST.roadSmooth || { W: 35, passes: 3 };
+    h = pts.map(p => (ST.roadHeight || ST.height)(p.x, p.z));
+    for (let pass = 0; pass < rs.passes; pass++) {
+      const W = rs.W, out = new Array(n);
       for (let i = 0; i < n; i++) { let sum = 0, c = 0; for (let j = Math.max(0, i - W); j <= Math.min(n - 1, i + W); j++) { sum += h[j]; c++; } out[i] = sum / c; }
       h = out;
     }
@@ -113,6 +115,12 @@ function buildTrack(ST = CONFIG.stage) {
     if (crest && !/Hairpin|Square/.test(base)) extra = ', over crest';
     else if (drop > 6 && nt.r >= 60) extra = ', downhill';
     if (extra) nt.text = base.replace(', maybe', '') + extra + (care ? ', careful!' : '');
+  }
+  // SS4: the co-driver knows the castle. The corner before gate 1 says "gate", the courtyard corner says "around the well"
+  if (ST.castle) {
+    const before = notes.filter(nt => nt.kind !== 'jump' && nt.s1 <= ST.castle.gate1).pop();
+    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate';
+    for (const nt of notes) if (nt.kind !== 'jump' && nt.s >= ST.castle.gate1 && nt.s1 <= ST.castle.gate2) nt.text = nt.text.replace(", don't cut", '') + ', around the well';
   }
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
   for (const t of turns) { const nt = turnNote.get(Math.round(t.s0)); t.blind = !!(nt && nt.blind); t.note = nt ? nt.text : ''; }

@@ -13,7 +13,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - **Studio foundation** (2026-11-04): rulebook (`CLAUDE.md`), departments handling / tracks / qa, QA test kit (`tests/`), skills ship-a-build and handling-check, this roadmap and the decisions log.
 - **Handling rebuilt**: arcade model (`CONFIG.arcade`, `Car.arcadeForces`) with the four handling rules; measured targets hold (see `tests/results/report.md`).
 - **Phone controls**: on-screen steer / brake / handbrake / camera / reset / pause, auto gas, tilt steering, landscape layout.
-- **3 stages**: SS1 Kettle Ridge (tarmac, gravel, snow), SS2 Vulture Ledge (gravel, dirt, cliffs), SS3 Sakura Touge (tarmac, gravel, neon town).
+- **4 stages**: SS1 Kettle Ridge (tarmac, gravel, snow), SS2 Vulture Ledge (gravel, dirt, cliffs), SS3 Sakura Touge (tarmac, gravel, neon town), SS4 Thornwick Keep (gravel only, village, forest, through a castle; blockout look, art dresses it next).
 - **2 cars**: Kestrel GT4 (grippy, precise), Strada HF (light, loves a slide).
 - Co-driver pace notes with voice, replays, rescue/respawn, championship mode, 15-car field with rivals on time.
 

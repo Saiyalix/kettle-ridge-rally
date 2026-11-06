@@ -66,6 +66,7 @@
           c = d < half + 3.4 ? [0.80, 0.78, 0.76] : mixc([0.62, 0.60, 0.62], c, smoothstep(clamp((d - 34) / 14, 0, 1)));
         }
       }
+      if (castleL) { const cm = castleCourt(castleL, x, z); if (cm > 0) c = mixc(c, [0.52, 0.47, 0.39], cm * 0.9); }        // courtyard: trodden earth (blockout colour, art may change it)
       const shoulder = 1 - smoothstep(clamp((d - half) / 3.5, 0, 1));
       if (shoulder > 0 && !city) c = mixc(c, sb > 0.5 ? mixc(L.snow, [0, 0, 0], 0.08) : L.dirt, shoulder * 0.8);
       col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];

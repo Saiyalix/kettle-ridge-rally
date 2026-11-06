@@ -448,7 +448,7 @@
          yaw     rotation.y in radians. The FRONT (windows + door) faces local +z. To face the road use yaw = facingYaw(x, z, roadX, roadZ)
          w, d    width of the front (6..20 m), depth (5..12 m). The house stays inside this footprint (eaves reach 0.5 .. 0.9 m beyond it)
          h       wall height, 6..10 m (european: two storeys; japanese: 7.6 and more = two storeys, below = one storey with a veranda)
-         style   'plaster' (default), 'stone' or 'japanese'
+         style   'plaster' (default), 'stone', 'japanese' or 'timber' (SS4: half-timber walls and a thatched roof; stone houses get a slate roof on SS4)
          tint    [r,g,b] 0..1 multiplier for the wall colour, e.g. [1,0.9,0.75] sand, [1,0.82,0.8] pink, [0.85,0.9,1] pale blue
          roof    'hip' (default: the builder picks hip or gable and the pitch, and also the shape of the house: plain box, front-gable bay with porch, lean-to),
                  'gable', or 'flat' (low parapet). Japanese houses are always a curved-eave hip or gable.
@@ -456,14 +456,15 @@
   function buildings(list, opt = {}) {
     const low = quality === 'low', night = !!(ST.look && ST.look.night), sets = {}, tb = geoBuilder(), gb = geoBuilder(), glows = [], out = [];
     for (const it of list) {
-      const style = it.style === 'stone' || it.style === 'japanese' ? it.style : 'plaster';
+      const style = it.style === 'stone' || it.style === 'japanese' || it.style === 'timber' ? it.style : 'plaster';
       const S = sets[style] || (sets[style] = { wb: geoBuilder(), rb: geoBuilder() });
       const rng = mulberry32((Math.floor(it.x * 10) * 7919 + Math.floor(it.z * 10) * 104729) >>> 0 || 1);
       const K = houseKit(it, S, tb, gb, { low, night, rng, glows, style });
       if (style === 'japanese') japaneseHouse(K); else europeanHouse(K);
     }
     for (const style of Object.keys(sets)) {
-      out.push(roadsideMesh(sets[style].wb.build(), style === 'stone' ? stoneWarmTex() : plasterTex()), roadsideMesh(sets[style].rb.build(), style === 'japanese' ? jpRoofTex() : roofTex()));
+      out.push(roadsideMesh(sets[style].wb.build(), style === 'stone' ? stoneWarmTex() : style === 'timber' ? timberTex() : plasterTex()),
+        roadsideMesh(sets[style].rb.build(), style === 'japanese' ? jpRoofTex() : style === 'timber' ? thatchTex() : style === 'stone' && ST.id === 'thornwick' ? slateTex() : roofTex()));
     }
     out.push(roadsideMesh(tb.build(), trimTex(), { shadow: false }));
     const gm = new THREE.Mesh(gb.build(), new THREE.MeshBasicMaterial({ vertexColors: true })); gm.receiveShadow = false; gm.castShadow = false; add(gm); out.push(gm);

@@ -23,6 +23,8 @@ The build checks that the glued script is valid JavaScript and says which file a
 | `handling/car.js`, `handling/physics-step.js` | handling | Car physics; 120 Hz step, input → car |
 | `tracks/stages.js` | tracks | Except each stage's `look: { … }` block (lighting, colours) → art |
 | `tracks/track.js`, `collisions.js`, `checkpoints.js`, `stage-build.js` | tracks | Road, terrain, pace-note text, collisions, checkpoints |
+| `tracks/castle.js` | tracks | SS4 castle **data** (no drawing): `castleLayout(track, ST)` = frame, curtain walls, towers, gatehouses, buildings, well, moat; `castleObstacles`, `castleKeepOut`. Art can rebuild the look from the same data. API in the file's header |
+| `tracks/castle-build.js` | tracks (placement) + art (look) | Blockout meshes made from `castleLayout()` (walls, towers, gatehouses, keep, hall, well, moat). Art replaces the look; tracks owns the data and the collision |
 | `tracks/scenery.js`, `themes.js`, `stage-load.js` | tracks + art | Where and how many, what you can hit → tracks. Textures, colours, materials, shapes → art |
 | `tracks/rivals.js` | tracks + art | Rival pace, start gaps, bumping → tracks. Rival car models and colours → art |
 | `art/textures.js`, `art/roadside.js` | art | Generated textures (road per surface, grass/soil, stone, wood, rock, plaster, trim, roof tiles) and look-builders for tracks: `stoneWall`, `woodFence`, `rockFace` (argument docs in the file) |
