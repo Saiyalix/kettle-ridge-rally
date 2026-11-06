@@ -17,6 +17,29 @@
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 
+  /* ---------- theme: castle (Thornwick Keep) ---------- */
+  function sceneryCastle(rng) {
+    const C = ST.castle, g1 = C.gate1, g2 = C.gate2, fin = track.finishS, L = castleL;
+    // forest thick on the climb, thin round the castle and on the descent, a meadow at the finish. Nothing solid within 8 m of the road edge.
+    const gapOf = (x, z) => { const n = world.nearest(x, z); return n.i < 0 ? 99 : Math.sqrt(n.d2) - half; };      // exact distance from the road edge (the terrain grid's is only good to a few metres)
+    const dens = s0 => s0 < 470 ? 0.3 : s0 < g1 - 20 ? 1 : s0 < g2 + 40 ? 0.3 : s0 < fin - 330 ? 0.65 : s0 < fin - 130 ? 0.25 : 0.03;
+    const trees = scatter(rng, 2300, 14000, (x, z, d, y, s0) => {
+      if (d < half + 8.2 || gapOf(x, z) < 8.6) return false;
+      if (rng() > (d < 30 ? 0.75 : d < 90 ? 0.45 : 0.18) * dens(s0)) return false;
+      return nearHouse(x, z) ? false : true;
+    });
+    const lvl = { ok: (p, side, off, x, z, y) => Math.abs(y - p.y) < 7 && slopeAt(x, z) < 0.5 };
+    const rowsA = [{ o0: 5.6, o1: 8.2, step: 3.8, p: 0.9, s0: 0.9, s1: 1.3, sep: 3.2 }, { o0: 9, o1: 14, step: 3.4, p: 0.95, s0: 1.0, s1: 1.5, sep: 3.4 },
+      { o0: 15, o1: 24, step: 3.2, p: 0.95, s0: 1.1, s1: 1.6, sep: 3.6 }, { o0: 25, o1: 40, step: 3.4, p: 0.9, s0: 1.2, s1: 1.8, sep: 4 }];
+    const woods = woodExtras(trees, Object.assign({ salt: 1, a: 480, b: g1 - 70, minLen: 220, maxLen: 520, gapMin: 12, gapMax: 40, colMax: 14, rows: rowsA }, lvl));
+    const lower = woodExtras(trees.concat(woods), Object.assign({ salt: 2, a: g2 + 70, b: fin - 330, minLen: 80, maxLen: 200, gapMin: 40, gapMax: 110, colMax: 14, rows: [rowsA[1], rowsA[2], rowsA[3]] }, lvl));
+    for (const t of woods.concat(lower)) if (t.col && gapOf(t.x, t.z) < 8.6) t.col = false;        // trunks you can hit stay 8 m or more from the road edge; nearer ones are for looks only
+    conifers(trees.concat(woods, lower), (c) => c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+    // boulders: only the ones 8 m or more from the road edge are solid
+    rocks(rng, roadsideRocks(rng, 220).filter(r => !nearHouse(r.x, r.z)).map(r => Object.assign(r, { solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })));
+    buildCastle(L);
+  }
+
   /* ---------- theme: alpine cliffs (Vulture Ledge) ---------- */
   function sceneryAlpine(rng) {
     const pines = scatter(rng, 1500, 14000, (x, z, d, y) => {
@@ -255,6 +278,7 @@
     const spots = [[30, 1], [44, -1], [track.finishS - 30, -1], [track.finishS + 15, 1]];
     for (const t of track.turns) if (t.r <= 45) spots.push([(t.s0 + t.s1) / 2, t.dir === 'R' ? -1 : 1]);
     for (const [js] of ST.jumps) spots.push([js + 8, 1], [js + 8, -1]);
+    if (ST.castle) spots.push([ST.castle.gate1 - 26, 1], [ST.castle.gate1 - 26, -1], [ST.castle.gate2 + 26, 1]);      // SS4: crowds in front of the gatehouse and outside the back gate
     for (const [s0, side] of spots) {
       if (s0 > city - 20 && s0 < track.finishS - 40) continue;
       for (let k = -1; k <= 1; k++) {
