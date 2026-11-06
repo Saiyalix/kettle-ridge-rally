@@ -208,3 +208,8 @@ The 14 rival crews use the player's two bodies (Kestrel, Strada), each with or w
 - **Builders for tracks** (`art/details.js`): hay bales, flag poles, marshal post, photographers, service tent, TV tower, portable toilets, parked cars (3 kinds), signposts; arguments documented in the file header.
 - **Cost** (renderer.info, whole frame, headless Chromium, before to after, start / near finish): high SS1 619,800 to 727,950 / 515,508 to 554,588, SS2 811,576 to 828,364 / 822,450 to 835,158, SS3 401,316 to 494,332 / 431,770 to 458,278; low SS1 519,074 to 562,326 / 477,596 to 491,740, SS2 794,498 to 804,630, SS3 377,600 to 415,822 / 378,904 to 392,888. Draw calls +1 to +13. Biggest cost is near people at the start crowds. Low was trimmed after these numbers (near 22 to 16 m); ui-mobile should re-check phone frame time. The mid-stage SS3 numbers are not comparable (tree level of detail was refilled differently in the two runs).
 - No handling, bot or expected values changed.
+
+## 2026-11-06: event detail placed on SS1-SS3 (tracks, `src/tracks/event-detail.js`)
+- Start and finish areas (tents, flags, TV tower, loos, parked cars, signposts, marshals), marshal posts about every 500 m, photographers at hairpins and jumps, hay rows (visual only, 3.2 m from the edge) outside 2 fast corners, extra small spectator groups.
+- Own seeded generator (`ST.seed * 131 + 7`); adds no obstacles; nothing placed on a drop side, inside a corner, in a gate zone or behind a wall. SS2 (cliff road) gets almost nothing by design: no flat ground beside the road.
+- Low-quality cost: about +2 to 4% triangles, +8 to 13 draw calls on SS1 and SS3, none on SS2. Bot times unchanged (identical).
