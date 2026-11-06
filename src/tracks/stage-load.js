@@ -62,6 +62,7 @@
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
     ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216', false, { kind: 'truss', lights: 'cp' }));
     makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
+    eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
     crowdBuild();
     hashObstacles();
     buildMinimap();

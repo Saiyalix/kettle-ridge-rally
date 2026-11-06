@@ -29,6 +29,7 @@ art/people.js            # spectators and other little people: 3D models, animat
 art/structures.js        # 3D gates, sign boards, tape lines, guard rails
 art/details.js           # trackside detail builders for tracks: hay bales, marshal post, tents, TV tower, loos, cars, signposts
 tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs
+tracks/event-detail.js    # rally-event props: start / finish areas, marshal posts, photographers, hay rows, extra spectator groups
 tracks/stage-load.js      # start/checkpoint/finish gates, minimap shape, loadStage()
 art/car-geo.js            # geometry helpers for the player car (lofts, parts, UV atlas layout)
 art/car-livery.js         # livery choice (remembered per car) and the livery painter
