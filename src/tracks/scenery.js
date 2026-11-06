@@ -12,7 +12,43 @@
       if (h < pBroad) return SPECIES.broad;
       return SPECIES[hash2(t.z, t.x) < 0.38 ? 'fir' : 'spruce'];
     });
-    for (const t of list) if (t.d < 40) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    for (const t of list) if (t.col !== undefined ? t.col : t.d < 40) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+  }
+
+  /* ---------- extra woods: dense layered stands beside the road ----------
+     Extra trees are planned here with their own generator (ST.seed * 7919 + salt), never the stage rng, so no older tree, rock or board moves.
+     Rows go from a near row (trunk collision) to back rows (not collidable); each row has its own step, offset band and size.
+     Kept clear: gates, the start/finish areas and village (frameKeepOut), houses, the torii tunnel, existing trees (spacing), and
+     the inside of every corner (20 m deep, from 30 m before it) (so you see where the road goes). Collision does not depend on graphics quality.
+     o: { salt, a, b, minLen, maxLen, gapMin, gapMax, colMax, rows: [{ o0, o1, step, p, s0, s1, sep }], ok(p, side, off, x, z, y, s) } */
+  function woodExtras(existing, o) {
+    const wr = mulberry32(ST.seed * 7919 + o.salt), keep = frameKeepOut(), out = [];
+    const gates = [16, ...ST.checkpoints, track.finishS], inside = [];
+    for (const t of track.turns) if (t.r <= 120) inside.push([t.s0 - 30, t.s1 + 4, t.dir === 'R' ? 1 : -1]);
+    const grid = new Map(), gk = (i, j) => i * 100003 + j, CELL = 4;
+    const put = (x, z) => { const k = gk(Math.floor(x / CELL), Math.floor(z / CELL)); let c = grid.get(k); if (!c) grid.set(k, c = []); c.push(x, z); };
+    const crowded = (x, z, sep) => {
+      const i0 = Math.floor(x / CELL), j0 = Math.floor(z / CELL), r = Math.ceil(sep / CELL);
+      for (let i = i0 - r; i <= i0 + r; i++) for (let j = j0 - r; j <= j0 + r; j++) { const c = grid.get(gk(i, j)); if (c) for (let q = 0; q < c.length; q += 2) if (Math.hypot(c[q] - x, c[q + 1] - z) < sep) return true; }
+      return false;
+    };
+    for (const t of existing) put(t.x, t.z);
+    for (const side of [-1, 1]) for (const [a, b] of chunksOf(wr, o.a, o.b, o.minLen, o.maxLen, o.gapMin, o.gapMax)) for (const row of o.rows) {
+      for (let s = a; s <= b; s += row.step) {
+        const ss = s + (wr() - 0.5) * row.step, r1 = wr(), r2 = wr(), r3 = wr(), r4 = wr();
+        if (ss < o.a || ss > o.b || r1 > row.p * Math.min(1, Math.min(ss - a, b - ss) / 25)) continue;
+        const off = row.o0 + r2 * (row.o1 - row.o0);
+        if (off < 16 && (keep(ss, side) || gates.some(g => Math.abs(ss - g) < 24))) continue;
+        if (inside.some(r => r[2] === side && ss >= r[0] && ss <= r[1] && off < 20)) continue;
+        const p = sampleAt(ss), [x, z] = sideXZ(p, side * (half + off)), y = terrain.heightAt(x, z);
+        if (terrain.distAt(x, z) < half + Math.min(off, 12) - 1.2 || nearHouse(x, z) || crowded(x, z, row.sep)) continue;
+        if (o.ok && !o.ok(p, side, off, x, z, y, ss)) continue;
+        const s0 = terrain.sAt(x, z);
+        put(x, z);
+        out.push({ x, z, y, d: terrain.distAt(x, z), s0, r: r3 * 6.28, s: row.s0 + r4 * (row.s1 - row.s0), snow: !!(o.snow && o.snow(s0)), col: off <= o.colMax });
+      }
+    }
+    return out;
   }
   function scatter(rng, count, tries, accept) {
     const out = [];
