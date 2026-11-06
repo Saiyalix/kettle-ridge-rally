@@ -19,6 +19,39 @@ function japanHeight(x, z) {
     + 2.6 * Math.sin(x * 0.026 - z * 0.021) * Math.cos(z * 0.017 + x * 0.011);
 }
 
+// SS4 Thornwick Keep: gentle rolling country with the castle hill in the middle of it. The route climbs onto a flat plateau (the courtyard) and down again.
+// The castle (src/tracks/castle.js) is placed from the route: ST.castle.gate1 / gate2 are the s values of the two gates.
+function thornRolling(x, z) {
+  return 4.2 * Math.sin(x * 0.0052 + 0.7) * Math.cos(z * 0.0047 - 0.4)
+    + 2.2 * Math.sin(x * 0.011 + z * 0.007 + 1.3)
+    + 0.8 * Math.sin(x * 0.027 - z * 0.019) * Math.cos(z * 0.031 + x * 0.008);
+}
+let _castleST = null;
+const castleCfg = () => _castleST || (_castleST = STAGES.find(s => s.theme === 'castle'));
+// the ground without the moat: flat at the castle level inside and 20 m around the walls, then easing down to the rolling country over 300 m
+function castleBase(x, z) {
+  const ST = castleCfg(), C = ST.castle, F = castleFrame(C, ST.segments), [u, v] = castleToLocal(F, x, z);
+  const d = castleRectDist(F.rect, u, v), m = 1 - smoothstep(clamp((d - 20) / 300, 0, 1)), b = thornRolling(x, z);
+  return b + (C.level - b) * m;
+}
+// the ground with the moat: a ditch 5 to 17 m outside the walls. The road (and its blend into the ground) crosses it on a causeway at each gate.
+function castleHeight(x, z) {
+  const ST = castleCfg(), F = castleFrame(ST.castle, ST.segments), [u, v] = castleToLocal(F, x, z);
+  const d = castleRectDist(F.rect, u, v), k = clamp((d - 11) / 6, -1, 1);
+  return castleBase(x, z) - (d > 0 ? 3.4 * 0.5 * (1 + Math.cos(Math.PI * k)) : 0);
+}
+const THORN_PRE = [
+  ['S', 120], ['L', 25, 200], ['S', 50], ['R', 30, 140], ['S', 50], ['L', 45, 90], ['S', 40],                                    // start, village street
+  ['R', 60, 70], ['S', 40], ['L', 85, 38], ['S', 70], ['R', 30, 150], ['S', 80], ['L', 55, 60], ['S', 40], ['R', 100, 34], ['S', 40],   // forest (bridge hump on the 80 m straight)
+  ['R', 70, 50], ['S', 30], ['L', 140, 24], ['S', 30], ['R', 60, 80], ['S', 20], ['L', 40, 100], ['S', 53],                  // the climb to the castle
+];
+const THORN_CASTLE = [['S', 40], ['R', 90, 18], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
+const THORN_POST = [
+  ['S', 25], ['R', 100, 40], ['S', 40], ['L', 55, 60], ['S', 40], ['R', 75, 45], ['S', 40], ['L', 60, 55], ['S', 50],             // winding descent past the wall and moat
+  ['R', 40, 100], ['S', 60], ['L', 70, 50], ['S', 50], ['R', 50, 70], ['S', 80], ['S', 150],                                      // down to the meadow
+];
+const THORN_G1 = THORN_PRE.reduce((a, g) => a + segLen(g), 0), THORN_G2 = THORN_G1 + THORN_CASTLE.slice(0, 3).reduce((a, g) => a + segLen(g), 0);
+
 const STAGES = [
   {
     id: 'kettle', code: 'SS1', name: 'Kettle Ridge', place: 'Forest hills',
@@ -125,6 +158,33 @@ const STAGES = [
       grade: { tint: [0.95, 0.98, 1.06], lift: [0.004, 0.008, 0.024], sat: 1.12, con: 1.1, bloom: 0.55, thresh: 0.78, bloom2: 0.4, vig: 0.42 },
       grassA: [0.36, 0.60, 0.30], grassB: [0.50, 0.68, 0.30], dirt: [0.72, 0.58, 0.42], snow: [0.9, 0.94, 1.0], rock: [0.60, 0.56, 0.62],
       foliageTint: [1.0, 0.82, 0.86], rockCaps: { moss: { col: [0.14, 0.26, 0.16], amt: 0.5 }, snow: { col: [0.8, 0.85, 1.0], amt: 0.9 }, none: { col: [0, 0, 0], amt: 0 } },
+    },
+  },
+  {
+    id: 'thornwick', code: 'SS4', name: 'Thornwick Keep', place: 'Castle hills at dawn',
+    blurb: 'Gravel only. A village street, a misty forest climb, then in through the gatehouse, round the well in the castle courtyard and out the far gate. Down past the moat to the meadow.',
+    bestKey: 'rallyBest_thornwick', seed: 47, theme: 'castle', terrain: 'blend', height: castleHeight, roadHeight: castleBase, roadSmooth: { W: 6, passes: 2 },
+    roadHalfWidth: 4.0, runoff: 150,
+    surfaceChanges: [[0, 'gravel']],
+    checkpoints: [560, 1100, 1700, 2120],
+    timeStart: 31, timeExt: [26, 31, 22, 16], refTime: 111,
+    jumps: [[850, 1.9]],
+    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 18] },
+    segments: [...THORN_PRE, ...THORN_CASTLE, ...THORN_POST],
+    // look (art): a misty morning at dawn. Low warm sun behind the player on the approach (long shadows, the castle front glows), pale golden sky,
+    // soft peach mist in the valleys (fog starts close, so far hills and the keep melt into it), cool blue shade, dew-bright meadows.
+    look: {
+      skyTop: 0x6c92c6, skyMid: 0xc9c9d6, horizon: 0xf2dcbc, fogNear: 38, fogFar: 330,
+      hemiSky: 0xd8e2f4, hemiGround: 0xa08a6a, hemi: 1.45, sun: 0xffc486, sunI: 3.4, exposure: 1.08, sunEl: 12, sunAz: 232,
+      ink: 0x2a2a3c, env: [0x9ab4d6, 0xf6dcb4, 0x6a5e44],
+      sky: { clouds: 'cumulus', seed: 14, sunCol: 0xffe0a8, sunSize: 0.05, glowCol: 0xffbe78, glowAmt: 0.95, band: 0.6, shade: 0xb6a8c4, lit: 0xfff0d6, rim: 0xffcf98 },
+      ridge: [
+        { col: 0xc9b9c9, base: 2, amp: 70, per: 5, oct: 4, jag: 0, mist: 0.62 },
+        { col: 0xb2b4c4, base: -14, amp: 50, per: 7, oct: 4, jag: 0, mist: 0.58 },
+        { col: 0x9aa8a4, base: -30, amp: 36, per: 9, oct: 3, jag: 0, mist: 0.52, trees: 1, treeCol: 0x6f8c80 },
+      ],
+      grade: { tint: [1.05, 1.0, 0.93], sat: 1.1, con: 1.05, bloom: 0.55, thresh: 0.8, vig: 0.32 },
+      grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
     },
   },
 ];

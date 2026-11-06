@@ -9,6 +9,7 @@ page/body.html            # HUD / menu / touch-button HTML, three.js <script> ta
 
 handling/config.js        # CONFIG: every tunable number (arcade driving model, cars, surfaces, camera)
 core/helpers.js           # small helpers: clamp, random, time format
+tracks/castle.js          # castle data (SS4): frame, walls, towers, gatehouses, buildings, collision list; pure data
 tracks/stages.js          # STAGES: routes, surfaces, checkpoints, clock, terrain height functions
 tracks/track.js           # road spline, pace-note text, terrain grid, ground/surface queries
 handling/car.js           # class Car: suspension, arcade driving forces
@@ -24,7 +25,8 @@ tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
 art/trees.js              # trees, rocks and roadside nature: 3D models, level of detail, wind
 art/roadside.js          # look-builders for tracks: stoneWall, woodFence, rockFace
 art/buildings.js         # detailed 3D houses (plaster, stone, japanese) and the neon-town detail
-tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs
+tracks/themes.js          # forest / alpine / Japan / castle scenery, spectators, boards, corner signs
+tracks/castle-build.js    # castle blockout meshes (walls, towers, gatehouses, keep, well, moat) from castleLayout()
 tracks/stage-load.js      # start/checkpoint/finish gates, minimap shape, loadStage()
 art/car-geo.js            # geometry helpers for the player car (lofts, parts, UV atlas layout)
 art/car-livery.js         # livery choice (remembered per car) and the livery painter

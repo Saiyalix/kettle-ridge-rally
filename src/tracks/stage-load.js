@@ -51,10 +51,11 @@
     stageGroup = new THREE.Group(); scene.add(stageGroup);
     track = buildTrack(ST); terrain = buildTerrain(track, ST); world = makeWorld(track, terrain, ST); P = track.samples;
     obstacles = [];
+    castleL = ST.castle ? castleLayout(track, ST) : null;      // SS4: the castle, planned before the ground so the courtyard can be tinted
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
-    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else sceneryForest(rng);
+    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff');
     ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216'));

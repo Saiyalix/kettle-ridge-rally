@@ -127,7 +127,8 @@
      Everything comes from its own seeded generator, so a stage looks and plays the same every time,
      on both graphics qualities. Walls, fences, rock faces and house sides are segment obstacles. */
   let frameHouses = [];                                              // [{x, z, r}] circles where trees and rocks must not stand
-  const nearHouse = (x, z) => frameHouses.some(h => (x - h.x) * (x - h.x) + (z - h.z) * (z - h.z) < h.r * h.r);
+  let castleL = null;                                                // SS4: castleLayout(), set by sceneryCastle; the castle area counts as "a house" for trees, rocks and ground decoration
+  const nearHouse = (x, z) => frameHouses.some(h => (x - h.x) * (x - h.x) + (z - h.z) * (z - h.z) < h.r * h.r) || (castleL && castleKeepOut(castleL, x, z, 26));
   // merge several meshes made by the same builder into one (one draw call per type per stage)
   function mergeMeshes(list, shadow) {
     list = list.filter(Boolean);
@@ -153,6 +154,7 @@
     else for (const cp of ST.checkpoints) all.push([cp - 28, cp + 16]);
     if (ST.theme !== 'alpine') for (const [js] of ST.jumps) all.push([js - 20, js + 30]);
     if (ST.toriiTunnel) all.push([ST.toriiTunnel[0] - 12, ST.toriiTunnel[1] + 12]);
+    if (ST.castle) all.push([ST.castle.gate1 - 60, ST.castle.gate2 + 60]);
     const sd = { '-1': [], '1': [] }, lim = ST.theme === 'japan' ? 80 : 60;
     if (ST.theme !== 'alpine') for (const t of track.turns) if (t.r <= lim) sd[t.dir === 'R' ? -1 : 1].push([t.s0 - 12, t.s1 + 12]);
     return (s, side) => all.some(r => s >= r[0] && s <= r[1]) || sd[side].some(r => s >= r[0] && s <= r[1]);
@@ -182,7 +184,7 @@
         let s = s0;
         while (s < s1) {
           const w = 7 + rng() * 7, d = 6 + rng() * 3, h = 6.5 + rng() * 2.5, sc = s + w / 2, gap = gapMin + rng() * (gapMax - gapMin);
-          const styleRoll = rng() < (opt.stone != null ? opt.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : styleRoll ? 'stone' : 'plaster', tint = TINTS[Math.floor(rng() * TINTS.length)], flat = !!opt.flat && rng() < 0.4, skipIt = rng() < skip;
+          const styleRoll = rng() < (opt.stone != null ? opt.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster', tint = TINTS[Math.floor(rng() * TINTS.length)], flat = !!opt.flat && rng() < 0.4, skipIt = rng() < skip;
           s += w + 0.8 + rng() * 2.5;
           if (skipIt || sc > s1 || gates.some(g => Math.abs(sc - g) < w / 2 + 16)) continue;
           const p = sampleAt(sc), [cx, cz] = sideXZ(p, side * (half + gap + d / 2)), yaw = facingYaw(cx, cz, p.x, p.z);
@@ -201,6 +203,7 @@
       }
     };
     if (ST.id === 'kettle') { row(150, 455, 3.8, 6.0, 0.12); row(62, 140, 9, 12, 0.35, { stone: 0.5 }); }
+    if (ST.id === 'thornwick') { row(150, 455, 3.8, 6.0, 0.12, { stone: 0.6 }); row(60, 140, 10, 13, 0.4, { stone: 0.5 }); }
     if (ST.id === 'sakura') row(1640, track.cityStart - 4, 4.4, 6.5, 0.1, { stone: 0.2, flat: true });
   }
 
@@ -219,6 +222,16 @@
         if (pick < 0.15) continue;
         if (pick < 0.4) { const o = wallOpt(); if (snow) o.tint = [0.88, 0.94, 1]; stone(framePath(a, b, side, 2.4, keep), o, 0.33); }
         else fence(framePath(a, b, side, 2.6, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: snow ? [0.92, 0.96, 1.05] : [1, 1, 1] });
+      }
+    } else if (ST.id === 'thornwick') {
+      // village street: low stone walls in front of the houses (like SS1). Everywhere else walls and fences stand 8.6 m or more from the road edge (nothing solid close to the road).
+      for (const side of [-1, 1]) {
+        for (const [a, b] of chunksOf(rng, 140, 470, 90, 160, 3, 6)) stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), Object.assign(wallOpt(), { sink: 1.2 }), 0.33);
+        for (const [a, b] of chunksOf(rng, 480, track.finishS - 80, 50, 120, 20, 70)) {
+          if (rng() < 0.3) continue;
+          if (rng() < 0.5) stone(framePath(a, b, side, 8.8, keep), wallOpt(), 0.33);
+          else fence(framePath(a, b, side, 8.8, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: [1, 1, 1] });
+        }
       }
     } else if (ST.id === 'vulture') {
       // drop side: a continuous low stone wall hugging the road (same line as the old corner walls). Rock side: a layered rock face.
