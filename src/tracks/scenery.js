@@ -184,7 +184,7 @@
         let s = s0;
         while (s < s1) {
           const w = 7 + rng() * 7, d = 6 + rng() * 3, h = 6.5 + rng() * 2.5, sc = s + w / 2, gap = gapMin + rng() * (gapMax - gapMin);
-          const styleRoll = rng() < (opt.stone != null ? opt.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : styleRoll ? 'stone' : 'plaster', tint = TINTS[Math.floor(rng() * TINTS.length)], flat = !!opt.flat && rng() < 0.4, skipIt = rng() < skip;
+          const styleRoll = rng() < (opt.stone != null ? opt.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster', tint = TINTS[Math.floor(rng() * TINTS.length)], flat = !!opt.flat && rng() < 0.4, skipIt = rng() < skip;
           s += w + 0.8 + rng() * 2.5;
           if (skipIt || sc > s1 || gates.some(g => Math.abs(sc - g) < w / 2 + 16)) continue;
           const p = sampleAt(sc), [cx, cz] = sideXZ(p, side * (half + gap + d / 2)), yaw = facingYaw(cx, cz, p.x, p.z);

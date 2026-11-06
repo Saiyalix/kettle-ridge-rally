@@ -73,7 +73,7 @@
   }
   function renderFrame(dt) {
     if (stageGroup && (prewarmFor !== stageGroup || prewarmQ !== quality)) { prewarmFor = stageGroup; prewarmQ = quality; prewarm(); }
-    updateTrees(dt); updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
+    updateTrees(dt); updateCastleFx(dt); updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
     if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;

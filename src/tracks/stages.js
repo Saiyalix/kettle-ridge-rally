@@ -171,19 +171,20 @@ const STAGES = [
     jumps: [[850, 1.9]],
     castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 18] },
     segments: [...THORN_PRE, ...THORN_CASTLE, ...THORN_POST],
-    // look (placeholder blockout, art replaces it): misty morning, low warm sun, short fog
+    // look (art): a misty morning at dawn. Low warm sun behind the player on the approach (long shadows, the castle front glows), pale golden sky,
+    // soft peach mist in the valleys (fog starts close, so far hills and the keep melt into it), cool blue shade, dew-bright meadows.
     look: {
-      skyTop: 0x6d8fba, skyMid: 0xa8bfd4, horizon: 0xe6e4dc, fogNear: 45, fogFar: 380,
-      hemiSky: 0xcfdcea, hemiGround: 0x5c6a58, hemi: 1.15, sun: 0xffd9a6, sunI: 3.0, exposure: 1.05, sunEl: 16, sunAz: -40,
-      ink: 0x24303c, env: [0x9ab4d0, 0xf2e8d6, 0x5a6a4a],
-      sky: { clouds: 'cumulus', seed: 9, sunCol: 0xfff0d0, sunSize: 0.04, glowCol: 0xffd9a0, glowAmt: 0.6, band: 0.5, shade: 0xa8b6cc, lit: 0xfff2dc, rim: 0xffe6b8 },
+      skyTop: 0x6c92c6, skyMid: 0xc9c9d6, horizon: 0xf2dcbc, fogNear: 38, fogFar: 330,
+      hemiSky: 0xd8e2f4, hemiGround: 0xa08a6a, hemi: 1.45, sun: 0xffc486, sunI: 3.4, exposure: 1.08, sunEl: 12, sunAz: 232,
+      ink: 0x2a2a3c, env: [0x9ab4d6, 0xf6dcb4, 0x6a5e44],
+      sky: { clouds: 'cumulus', seed: 14, sunCol: 0xffe0a8, sunSize: 0.05, glowCol: 0xffbe78, glowAmt: 0.95, band: 0.6, shade: 0xb6a8c4, lit: 0xfff0d6, rim: 0xffcf98 },
       ridge: [
-        { col: 0xb4c2d4, base: 2, amp: 70, per: 5, oct: 4, jag: 0, mist: 0.6 },
-        { col: 0x9fb3c0, base: -14, amp: 50, per: 7, oct: 4, jag: 0, mist: 0.55 },
-        { col: 0x86a39a, base: -30, amp: 36, per: 9, oct: 3, jag: 0, mist: 0.5, trees: 1, treeCol: 0x62857a },
+        { col: 0xc9b9c9, base: 2, amp: 70, per: 5, oct: 4, jag: 0, mist: 0.62 },
+        { col: 0xb2b4c4, base: -14, amp: 50, per: 7, oct: 4, jag: 0, mist: 0.58 },
+        { col: 0x9aa8a4, base: -30, amp: 36, per: 9, oct: 3, jag: 0, mist: 0.52, trees: 1, treeCol: 0x6f8c80 },
       ],
-      grade: { tint: [1.02, 1.0, 0.98], sat: 1.05, con: 1.04, bloom: 0.45, thresh: 0.85, vig: 0.3 },
-      grassA: [0.32, 0.56, 0.28], grassB: [0.44, 0.64, 0.30], dirt: [0.62, 0.52, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.62, 0.60, 0.62],
+      grade: { tint: [1.05, 1.0, 0.93], sat: 1.1, con: 1.05, bloom: 0.55, thresh: 0.8, vig: 0.32 },
+      grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
     },
   },
 ];

@@ -34,7 +34,7 @@
     const woods = woodExtras(trees, Object.assign({ salt: 1, a: 480, b: g1 - 70, minLen: 220, maxLen: 520, gapMin: 12, gapMax: 40, colMax: 14, rows: rowsA }, lvl));
     const lower = woodExtras(trees.concat(woods), Object.assign({ salt: 2, a: g2 + 70, b: fin - 330, minLen: 80, maxLen: 200, gapMin: 40, gapMax: 110, colMax: 14, rows: [rowsA[1], rowsA[2], rowsA[3]] }, lvl));
     for (const t of woods.concat(lower)) if (t.col && gapOf(t.x, t.z) < 8.6) t.col = false;        // trunks you can hit stay 8 m or more from the road edge; nearer ones are for looks only
-    conifers(trees.concat(woods, lower), (c) => c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+    conifers(trees.concat(woods, lower), (c) => c.setRGB(0.18 + rng() * 0.06, 0.50 + rng() * 0.12, 0.27 + rng() * 0.06));      // (art) warmer olive greens for the dawn light; same three random draws
     // boulders: only the ones 8 m or more from the road edge are solid
     rocks(rng, roadsideRocks(rng, 220).filter(r => !nearHouse(r.x, r.z)).map(r => Object.assign(r, { solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })));
     buildCastle(L);
