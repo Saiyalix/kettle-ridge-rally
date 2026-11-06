@@ -24,6 +24,10 @@ tracks/scenery.js         # shared scenery pieces: trees, rocks, rails, peaks
 art/trees.js              # trees, rocks and roadside nature: 3D models, level of detail, wind
 art/roadside.js          # look-builders for tracks: stoneWall, woodFence, rockFace
 art/buildings.js         # detailed 3D houses (plaster, stone, japanese) and the neon-town detail
+art/modeller.js          # tiny kit: merged, vertex-coloured models from primitives
+art/people.js            # spectators and other little people: 3D models, animation in the shader, level of detail
+art/structures.js        # 3D gates, sign boards, tape lines, guard rails
+art/details.js           # trackside detail builders for tracks: hay bales, marshal post, tents, TV tower, loos, cars, signposts
 tracks/themes.js          # forest / alpine / Japan scenery, spectators, boards, corner signs
 tracks/stage-load.js      # start/checkpoint/finish gates, minimap shape, loadStage()
 art/car-geo.js            # geometry helpers for the player car (lofts, parts, UV atlas layout)

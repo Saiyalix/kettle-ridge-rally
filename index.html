@@ -2585,11 +2585,12 @@ function boot() {
         prev = [x, y, z];
       }
     }
-    instanced(new THREE.BoxGeometry(0.12, opt.postH || 1.1, 0.12).translate(0, (opt.postH || 1.1) / 2, 0), lit({ color: opt.postColor }), posts,
-      (o, p) => { o.position.set(p[0], p[1], p[2]); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
-    instanced(new THREE.BoxGeometry(1, opt.railH || 0.5, 0.04), lit({ color: opt.railColor }), rails, (o, [a, b]) => {
+    // look: posts and rails are 3D (art/structures.js). opt.style = 'guard' for a corrugated steel beam, otherwise timber boards
+    const pH = opt.postH || 1.1, rH = opt.railH || 0.5, rY = opt.railY || 0.7, pc = hexRGB(opt.postColor), rc = hexRGB(opt.railColor);
+    instanced(railPostGeo(pH, pc, rY, rH), structMat(), posts, (o, p) => { o.position.set(p[0], p[1], p[2]); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
+    instanced(railGeo(opt.style, rH, rc), structMat(), rails, (o, [a, b]) => {
       const dx = b[0] - a[0], dz = b[2] - a[2];
-      o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + (opt.railY || 0.7), (a[2] + b[2]) / 2);
+      o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + rY, (a[2] + b[2]) / 2);
       o.rotation.set(0, Math.atan2(-dz, dx), 0); o.scale.set(Math.hypot(dx, dz), 1, 1);
     });
   }
@@ -3929,6 +3930,786 @@ function boot() {
     if (night) for (const g of glows) glowSpots.push(g);
     return out;
   }
+  /* ---------- modeller: a tiny kit for building one merged, vertex-coloured model out of primitives (art) ----------
+     Used by people.js, structures.js and details.js. Not a stage builder: it only makes a BufferGeometry.
+       const m = modeller();
+       m.box(cx, cy, cz, w, h, d, col, o)            centred box, o.ry / o.rx / o.rz = turn in radians (about its own centre)
+       m.cyl(a, b, r0, r1, seg, col, o)              tapered tube from point a to point b (arrays [x,y,z]); r0 at a, r1 at b; o.open = no end caps, o.nobottom = no bottom cap only, o.ez = squash the tube in one direction (0.6 = oval)
+       m.sph(cx, cy, cz, rx, ry, rz, ws, hs, col, o) ellipsoid with ws x hs segments; o.cap = vertical angle in radians (1.57 = top half only)
+       m.quad(a, b, c, d, col, o)                    one flat face from four points (counter-clockwise seen from the front); o.two = also draw the back
+       m.tri(a, b, c, col, o)                        one triangle (same rules)
+       m.sweep(profile, x0, x1, col, o)              a profile [[y,z],...] (closed outline, seen from +x) swept along x from x0 to x1 (guardrails, beams); o.open = an open polyline, a thin sheet drawn on both sides
+       m.at(x, y, z, ry, fn)                         everything drawn inside fn() is moved and turned (turn about y) first; can be nested
+       m.geo()                                       -> THREE.BufferGeometry with position, normal, color, pt, tw (indexed)
+     col: [r,g,b] 0..1 in display (sRGB looking) numbers, or a function (x, y, z, ny) => [r,g,b] (x,y,z after at()).
+     o.part: number used by the people shader (palette slot, see people.js) or a function (x,y,z) => number. Default 4 = "fixed colour".
+     o.tw: [lean, arm, flutter, jump] numbers or a function (x,y,z) => 4 numbers. Default 0 0 0 0. In structure materials tw.x = 1 means "multiply
+     by the instance colour" and tw.z = flutter (flags), see details.js. */
+  const _mdV = new THREE.Vector3(), _mdN = new THREE.Vector3(), _mdUp = new THREE.Vector3(0, 1, 0), _mdQ = new THREE.Quaternion(), _mdE = new THREE.Euler(), _mdS = new THREE.Vector3(1, 1, 1), _mdM = new THREE.Matrix4(), _mdNM = new THREE.Matrix3();
+  const MD_ZERO4 = [0, 0, 0, 0];
+  function modeller() {
+    const P = [], N = [], C = [], T = [], W = [], I = [];
+    const stack = [new THREE.Matrix4()];
+    const top = () => stack[stack.length - 1];
+    function push(g, m, col, o) {
+      const M = top().clone(); if (m) M.multiply(m);
+      _mdNM.getNormalMatrix(M);
+      const pos = g.attributes.position, nor = g.attributes.normal, base = P.length / 3;
+      for (let i = 0; i < pos.count; i++) {
+        _mdV.fromBufferAttribute(pos, i).applyMatrix4(M); _mdN.fromBufferAttribute(nor, i).applyMatrix3(_mdNM).normalize();
+        P.push(_mdV.x, _mdV.y, _mdV.z); N.push(_mdN.x, _mdN.y, _mdN.z);
+        const c = typeof col === 'function' ? col(_mdV.x, _mdV.y, _mdV.z, _mdN.y) : col; C.push(c[0], c[1], c[2]);
+        T.push(typeof o.part === 'function' ? o.part(_mdV.x, _mdV.y, _mdV.z) : (o.part == null ? 4 : o.part));
+        const w = typeof o.tw === 'function' ? o.tw(_mdV.x, _mdV.y, _mdV.z) : (o.tw || MD_ZERO4); W.push(w[0], w[1], w[2], w[3]);
+      }
+      if (g.index) for (let i = 0; i < g.index.count; i++) I.push(g.index.getX(i) + base); else for (let i = 0; i < pos.count; i++) I.push(i + base);
+    }
+    const api = {
+      box(cx, cy, cz, w, h, d, col, o = {}) {
+        _mdE.set(o.rx || 0, o.ry || 0, o.rz || 0); _mdQ.setFromEuler(_mdE); _mdS.set(w, h, d); _mdM.compose(new THREE.Vector3(cx, cy, cz), _mdQ, _mdS);
+        push(MD_BOX, _mdM, col, o);
+      },
+      cyl(a, b, r0, r1, seg, col, o = {}) {
+        const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], len = Math.hypot(dx, dy, dz) || 1e-6;
+        const key = seg + (o.open ? 'o' : 'c'), g = (MD_CYL[key] || (MD_CYL[key] = new THREE.CylinderGeometry(1, 1, 1, seg, 1, !!o.open)));
+        // the unit cylinder is rebuilt per call with the right radii (top = b end): scale the x/z of vertices by lerping radius
+        const geo = g.clone(), p = geo.attributes.position;
+        if (o.nobottom && !o.open && geo.groups.length > 2) { const g2 = geo.groups[2], arr = Array.from(geo.index.array); arr.splice(g2.start, g2.count); geo.setIndex(arr); }     // no bottom cap (hidden)
+        for (let i = 0; i < p.count; i++) { const y = p.getY(i), t = y + 0.5, r = r0 + (r1 - r0) * t; p.setX(i, p.getX(i) * r); p.setZ(i, p.getZ(i) * r * (o.ez || 1)); }
+        // normals of a tapered tube lean outwards by the taper; the unit cylinder's side normals are fine for small tapers
+        _mdQ.setFromUnitVectors(_mdUp, _mdV.set(dx / len, dy / len, dz / len)); _mdS.set(1, len, 1);
+        _mdM.compose(new THREE.Vector3((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), _mdQ, _mdS);
+        push(geo, _mdM, col, o); geo.dispose();
+      },
+      sph(cx, cy, cz, rx, ry, rz, ws, hs, col, o = {}) {
+        const geo = new THREE.SphereGeometry(1, ws, hs, 0, Math.PI * 2, 0, o.cap || Math.PI);
+        _mdE.set(o.rx || 0, o.ry || 0, o.rz || 0); _mdQ.setFromEuler(_mdE); _mdS.set(rx, ry, rz); _mdM.compose(new THREE.Vector3(cx, cy, cz), _mdQ, _mdS);
+        push(geo, _mdM, col, o); geo.dispose();
+      },
+      quad(a, b, c, d, col, o = {}) {
+        const nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]), l = Math.hypot(nx, ny, nz) || 1;
+        const mk = (s) => { const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute([...a, ...b, ...c, ...d], 3)); q.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 2, 3].flatMap(() => [nx / l * s, ny / l * s, nz / l * s]), 3)); q.setIndex(s > 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]); return q; };
+        const f = mk(1); push(f, null, col, o); f.dispose();
+        if (o.two) { const k = mk(-1); push(k, null, col, o); k.dispose(); }
+      },
+      tri(a, b, c, col, o = {}) { api.quad(a, b, c, c, col, o); },
+      sweep(prof, x0, x1, col, o = {}) {
+        if (o.open) {                                                                                      // an open polyline: a thin sheet, both sides drawn
+          for (let i = 0; i < prof.length - 1; i++) { const [y0, z0] = prof[i], [y1, z1] = prof[i + 1]; api.quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1], col, { part: o.part, tw: o.tw, two: true }); }
+          return;
+        }
+        let cy = 0, cz = 0; for (const [y, z] of prof) { cy += y; cz += z; } cy /= prof.length; cz /= prof.length;
+        for (let i = 0; i < prof.length; i++) {
+          const [y0, z0] = prof[i], [y1, z1] = prof[(i + 1) % prof.length];
+          const ny = z1 - z0, nz = -(y1 - y0), s = (ny * (y0 - cy) + nz * (z0 - cz)) >= 0 ? 1 : -1;       // outward: away from the middle
+          if (s > 0) api.quad([x0, y0, z0], [x0, y1, z1], [x1, y1, z1], [x1, y0, z0], col, o);            // winding decides which side is the front
+          else api.quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1], col, o);
+        }
+      },
+      at(x, y, z, ry, fn) {
+        const M = top().clone().multiply(_mdM.makeRotationY(ry || 0).setPosition(x, y, z));
+        stack.push(M); fn(); stack.pop();
+      },
+      geo() {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setAttribute('pt', new THREE.Float32BufferAttribute(T, 1)); g.setAttribute('tw', new THREE.Float32BufferAttribute(W, 4));
+        g.setIndex(I); g.userData.keep = true; return g;
+      },
+      get tris() { return I.length / 3; },
+    };
+    return api;
+  }
+  const MD_BOX = new THREE.BoxGeometry(1, 1, 1), MD_CYL = {};
+  /* ---------- spectators and other little people: real low-poly 3D models, instanced, with level of detail (art) ----------
+     What a person looks like is here. Where crowds stand (and how many groups) is tracks: tracks/themes.js trackside() hands every crowd spot to
+     crowdGroup(), which fills it from its OWN seeded generator (nothing is drawn from the stage's random numbers; no obstacle is added).
+
+     Models: six poses (stand, cheer with both arms up, point, sit on the ground / a wall, hold a flag, take a picture), each one merged geometry with
+     vertex colours. WHICH colours come from the instance, not from the model: shirt, trousers, skin and hair are palette numbers on the instance
+     (tables below, 16 shirts, 8 trousers, 8 skins, 8 hair colours), so one model makes thousands of different people. Hats and long hair are parts that
+     the shader hides or shows per person. Kids are the same model at 0.62 to 0.78 scale.
+     Animation is only in the vertex shader (one shared time uniform): a slight sway for everybody, arms waving and a little hop for the cheering
+     ones, flags flutter. People near the car cheer harder (distance to the car in the shader). Nothing runs in JavaScript per frame except the level of detail.
+
+     Level of detail: every person is stored once (matrix + palette numbers in typed arrays), grouped in clusters (one per crowd spot).
+     updateCrowd() (called from renderFrame) runs when the camera has moved 4 m or turned about 10 degrees: it drops clusters behind the camera or
+     beyond the fog, and copies each person into a "near" mesh (full model, per pose) or the "far" mesh (a 40 triangle figure, two kinds: arms down / arms up).
+     Low quality: coarser models, near distance 22 m instead of 38, far people are drawn to 70 % of the fog distance and only every second one past 60 m, no shadows.
+
+     For tracks:
+       crowdAdd(list)      list of persons {x, z, y?, yaw?, pose?, kid?, shirt?, pants?, skin?, hair?, hat?, long?, amp?, s?}, all of one group (the group is one cluster for culling).
+                           y = ground height (default terrain.heightAt), yaw = turn in radians (local +z is the front, so the person looks along (sin yaw, cos yaw)),
+                           pose = 'stand' | 'cheer' | 'point' | 'sit' | 'flag' | 'camera' (default stand), kid = true for a small person,
+                           shirt / pants / skin / hair = palette numbers (PAL.shirt etc. are the colours; SHIRT_HIVIS = hi-vis orange vest, SHIRT_HIVIS_Y = hi-vis yellow),
+                           hat = 0 none, 1 cap, 2 beanie; long = true for long hair; amp = 0..1 how excited (default random); s = scale (default 0.93 to 1.07).
+                           Anything not given is chosen at random from a generator seeded by the position, so a stage looks the same every time.
+       crowdGroup(spot, opt)  -> list of persons for a crowd spot {x, z, th, side, y} (th = road direction there, side = +1 right / -1 left of the road, x/z/y the middle
+                           of the spot, as trackside() has them); opt.tag = 'start' | 'finish' | 'corner' | 'jump' picks the mix; opt.n = slots (default 18); opt.width (7.5 m).
+       crowdBuild()        (called from loadStage) makes the meshes from everything added so far. */
+  const PAL = {
+    shirt: ['#d32f2f', '#1976d2', '#fbc02d', '#388e3c', '#f2f2ee', '#212121', '#7b1fa2', '#f57c00', '#00897b', '#ec407a', '#1a237e', '#78909c', '#ff6a13', '#90caf9', '#8e2430', '#d8e82a'],
+    pants: ['#2f4f7a', '#1f2a3a', '#17171a', '#a89472', '#5b6068', '#4a5238', '#243a5e', '#7b6a4c'],
+    skin: ['#f6d5bd', '#efc29a', '#dba878', '#c28a5a', '#a36b3e', '#85522c', '#68401f', '#4a2c17'],
+    hair: ['#1b1512', '#3a2a1e', '#6a4a30', '#d6ae5c', '#a14f22', '#9a9a9a', '#e9e6df', '#2a3042'],
+  };
+  const SHIRT_HIVIS = 12, SHIRT_HIVIS_Y = 15;
+  const POSE_ID = { stand: 0, cheer: 1, point: 2, sit: 3, flag: 4, camera: 5 }, POSE_UP = [0, 1, 0, 0, 1, 1];     // POSE_UP: which far figure (arms down / up)
+  const POSE_N = 6;
+  const SKIN_W = [2, 3, 3, 3, 2.2, 1.6, 1.1, 0.8], HAIR_W = [3, 3, 2, 1.5, 0.7, 1, 0.5, 0.5];
+  const pickW = (w, r) => { let t = 0; for (const x of w) t += x; r *= t; for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; } return w.length - 1; };
+
+  const peopleMat = (() => {
+    const pal = []; for (const k of ['shirt', 'pants', 'skin', 'hair']) for (const h of PAL[k]) { const c = new THREE.Color(h); pal.push(new THREE.Vector3(c.r, c.g, c.b)); }       // Color converts the sRGB hex to linear
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uPal = { value: pal }; sh.uniforms.uWT = WIND.uT; sh.uniforms.uCar = peopleMat.userData.car;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', `#include <common>
+          attribute float pt; attribute vec4 tw; attribute vec4 lkA; attribute vec4 lkB;
+          uniform vec3 uPal[40]; uniform float uWT; uniform vec2 uCar;`)
+        .replace('#include <color_vertex>', `{
+            int P = int(pt + 0.5); vec3 c;
+            if (P == 4) c = pow(color, vec3(2.2));
+            else {
+              int sh = int(lkA.x + 0.5);
+              int ix = P == 0 ? 24 + int(lkA.z + 0.5) : P == 1 ? sh : P == 2 ? 16 + int(lkA.y + 0.5) : (P == 3 || P == 7) ? 32 + int(lkA.w + 0.5) : (P == 5 || P == 10) ? ((sh == 12 || sh == 15) ? sh : (sh + 5) % 16) : P == 8 ? (sh + 3) % 16 : (sh + 9) % 16;
+              c = uPal[ix] * color.r;
+            }
+            vColor = vec4(c, 1.0);
+          }`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          {
+            int Q = int(pt + 0.5);
+            if ((Q == 5 && lkB.x < 0.5) || (Q == 10 && (lkB.x < 0.5 || lkB.x > 1.5)) || (Q == 7 && lkB.y < 0.5)) transformed = vec3(0.0);
+            else {
+              vec4 ip = instanceMatrix[3];
+              float dc = distance(ip.xz, uCar);
+              float ex = clamp(lkB.w * 0.45 + (1.0 - smoothstep(10.0, 70.0, dc)) * 0.85, 0.0, 1.0);
+              float t = uWT * (2.4 + lkB.w * 1.6) + lkB.z * 6.2831;
+              float sg = position.x < 0.0 ? -1.0 : 1.0;
+              transformed.y += tw.w * ex * 0.085 * abs(sin(t));
+              transformed.y += tw.y * (0.05 + 0.13 * ex) * sin(t + (sg > 0.0 ? 0.0 : 1.6));
+              transformed.x += tw.y * sg * 0.05 * ex * sin(t * 0.5);
+              transformed.x += tw.x * (0.01 + 0.015 * ex) * sin(t * 0.5 + 1.0);
+              transformed.z += tw.z * (0.05 + 0.05 * ex) * sin(uWT * 7.0 + position.x * 9.0 + lkB.z * 6.0);
+              transformed.y += tw.z * 0.03 * sin(uWT * 5.0 + position.x * 7.0 + lkB.z * 6.0);
+            }
+          }`);
+    };
+    m.customProgramCacheKey = () => 'people';
+    m.userData.keep = true; m.userData.car = { value: new THREE.Vector2(1e5, 1e5) };
+    return m;
+  })();
+  // note: peopleMat's own userData.car is referenced above before it exists; onBeforeCompile runs later, at first draw, so it is set by then
+
+  /* ----- one person, one pose, as a merged geometry. y up, feet on y = 0, the front is +z, about 1.75 m tall ----- */
+  const PERSON_H = 1.75;
+  function buildPerson(pose, low) {
+    const m = modeller(), sg = low ? 5 : 6, hs = low ? [5, 3] : [6, 4];
+    const SK = 0, SH = 1, PA = 2, HA = 3, HAT = 5, LONG = 7, FLA = 8, FLB = 9, BRIM = 10;
+    const hip = pose === 3 ? 0.16 : 0.9, shY = hip + 0.5, headY = shY + 0.23;
+    const armK = [0.15, 0.5, 0.05, 0.1, 0.6, 0.0][pose], hop = [0, 1, 0, 0, 0.5, 0][pose];                  // how much the arms move, how much the body hops
+    const lean = (x, y) => clamp(y / 1.9, 0, 1) * 0.6;
+    const twBody = (x, y, z) => [lean(x, y), 0, 0, hop];
+    const arm = (sx, S, E, H) => {
+      const tw = (x, y, z) => [lean(x, y), clamp(Math.hypot(x - S[0], y - S[1], z - S[2]) / 0.55, 0, 1) * armK, 0, hop];
+      const sleeve = (x, y, z, ny) => { const k = 0.82 + 0.18 * ny; return [k, k, k]; };
+      m.cyl(S, E, 0.068, 0.057, sg, sleeve, { part: SH, tw, open: true });
+      m.cyl(E, H, 0.05, 0.04, sg, [1, 1, 1], { part: SK, tw, open: true });
+      m.sph(H[0], H[1], H[2], 0.052, 0.052, 0.052, hs[0] - 1, hs[1] - 1, [1, 1, 1], { part: SK, tw });
+    };
+    const shade = (a, b) => (x, y) => { const k = a + (b - a) * clamp((y - hip) / 0.55, 0, 1); return [k, k, k]; };
+    const leg = (sx, K, F) => {
+      const H = [sx * 0.095, hip, 0];
+      m.cyl(H, K, 0.1, 0.074, sg, [0.92, 0.92, 0.92], { part: PA, tw: twBody, open: true });
+      m.cyl(K, F, 0.072, 0.056, sg, [0.82, 0.82, 0.82], { part: PA, tw: twBody, open: true });
+      m.box(F[0], 0.035, F[2] + 0.05, 0.12, 0.08, 0.29, [0.13, 0.13, 0.15], { part: 4, tw: twBody });
+    };
+    // torso, neck, head, hair, hat
+    m.cyl([0, hip - 0.02, 0], [0, shY, 0], 0.2, 0.25, sg + 1, shade(0.72, 1.0), { part: SH, tw: twBody, ez: 0.62, nobottom: true });
+    m.cyl([0, shY - 0.02, 0], [0, shY + 0.1, 0.01], 0.06, 0.055, 5, [1, 1, 1], { part: SK, tw: twBody, open: true });
+    const hz = pose === 5 ? 0.05 : 0.01;
+    m.sph(0, headY, hz, 0.125, 0.145, 0.13, hs[0], hs[1], (x, y, z, ny) => { const k = 0.9 + 0.1 * ny; return [k, k, k]; }, { part: SK, tw: twBody });
+    m.sph(0, headY + 0.012, hz - 0.012, 0.137, 0.155, 0.143, hs[0], Math.max(2, hs[1] - 1), [0.85, 0.85, 0.85], { part: HA, tw: twBody, cap: 1.95, rx: -0.35 });
+    m.box(0, headY - 0.11, hz - 0.12, 0.24, 0.3, 0.08, [0.8, 0.8, 0.8], { part: LONG, tw: twBody });
+    m.sph(0, headY + 0.025, hz - 0.004, 0.146, 0.15, 0.15, hs[0], Math.max(2, hs[1] - 1), [0.95, 0.95, 0.95], { part: HAT, tw: twBody, cap: 1.65 });
+    m.box(0, headY + 0.055, hz + 0.135, 0.17, 0.014, 0.1, [0.85, 0.85, 0.85], { part: BRIM, tw: twBody, rx: 0.15 });
+    const SL = [-0.26, shY - 0.04, 0], SR = [0.26, shY - 0.04, 0];
+    if (pose === 0) {
+      leg(-1, [-0.1, 0.5, 0.02], [-0.115, 0.06, 0]); leg(1, [0.1, 0.5, 0.0], [0.115, 0.06, 0.02]);
+      arm(-1, SL, [-0.31, 1.1, 0.02], [-0.32, 0.84, 0.06]); arm(1, SR, [0.31, 1.1, 0.02], [0.32, 0.84, 0.06]);
+    } else if (pose === 1) {
+      leg(-1, [-0.115, 0.5, 0.03], [-0.15, 0.06, 0]); leg(1, [0.115, 0.5, 0.03], [0.15, 0.06, 0]);
+      arm(-1, SL, [-0.37, shY + 0.17, 0.02], [-0.47, shY + 0.45, 0.05]); arm(1, SR, [0.37, shY + 0.17, 0.02], [0.47, shY + 0.45, 0.05]);
+    } else if (pose === 2) {
+      leg(-1, [-0.1, 0.5, 0.0], [-0.12, 0.06, -0.04]); leg(1, [0.1, 0.5, 0.04], [0.12, 0.06, 0.09]);
+      arm(1, SR, [0.3, shY - 0.1, 0.24], [0.2, shY - 0.17, 0.56]);
+      arm(-1, SL, [-0.32, 1.17, 0.0], [-0.19, 1.0, 0.07]);
+    } else if (pose === 3) {                                                                                // sitting: hips on the ground, knees up
+      leg(-1, [-0.12, 0.46, 0.34], [-0.13, 0.05, 0.62]); leg(1, [0.12, 0.46, 0.34], [0.13, 0.05, 0.62]);
+      arm(-1, SL, [-0.27, 0.42, 0.14], [-0.15, 0.54, 0.36]); arm(1, SR, [0.27, 0.42, 0.14], [0.15, 0.54, 0.36]);
+    } else if (pose === 4) {                                                                                // flag in the right hand
+      leg(-1, [-0.1, 0.5, 0.02], [-0.12, 0.06, 0]); leg(1, [0.1, 0.5, 0.02], [0.12, 0.06, 0.02]);
+      arm(1, SR, [0.34, shY + 0.02, 0.15], [0.3, shY + 0.3, 0.22]); arm(-1, SL, [-0.3, 1.2, 0.05], [-0.22, 1.0, 0.1]);
+      const px = 0.3, pz = 0.22, top = 2.95, fw = 0.78, fh = 0.46, st = low ? 2 : 4;
+      m.cyl([px, 1.25, pz], [px, top, pz], 0.014, 0.012, 4, [0.85, 0.78, 0.6], { part: 4, tw: [0.4, 0.4 * 0, 0, hop] });
+      for (let i = 0; i < st; i++) {
+        const x0 = px + 0.012 + fw * i / st, x1 = px + 0.012 + fw * (i + 1) / st;
+        m.quad([x0, top - fh / 2, pz], [x1, top - fh / 2, pz], [x1, top, pz], [x0, top, pz], [1, 1, 1], { part: FLA, tw: (x) => [0.4, 0, (x - px) / fw, 0], two: true });
+        m.quad([x0, top - fh, pz], [x1, top - fh, pz], [x1, top - fh / 2, pz], [x0, top - fh / 2, pz], [1, 1, 1], { part: FLB, tw: (x) => [0.4, 0, (x - px) / fw, 0], two: true });
+      }
+    } else {                                                                                                // camera at the face
+      leg(-1, [-0.1, 0.5, 0.02], [-0.12, 0.06, 0]); leg(1, [0.1, 0.5, 0.04], [0.12, 0.06, 0.08]);
+      arm(-1, SL, [-0.27, shY - 0.2, 0.2], [-0.07, headY - 0.04, 0.3]); arm(1, SR, [0.27, shY - 0.2, 0.2], [0.07, headY - 0.04, 0.3]);
+      m.box(0, headY - 0.03, 0.34, 0.17, 0.11, 0.13, [0.08, 0.08, 0.1], { part: 4, tw: twBody });
+      m.cyl([0, headY - 0.03, 0.4], [0, headY - 0.03, 0.52], 0.045, 0.05, 6, [0.16, 0.16, 0.19], { part: 4, tw: twBody });
+    }
+    return m.geo();
+  }
+  // far figure: legs, body, a diamond head (hair above, skin below), arms; about 40 triangles
+  function buildPersonFar(up, low) {
+    const m = modeller(), sg = low ? 4 : 5, SK = 0, SH = 1, PA = 2, HA = 3, tw = (x, y) => [clamp(y / 1.9, 0, 1) * 0.6, 0, 0, up ? 0.8 : 0];
+    m.cyl([0, 0, 0], [0, 0.9, 0], 0.17, 0.19, sg, [0.85, 0.85, 0.85], { part: PA, tw, open: true, ez: 0.7 });
+    m.cyl([0, 0.9, 0], [0, 1.45, 0], 0.23, 0.26, sg, [0.9, 0.9, 0.9], { part: SH, tw, ez: 0.62, open: true });
+    m.sph(0, 1.66, 0, 0.14, 0.17, 0.14, low ? 4 : 5, low ? 2 : 3, [1, 1, 1], { part: (x, y) => (y > 1.66 ? HA : SK), tw });
+    if (up) { m.cyl([-0.2, 1.4, 0], [-0.42, 1.85, 0.04], 0.05, 0.045, 4, [0.9, 0.9, 0.9], { part: SH, tw, open: true }); m.cyl([0.2, 1.4, 0], [0.42, 1.85, 0.04], 0.05, 0.045, 4, [0.9, 0.9, 0.9], { part: SH, tw, open: true }); }
+    else { m.cyl([-0.23, 1.4, 0], [-0.26, 0.95, 0.04], 0.05, 0.045, 4, [0.9, 0.9, 0.9], { part: SH, tw, open: true }); m.cyl([0.23, 1.4, 0], [0.26, 0.95, 0.04], 0.05, 0.045, 4, [0.9, 0.9, 0.9], { part: SH, tw, open: true }); }
+    return m.geo();
+  }
+  const _pgCache = {};
+  function personGeos(low) {
+    const k = low ? 'l' : 'h';
+    if (!_pgCache[k]) { const near = []; for (let p = 0; p < POSE_N; p++) near.push(buildPerson(p, low)); _pgCache[k] = { near, far: [buildPersonFar(0, low), buildPersonFar(1, low)] }; }
+    return _pgCache[k];
+  }
+
+  /* ----- people registry for the stage that is loading ----- */
+  let crowdState = null;
+  const _cs = { x: 0, z: 0, fx: 0, fz: 0, fog: 0, ar: 0, q: '', g: null, n: 0 };
+  let crowdList = [], crowdClusters = [], crowdDirty = false;
+  function crowdReset() { crowdList = []; crowdClusters = []; crowdState = null; crowdDirty = false; }
+  const CROWD_NEAR = { high: 38, low: 22 };
+  function crowdAdd(list) {
+    if (!list.length) return;
+    const dummyO = new THREE.Object3D(), cl = { a: crowdList.length, b: 0, x: 0, z: 0, r: 0 };
+    for (const q of list) {
+      const rng = mulberry32((Math.round(q.x * 13) * 73856093 ^ Math.round(q.z * 13) * 19349663) >>> 0);
+      const kid = q.kid != null ? q.kid : rng() < 0.08, pose = typeof q.pose === 'string' ? POSE_ID[q.pose] : (q.pose || 0);
+      const p = {
+        x: q.x, z: q.z, y: q.y != null ? q.y : terrain.heightAt(q.x, q.z), yaw: q.yaw || 0, pose,
+        s: q.s != null ? q.s : kid ? 0.62 + rng() * 0.16 : 0.93 + rng() * 0.14,
+        shirt: q.shirt != null ? q.shirt : (rng() * 16 | 0) % 16, pants: q.pants != null ? q.pants : rng() * 8 | 0, skin: q.skin != null ? q.skin : pickW(SKIN_W, rng()), hair: q.hair != null ? q.hair : pickW(HAIR_W, rng()),
+        hat: q.hat != null ? q.hat : rng() < (ST.theme === 'alpine' ? 0.5 : 0.2) ? (rng() < 0.7 ? 1 : 2) : 0, long: q.long != null ? +q.long : +(rng() < 0.3), phase: rng(), amp: q.amp != null ? q.amp : rng(),
+      };
+      if (p.shirt === SHIRT_HIVIS && q.shirt == null) p.shirt = 11;                   // hi-vis is for marshals only
+      if (p.shirt === SHIRT_HIVIS_Y && q.shirt == null) p.shirt = 7;
+      crowdList.push(p); cl.x += p.x; cl.z += p.z;
+    }
+    cl.b = crowdList.length; const n = cl.b - cl.a; cl.x /= n; cl.z /= n;
+    for (let i = cl.a; i < cl.b; i++) cl.r = Math.max(cl.r, Math.hypot(crowdList[i].x - cl.x, crowdList[i].z - cl.z));
+    cl.r += 3.5; crowdClusters.push(cl); crowdDirty = true;
+  }
+  // a crowd spot -> list of persons, rows behind the tape (see the header)
+  function crowdGroup(c, opt = {}) {
+    const rng = mulberry32((Math.round(c.x * 7) * 83492791 ^ Math.round(c.z * 7) * 2654435761) >>> 0), tag = opt.tag || 'corner', n = opt.n || (tag === 'corner' ? 16 : 20), W = opt.width || 7.5;
+    const fx = Math.sin(c.th), fz = Math.cos(c.th), ox = -Math.cos(c.th) * c.side, oz = Math.sin(c.th) * c.side;     // along the road / away from it
+    const cheer = tag === 'start' || tag === 'finish' ? 0.3 : tag === 'jump' ? 0.3 : 0.2, flag = tag === 'start' || tag === 'finish' ? 0.14 : 0.08, cam = tag === 'corner' ? 0.14 : 0.09;
+    const rows = [-1.7, -0.75, 0.2], per = Math.ceil(n / 3), out = [];
+    rows.forEach((b, ri) => {
+      for (let i = 0; i < per; i++) {
+        if (rng() < 0.16) continue;
+        const a = -W / 2 + 0.5 + (W - 1) * (i + 0.5 * (ri & 1) + rng() * 0.5) / per, bb = b + (rng() - 0.5) * 0.35;
+        const x = c.x + fx * a + ox * bb, z = c.z + fz * a + oz * bb, y = terrain.heightAt(x, z);
+        if (Math.abs(y - c.y) > 1.6 || terrain.distAt(x, z) < half + 2.4) continue;
+        const r = rng(); let pose = 'stand';
+        if (r < cheer) pose = 'cheer'; else if (r < cheer + flag) pose = 'flag'; else if (r < cheer + flag + cam && ri < 2) pose = 'camera'; else if (r < cheer + flag + cam + 0.07) pose = 'point'; else if (r < cheer + flag + cam + 0.07 + 0.12 && ri === 0) pose = 'sit';
+        const yaw = Math.atan2(-ox, -oz) + (rng() - 0.5) * 0.7 + (pose === 'point' ? 0.2 : 0);                // look at the road, a bit this way or that
+        out.push({ x, z, y, yaw, pose });
+      }
+    });
+    return out;
+  }
+
+  /* ----- the meshes ----- */
+  function crowdBuild() {
+    if (crowdState) { for (const m of crowdState.meshes) { stageGroup.remove(m); m.geometry.dispose(); m.dispose(); } crowdState = null; }
+    crowdDirty = false; _cs.g = null;
+    const n = crowdList.length; if (!n) return;
+    const low = quality === 'low', G = personGeos(low), M = new Float32Array(n * 16), A = new Float32Array(n * 4), B = new Float32Array(n * 4), d = new THREE.Object3D();
+    const poseCount = new Array(POSE_N).fill(0), upCount = [0, 0];
+    crowdList.forEach((p, i) => {
+      d.position.set(p.x, p.y, p.z); d.rotation.set(0, p.yaw, 0); d.scale.setScalar(p.s); d.updateMatrix(); d.matrix.toArray(M, i * 16);
+      A[i * 4] = p.shirt; A[i * 4 + 1] = p.pants; A[i * 4 + 2] = p.skin; A[i * 4 + 3] = p.hair; B[i * 4] = p.hat; B[i * 4 + 1] = p.long; B[i * 4 + 2] = p.phase; B[i * 4 + 3] = p.amp;
+      poseCount[p.pose]++; upCount[POSE_UP[p.pose]]++;
+    });
+    const meshes = [], mk = (geo, cap, shadow) => {
+      const g = new THREE.BufferGeometry(); for (const k in geo.attributes) g.setAttribute(k, geo.attributes[k]); g.setIndex(geo.index);
+      cap = Math.max(1, cap);
+      const la = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage), lb = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('lkA', la); g.setAttribute('lkB', lb);
+      const m = new THREE.InstancedMesh(g, peopleMat, cap); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.visible = false; m.frustumCulled = false;
+      m.castShadow = shadow; m.receiveShadow = shadow; m.userData.la = la; m.userData.lb = lb; stageGroup.add(m); meshes.push(m); return m;
+    };
+    const near = G.near.map((g, i) => mk(g, poseCount[i], !low)), far = G.far.map((g, i) => mk(g, upCount[i], false));
+    crowdState = { meshes, near, far, M, A, B, low, n };
+  }
+    function updateCrowd() {
+    if (!stageGroup) return;
+    if (crowdDirty || (crowdState && crowdState.low !== (quality === 'low'))) crowdBuild();
+    const S = crowdState; if (!S) return;
+    peopleMat.userData.car.value.set(car.pos.x, car.pos.z);
+    const low = S.low, cp = camera.position; camera.updateMatrixWorld();
+    const e = camera.matrixWorld.elements; let fx = -e[8], fz = -e[10]; const fl = Math.hypot(fx, fz); if (fl < 0.05) { fx = 1; fz = 0; } else { fx /= fl; fz /= fl; }
+    const fog = scene.fog.far;
+    if (_cs.g === stageGroup && _cs.q === quality && _cs.fog === fog && _cs.ar === camera.aspect && _cs.n === S.n && Math.hypot(cp.x - _cs.x, cp.z - _cs.z) < 4 && fx * _cs.fx + fz * _cs.fz > 0.985) return;
+    _cs.g = stageGroup; _cs.x = cp.x; _cs.z = cp.z; _cs.fx = fx; _cs.fz = fz; _cs.q = quality; _cs.fog = fog; _cs.ar = camera.aspect; _cs.n = S.n;
+    const nearD = low ? CROWD_NEAR.low : CROWD_NEAR.high, far = fog * (low ? 0.7 : 0.9), nearD2 = nearD * nearD, thinFrom2 = 60 * 60;
+    const tanH = Math.tan(camera.fov * Math.PI / 360) * camera.aspect * 1.12 + 0.25, M = S.M, A = S.A, B = S.B;
+    const nM = S.near.map(m => m.instanceMatrix.array), nA = S.near.map(m => m.userData.la.array), nB = S.near.map(m => m.userData.lb.array);
+    const fM = S.far.map(m => m.instanceMatrix.array), fA = S.far.map(m => m.userData.la.array), fB = S.far.map(m => m.userData.lb.array);
+    const cn = new Array(POSE_N).fill(0), cf = [0, 0];
+    for (const cl of crowdClusters) {
+      const dx = cl.x - cp.x, dz = cl.z - cp.z, d = Math.hypot(dx, dz);
+      if (d - cl.r > far) continue;
+      const fwd = dx * fx + dz * fz;
+      if (fwd < -cl.r || (d > cl.r + 6 && Math.abs(dx * fz - dz * fx) > Math.max(0, fwd + cl.r) * tanH + cl.r)) continue;
+      for (let i = cl.a; i < cl.b; i++) {
+        const p = crowdList[i], ex = p.x - cp.x, ez = p.z - cp.z, d2 = ex * ex + ez * ez;
+        if (d2 > far * far) continue;
+        if (d2 < nearD2) {
+          const k = p.pose, o = cn[k]++; nM[k].set(M.subarray(i * 16, i * 16 + 16), o * 16); nA[k].set(A.subarray(i * 4, i * 4 + 4), o * 4); nB[k].set(B.subarray(i * 4, i * 4 + 4), o * 4);
+        } else {
+          if (low && d2 > thinFrom2 && (i & 1)) continue;
+          const k = POSE_UP[p.pose], o = cf[k]++; fM[k].set(M.subarray(i * 16, i * 16 + 16), o * 16); fA[k].set(A.subarray(i * 4, i * 4 + 4), o * 4); fB[k].set(B.subarray(i * 4, i * 4 + 4), o * 4);
+        }
+      }
+    }
+    const fin = (m, c) => {
+      m.count = c; m.visible = c > 0; if (!c) return;
+      for (const at of [m.instanceMatrix, m.userData.la, m.userData.lb]) { at.clearUpdateRanges(); at.addUpdateRange(0, c * at.itemSize); at.needsUpdate = true; }
+    };
+    S.near.forEach((m, k) => fin(m, cn[k])); S.far.forEach((m, k) => fin(m, cf[k]));
+  }
+  /* ---------- structures: gates, boards, tape lines, guard rails as 3D models (art) ----------
+     Only the LOOK is here. Positions, counts and what the car can hit stay in tracks (themes.js, scenery.js, stage-load.js).
+     All geometry is built in code with modeller() (art/modeller.js): one merged mesh per kind, vertex colours, no textures except the
+     printed faces (banners, sign faces), which keep their own texture so the text stays sharp. */
+  const hexRGB = (h) => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255];
+  const cssRGB = (s) => hexRGB(parseInt(s.slice(1), 16));
+  const mulRGB = (c, k) => [Math.min(1, c[0] * k), Math.min(1, c[1] * k), Math.min(1, c[2] * k)];
+  let _structMat = null;
+  function structMat() { if (!_structMat) { _structMat = lit({ vertexColors: true }); _structMat.userData.keep = true; } return _structMat; }
+  let _beaconMat = null;
+  function beaconMat() { if (!_beaconMat) { _beaconMat = new THREE.MeshBasicMaterial({ vertexColors: true }); _beaconMat.userData.keep = true; } return _beaconMat; }
+  // a flat textured face (uv 0..1) of size w x h at height cy and depth z, facing +z (flip = face -z, with the picture the right way round)
+  function facePlane(w, h, cy, z, flip) {
+    const g = new THREE.PlaneGeometry(w, h); g.translate(0, cy, 0);
+    if (flip) g.rotateY(Math.PI);
+    g.translate(0, 0, flip ? -z : z); return g;
+  }
+  const mergeGeos = (list) => {
+    const g = new THREE.BufferGeometry(), pos = [], nor = [], uv = [], idx = [];
+    for (const q of list) { const b = pos.length / 3; pos.push(...q.attributes.position.array); nor.push(...q.attributes.normal.array); uv.push(...q.attributes.uv.array); for (const i of q.index.array) idx.push(i + b); }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+  };
+
+  /* ----- gates -----
+     gateModel(kind, w, opt) -> { struct, beacons, bw, bh, bannerY, bannerZ }
+       kind 'arch'  = inflatable arch (start, finish): chambered legs and beam, knuckles, sandbags, blower, guy ropes, pennants, lights
+       kind 'truss' = aluminium truss gantry (checkpoints): box-truss columns and beam, foam pads, ballast, outriggers, spot lamps, flags
+       w = distance between the two legs (the old gate width), opt.c1 / opt.c2 = main and second colour (display rgb), opt.checker, opt.lights = 'start' | 'finish' | 'cp'
+       struct = lit vertex-coloured geometry, beacons = unlit bright bits (lamps, light discs). bw x bh = banner size, bannerZ = how far the banner planes stand out, glows = [[x, y, z, 0xcolour], ...] lamp positions for the night glow. */
+  function gateModel(kind, w, opt = {}) {
+    const low = quality === 'low', m = modeller(), bm = modeller(), hw = w / 2, bw = w + 0.3, bh = bw / 8, c1 = opt.c1 || [0.12, 0.55, 0.3], c2 = opt.c2 || [1, 1, 1];
+    const grey = [0.46, 0.48, 0.52], dark = [0.16, 0.17, 0.2], alu = [0.78, 0.8, 0.84];
+    const glows = [];
+    const stake = (x, z) => { m.cyl([x, 0.32, z], [x, -0.05, z], 0.035, 0.02, 4, [0.6, 0.6, 0.62]); };
+    const pennant = (x, y, z, col, len) => { m.cyl([x, y, z], [x, y + 1.0, z], 0.013, 0.011, 4, [0.85, 0.85, 0.88], { open: true }); m.tri([x, y + 1.0, z], [x, y + 0.62, z], [x + len, y + 0.81, z + 0.02], col, { two: true }); };
+    if (kind === 'arch') {
+      const seg = low ? 8 : 12, ch = 0.9, N = 6, cA = opt.checker ? [0.08, 0.08, 0.09] : c1, cB = opt.checker ? [0.96, 0.96, 0.94] : [0.96, 0.96, 0.94];
+      for (const sx of [-1, 1]) {
+        const x = sx * hw;
+        m.cyl([x, 0, 0], [x, 0.16, 0], 0.9, 0.86, 14, dark, {});
+        for (let k = 0; k < N; k++) {
+          const y0 = 0.16 + k * ch, col = k % 2 ? cB : cA, mid = y0 + ch / 2;
+          m.cyl([x, y0, 0], [x, mid, 0], 0.5, 0.62, seg, col, { open: true }); m.cyl([x, mid, 0], [x, y0 + ch, 0], 0.62, 0.5, seg, col, { open: true });
+        }
+        m.sph(x, 0.16 + N * ch + 0.05, 0, 0.7, 0.62, 0.7, seg, 6, cA, {});
+        for (const sz of [-1, 1]) {                                                          // ballast bags and a stake with a guy rope
+          m.box(x - sx * 0.1, 0.16, sz * 0.95, 0.9, 0.3, 0.5, [0.2, 0.26, 0.42], { ry: sx * 0.2 }); m.box(x + sx * 0.5, 0.16, sz * 0.95, 0.6, 0.28, 0.46, [0.2, 0.26, 0.42], { ry: -sx * 0.3 });
+          const gx = x + sx * 1.9, gz = sz * 2.6; stake(gx, gz); m.cyl([gx, 0.3, gz], [x, 5.7, sz * 0.2], 0.011, 0.011, 3, [0.9, 0.88, 0.8], { open: true });
+        }
+      }
+      const by = 0.16 + N * ch + 0.05, nb = Math.ceil(w / ch);                                // the beam: chambers across, same fat tube
+      for (let k = 0; k < nb; k++) {
+        const x0 = -hw + w * k / nb, x1 = -hw + w * (k + 1) / nb, xm = (x0 + x1) / 2, col = k % 2 ? cB : cA;
+        m.cyl([x0, by, 0], [xm, by, 0], 0.5, 0.6, seg, col, { open: true }); m.cyl([xm, by, 0], [x1, by, 0], 0.6, 0.5, seg, col, { open: true });
+      }
+      m.box(0, 5.0, 0, bw, bh, 1.3, mulRGB(c1, 0.75));                                       // the banner box (the printed faces are drawn over it)
+      m.box(-hw - 1.7, 0.4, 0.2, 0.9, 0.6, 0.8, [0.9, 0.45, 0.1]);                                // the blower and its hose
+      m.cyl([-hw - 1.25, 0.45, 0.2], [-hw - 0.5, 0.5, 0.1], 0.14, 0.14, 8, [0.2, 0.2, 0.23], { open: true });
+      m.box(hw + 1.8, 0.2, -0.5, 1.3, 0.4, 0.7, [0.55, 0.57, 0.6]);                              // generator / cable box
+      for (let k = 0; k < 5; k++) pennant(-hw + 1.6 + (w - 3.2) * k / 4, by + 0.55, 0, k % 2 ? c2 : opt.checker ? [0.1, 0.1, 0.1] : c1, 0.55);
+      if (opt.checker) for (const sx of [-1, 1]) {                                          // chequered flags on the knuckles
+        const x = sx * hw, y = by + 0.7, fl = 0.9;
+        m.cyl([x, y, 0], [x, y + 2.0, 0], 0.016, 0.013, 4, [0.85, 0.85, 0.88]);
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) { const x0 = x + 0.02 + fl * i / 4, y0 = y + 2.0 - 0.6 * (j + 1) / 3; m.quad([x0, y0, 0.02], [x0 + fl / 4, y0, 0.02], [x0 + fl / 4, y0 + 0.2, 0.02], [x0, y0 + 0.2, 0.02], (i + j) % 2 ? [0.96, 0.96, 0.94] : [0.08, 0.08, 0.09], { two: true }); }
+      } else for (const sx of [-1, 1]) pennant(sx * hw, by + 0.55, 0.0, c2, sx * 0.7);
+      if (opt.lights === 'start') for (const sx of [-1, 1]) {                                // countdown lights on the inner legs
+        const x = sx * (hw - 0.78);
+        m.box(x, 3.5, 0.15, 0.36, 1.1, 0.3, [0.1, 0.1, 0.12]); m.box(x, 3.5, 0.0, 0.1, 0.1, 0.1, [0.1, 0.1, 0.12]);
+        [[1, 0.1, 0.08], [1, 0.7, 0.1], [0.15, 0.9, 0.3]].forEach((c, i) => { bm.sph(x, 3.8 - i * 0.3, 0.32, 0.11, 0.11, 0.06, 8, 5, c); glows.push([x, 3.8 - i * 0.3, 0.4, i === 0 ? 0xff2a20 : i === 1 ? 0xffb020 : 0x30ff70]); });
+      }
+      if (opt.lights === 'finish') for (const sx of [-1, 1]) { bm.sph(sx * (hw - 0.1), by + 0.68, 0, 0.16, 0.16, 0.16, 8, 6, [1, 0.8, 0.1]); glows.push([sx * (hw - 0.1), by + 0.68, 0, 0xffc020]); }
+      return { struct: m.geo(), beacons: bm.geo(), bw, bh, bannerY: 5.0, bannerZ: 0.66, glows };
+    }
+    // aluminium truss gantry
+    const H = 6.4, step = low ? 1.0 : 0.6, tr = 0.26;
+    const chord = (a, b) => m.cyl(a, b, 0.034, 0.034, 4, alu, { open: true });
+    const brace = (a, b) => m.cyl(a, b, 0.016, 0.016, 3, [0.7, 0.72, 0.76], { open: true });
+    for (const sx of [-1, 1]) {
+      const x = sx * hw;
+      const C = [[-tr, -tr], [tr, -tr], [tr, tr], [-tr, tr]];
+      for (const [cx, cz] of C) chord([x + cx, 0.1, cz], [x + cx, H, cz]);
+      for (let y = 0.1, k = 0; y + step <= H + 0.01; y += step, k++) for (let f = 0; f < 4; f++) {
+        const A = C[f], B = C[(f + 1) % 4], up = (k + f) % 2;
+        brace([x + A[0], up ? y : y + step, A[1]], [x + B[0], up ? y + step : y, B[1]]);
+      }
+      m.box(x, 0.06, 0, 1.3, 0.12, 1.3, grey); for (const bx of [-0.5, 0.5]) for (const bz of [-0.5, 0.5]) m.box(x + bx, 0.14, bz, 0.07, 0.06, 0.07, [0.3, 0.3, 0.33]);
+      m.box(x, 0.55, 0, 0.64, 1.0, 0.64, [1, 0.8, 0.08]);                                    // foam pad at the foot
+      for (const sz of [-1, 1]) { m.box(x, 0.28, sz * 1.15, 0.75, 0.5, 0.55, [0.62, 0.62, 0.6]); m.cyl([x, 0.3, sz * 0.4], [x, 0.3, sz * 1.0], 0.04, 0.04, 4, grey); }       // ballast block and outrigger
+      m.box(x, H + 0.08, 0, 0.62, 0.3, 0.62, grey);
+      pennant(x, H + 0.2, 0, [1, 0.8, 0.1], sx * 0.7);
+    }
+    const yb = 5.85, yt = 6.37;
+    for (const yy of [yb, yt]) for (const zz of [-tr, tr]) chord([-hw, yy, zz], [hw, yy, zz]);
+    const nb = Math.ceil(w / step);
+    for (let k = 0; k < nb; k++) {
+      const x0 = -hw + w * k / nb, x1 = -hw + w * (k + 1) / nb;
+      for (const zz of [-tr, tr]) if (!(low && zz < 0)) { k % 2 ? brace([x0, yb, zz], [x1, yt, zz]) : brace([x0, yt, zz], [x1, yb, zz]); }
+      brace([x0, yb, -tr], [x1, yb, tr]); brace([x0, yt, tr], [x1, yt, -tr]);
+    }
+    for (const lx of [-hw * 0.4, hw * 0.4]) { m.box(lx, H + 0.2, 0.0, 0.34, 0.26, 0.4, dark, { ry: 0.2 }); bm.box(lx, H + 0.2, 0.22, 0.24, 0.16, 0.05, [1, 0.95, 0.7]); }
+    if (opt.lights === 'cp') for (const sx of [-1, 1]) { bm.sph(sx * (hw - 0.3), H + 0.33, 0.2, 0.13, 0.13, 0.13, 8, 5, [1, 0.72, 0.1]); glows.push([sx * (hw - 0.3), H + 0.33, 0.2, 0xffb020]); }
+    m.box(0, 5.0, 0, bw, bh, 0.07, dark);
+    return { struct: m.geo(), beacons: bm.geo(), bw, bh, bannerY: 5.0, bannerZ: 0.04, glows };
+  }
+
+  /* ----- sign boards on posts (chevrons, 100 / 50 m boards) -----
+     boardFrameGeo(w, h): rim, back plate, bolts and brackets, built around a printed face at height 1.6 + h / 2. Everything is moved 0.12 m forward
+     so the post stands behind the board (the face then no longer has a post through it). Face: boardFaceGeo(w, h). */
+  const BOARD_Z = 0.12;
+  function boardFrameGeo(w, h) {
+    const m = modeller(), cy = 1.6 + h / 2, rim = 0.055, steel = [0.55, 0.58, 0.62], dk = [0.1, 0.11, 0.13];
+    m.box(0, cy, BOARD_Z - 0.045, w + 2 * rim, h + 2 * rim, 0.014, dk);                      // back plate
+    m.box(0, cy + h / 2 + rim / 2, BOARD_Z + 0.0, w + 2 * rim, rim, 0.09, steel); m.box(0, cy - h / 2 - rim / 2, BOARD_Z + 0.0, w + 2 * rim, rim, 0.09, steel);
+    m.box(-w / 2 - rim / 2, cy, BOARD_Z + 0.0, rim, h, 0.09, steel); m.box(w / 2 + rim / 2, cy, BOARD_Z + 0.0, rim, h, 0.09, steel);
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) m.box(sx * (w / 2 + rim / 2), cy + sy * (h / 2 + rim / 2), BOARD_Z + 0.05, 0.04, 0.04, 0.02, [0.85, 0.86, 0.9]);
+    for (const sy of [-0.3, 0.3]) { m.box(0, cy + sy * h, BOARD_Z - 0.09, 0.16, 0.07, 0.07, steel); m.box(0, cy + sy * h, BOARD_Z - 0.125, 0.07, 0.04, 0.03, [0.85, 0.86, 0.9]); }   // clamps around the post
+    return m.geo();
+  }
+  const boardFaceGeo = (w, h) => facePlane(w, h, 1.6 + h / 2, BOARD_Z + 0.036, false);
+  // the post: a square steel tube 1 m tall (the instance scales it in y); foot: base plate, bolts, concrete collar
+  function postGeo() { const m = modeller(); m.box(0, 0.5, 0, 0.09, 1, 0.09, [0.5, 0.53, 0.57]); m.box(0, 0.5, 0, 0.1, 0.06, 0.1, [0.3, 0.32, 0.35]); return m.geo(); }
+  function postFootGeo() {
+    const m = modeller(); m.cyl([0, -0.2, 0], [0, 0.07, 0], 0.17, 0.15, 7, [0.55, 0.54, 0.52]); m.box(0, 0.09, 0, 0.26, 0.025, 0.26, [0.42, 0.44, 0.48]);
+    for (const a of [-1, 1]) for (const b of [-1, 1]) m.box(a * 0.1, 0.115, b * 0.1, 0.035, 0.03, 0.035, [0.82, 0.83, 0.86]);
+    return m.geo();
+  }
+
+  /* ----- sponsor boards: 6 m x 1.1 m, a frame with two A-frame legs and a printed front and back -----
+     sponsorFrameGeo() is shared by all sponsors; sponsorFaceGeo() has both faces (the back face mirrored so the text reads from behind). */
+  function sponsorFrameGeo() {
+    const m = modeller(), cy = 1.15, w = 6, h = 1.1, rim = 0.06, ali = [0.74, 0.76, 0.8], dk = [0.12, 0.13, 0.16];
+    m.box(0, cy, 0, w + 2 * rim, h + 2 * rim, 0.05, dk);
+    m.box(0, cy + h / 2 + rim / 2, 0, w + 2 * rim, rim, 0.1, ali); m.box(0, cy - h / 2 - rim / 2, 0, w + 2 * rim, rim, 0.1, ali);
+    m.box(-w / 2 - rim / 2, cy, 0, rim, h, 0.1, ali); m.box(w / 2 + rim / 2, cy, 0, rim, h, 0.1, ali);
+    for (const sx of [-1, 1]) {
+      const x = sx * 2.7;
+      m.cyl([x, 0.0, 0.0], [x, cy - h / 2, 0.0], 0.045, 0.045, 5, [0.5, 0.52, 0.56]);
+      m.cyl([x, 0.02, -0.78], [x, cy - h / 2 + 0.1, -0.04], 0.04, 0.04, 5, [0.45, 0.47, 0.52]);              // the stay: leans back so the board does not tip
+      m.cyl([x, 0.02, 0.78], [x, cy - h / 2 + 0.1, 0.04], 0.04, 0.04, 5, [0.45, 0.47, 0.52]);
+      for (const z of [-0.78, 0.78]) m.box(x, 0.02, z, 0.2, 0.04, 0.2, [0.3, 0.32, 0.35]);
+      m.box(x, cy - h / 2 - 0.12, 0.0, 0.14, 0.1, 0.12, [0.85, 0.86, 0.9]);
+    }
+    return m.geo();
+  }
+  const sponsorFaceGeo = () => mergeGeos([facePlane(6, 1.1, 1.15, 0.031, false), facePlane(6, 1.1, 1.15, 0.031, true)]);
+
+  /* ----- tape line: three stakes and a sagging red / white tape, 7.5 m long, local x along the line, origin on the ground in the middle ----- */
+  function tapeGeo() {
+    const low = quality === 'low', m = modeller(), L = 7.5, segs = low ? 6 : 12, y = (x) => 0.92 - 0.07 * (1 - Math.pow(x / (L / 2), 2));
+    for (const x of [-L / 2, 0, L / 2]) {
+      m.cyl([x, -0.15, 0], [x, 1.0, 0], 0.045, 0.038, low ? 4 : 6, [0.9, 0.2, 0.17]);
+      m.cyl([x, 1.0, 0], [x, 1.07, 0], 0.036, 0.01, low ? 4 : 6, [0.96, 0.96, 0.94]);
+      m.cyl([x, -0.1, 0], [x, 0.08, 0], 0.075, 0.05, low ? 4 : 6, [0.38, 0.36, 0.32], { open: true });
+    }
+    for (let i = 0; i < segs; i++) {
+      const x0 = -L / 2 + L * i / segs, x1 = -L / 2 + L * (i + 1) / segs, col = i % 2 ? [0.96, 0.96, 0.94] : [0.9, 0.16, 0.14];
+      m.quad([x0, y(x0) - 0.05, 0], [x1, y(x1) - 0.05, 0], [x1, y(x1) + 0.05, 0], [x0, y(x0) + 0.05, 0], col, { two: true });
+    }
+    return m.geo();
+  }
+
+  /* ----- guard rails along corners (cornerRails in tracks/scenery.js) -----
+     railPostGeo(h, color, railY, railH): a post with base plate, bolts, a collar where the rail is bolted on and a painted top
+     railGeo(style, h, color): a unit-long rail (the instance scales it to the length), 'guard' = corrugated steel beam (W profile), anything else = two timber boards */
+  function railPostGeo(h, col, railY, railH) {
+    const low = quality === 'low', m = modeller(), dk = mulRGB(col, 0.7), bolt = [0.85, 0.86, 0.9];
+    m.box(0, h / 2 - 0.1, 0, 0.12, h + 0.2, 0.12, col); m.box(0, railY, 0, 0.19, railH + 0.06, 0.19, dk);
+    if (!low) { m.box(0, h + 0.015, 0, 0.15, 0.05, 0.15, [0.9, 0.9, 0.88]); m.box(0, railY, 0.1, 0.05, 0.05, 0.02, bolt); }
+    return m.geo();
+  }
+  function railGeo(style, h, col) {
+    const m = modeller(), t = 0.012;
+    if (style === 'guard') {
+      const f = h / 2, low = quality === 'low', z = low ? [0, 0.05, 0.05, 0] : [0, 0.055, 0.055, 0, 0, 0.055, 0.055, 0], yy = (low ? [-1, -0.4, 0.4, 1] : [-1, -0.82, -0.52, -0.34, 0.34, 0.52, 0.82, 1]).map(v => v * f);
+      m.sweep(yy.map((y, i) => [y, z[i]]), -0.5, 0.5, col, { open: true });
+    } else {
+      for (const k of [-1, 1]) m.box(0, k * h * 0.26, 0, 1, h * 0.42, 0.05, mulRGB(col, k > 0 ? 1 : 0.9));
+      m.box(0, 0, -0.015, 1, h * 1.0, 0.02, mulRGB(col, 0.7));
+    }
+    return m.geo();
+  }
+  /* ---------- trackside detail builders (art): small 3D things for tracks to place ----------
+     tracks decides WHERE and HOW MANY; each builder here only decides how the thing looks. Every builder takes a list of items and makes one
+     instanced mesh per kind (one draw call; up to 3-4 for builders with printed faces), adds it to the stage and returns what it made.
+     None of them adds an obstacle: if the car can hit it, push your own `obstacles` entry (a circle {x, z, r} or a segment).
+     No builder draws from the stage's random generator. Ground height is looked up with terrain.heightAt unless you give y.
+
+     Every item has:  x, z (world), yaw (radians; the thing's local +z, its "front", looks along (sin yaw, cos yaw); the road direction p.th works for things
+     that should stand parallel to the road, p.th +/- PI/2 for things that face it), y (optional ground height), s (optional scale, default 1),
+     color (optional hex, only where stated). Sizes below are in metres at s = 1.
+
+       hayBales(list)        a straw bale 0.9 x 0.45 x 0.5 (long side along local x), roped. Extra: layer (0, 1, 2 = stacked on top, each 0.45 m up), color (straw tint, default none).
+       hayRow(pts, opt)      -> list for hayBales: pts = [{x, z}, ...] path points; opt.rows (1..3 layers high, default 2), opt.gap (default 0.05 m), opt.stagger (true:
+                             brick pattern); bales are laid along the path, turned to follow it.
+       flagPoles(list)       a 4.2 m flag pole with a flag 1.3 x 0.8 that flutters in the shader. Extra: color (hex of the flag's top half, default red; lower half white).
+       marshalPosts(list)    a marshal point: hi-vis marshal (3D person), warning post with orange board, two cones, folding chair, red triangle. Extra: flag (true: the marshal holds a
+                             yellow / black flag up). The marshal stands 1.1 m to the local +x side.
+       photographers(list)   a spectator in a hi-vis bib with a big camera at the face (3D person). Extra: kid, shirt (palette number, default hi-vis).
+       serviceTents(list)    a 3 x 3 m gazebo with a coloured roof and valance, back and side wall, table with tools, two chairs, tyre stack, fuel cans.
+                             Extra: color (roof, default red), w (width 3 or 4.5; stretches the tent).
+       tvTowers(list)        a scaffold tower 2.6 x 2.6 m, 7 m high, ladder, platform with rail and a TV camera on a tripod. Extra: none.
+       portaLoos(list)       a portable toilet cabin 1.15 x 1.15 x 2.4 m, door facing local +z. Extra: color (cabin, default light blue).
+       parkedCars(list)      a spectator car, 4.2 x 1.7 m. Extra: kind 'hatch' (default) | 'estate' | 'pickup', color (paint, hex; default picked from a palette by position).
+       signPosts(list)       a 2.6 m post with a direction board 1.3 x 0.5 m (printed both sides), the arrow points to the RIGHT as you face the board.
+                             Extra: kind 'spectator' (green) | 'parking' (blue P) | 'service' (orange) | 'wc' (navy).
+       spectatorGroup(spot, opt)   adds a group of 3D spectators: spot = {x, z, th, side, y?} (th = road direction, side = +1 right / -1 left of the road); opt = see crowdGroup in people.js.
+     People themselves (stand, cheer, point, sit, flag, camera poses; palettes) are in art/people.js: crowdAdd(list) places any list of individuals. */
+  const dHash = (x, z) => { const s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return s - Math.floor(s); };
+  let _detailMat = null;
+  function detailMat() {
+    if (_detailMat) return _detailMat;
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uWT = WIND.uT;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec4 tw;\nuniform float uWT;')
+        .replace('#include <color_vertex>', `
+          #ifdef USE_INSTANCING_COLOR
+            vec3 icol = pow(instanceColor.rgb, vec3(2.2));
+          #else
+            vec3 icol = vec3(1.0);
+          #endif
+          vColor = vec4(pow(color, vec3(2.2)) * mix(vec3(1.0), icol, tw.x), 1.0);`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          #ifdef USE_INSTANCING
+            if (tw.z > 0.0) { float ph = instanceMatrix[3].x * 0.7 + instanceMatrix[3].z * 0.4;
+              transformed.z += tw.z * 0.1 * sin(uWT * 5.0 + position.x * 5.0 + ph); transformed.y += tw.z * 0.045 * sin(uWT * 4.0 + position.x * 6.0 + ph); }
+          #endif`);
+    };
+    m.customProgramCacheKey = () => 'detail'; m.userData.keep = true;
+    return _detailMat = m;
+  }
+  const dPlace = (o, it) => { o.position.set(it.x, it.y != null ? it.y : terrain.heightAt(it.x, it.z), it.z); o.rotation.set(0, it.yaw || 0, 0); o.scale.setScalar(it.s || 1); };
+  const dColor = (def) => (c, it) => { c.setRGB(...hexRGB(it.color != null ? it.color : def)); };
+  const dMesh = (geo, list, opt) => instanced(geo, detailMat(), list, dPlace, opt || {});
+  const TW1 = [1, 0, 0, 0];                                                   // "multiply by the instance colour"
+
+  function hayBales(list) {
+    const m = modeller(), L = 0.9, H = 0.45, D = 0.5;
+    m.box(0, H / 2, 0, L, H, D, (x, y, z, ny) => { const k = 0.82 + 0.18 * ny; return [0.88 * k, 0.74 * k, 0.38 * k]; }, { tw: TW1 });
+    for (const x of [-0.27, 0.27]) m.box(x, H / 2, 0, 0.03, H + 0.014, D + 0.014, [0.42, 0.3, 0.14]);
+    if (quality !== 'low') for (const [x, z] of [[-0.3, 0.1], [0.05, -0.12], [0.34, 0.15]]) m.box(x, H + 0.01, z, 0.16, 0.025, 0.05, [0.95, 0.82, 0.45], { ry: x * 3, tw: TW1 });
+    const it = list.map(b => Object.assign({}, b, { y: (b.y != null ? b.y : terrain.heightAt(b.x, b.z)) + (b.layer || 0) * H }));
+    return instanced(m.geo(), detailMat(), it, dPlace, { color: (c, b) => { const t = b.color != null ? hexRGB(b.color) : [1, 0.96 + 0.04 * dHash(b.x, b.z), 0.92 + 0.08 * dHash(b.z, b.x)]; c.setRGB(t[0], t[1], t[2]); } });
+  }
+  function hayRow(pts, opt = {}) {
+    const rows = opt.rows || 2, gap = opt.gap != null ? opt.gap : 0.05, step = 0.9 + gap, out = [];
+    let acc = 0, k = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z); if (len < 1e-3) continue;
+      const yaw = Math.atan2(-(b.z - a.z), b.x - a.x);                                  // local +x along the path
+      for (let d = acc; d + 0.45 <= len; d += step, k++) {
+        const t = (d + 0.45) / len;
+        for (let r = 0; r < rows; r++) { const sh = opt.stagger !== false && (r & 1) ? step / 2 : 0, tt = t + sh / len; if (tt > 1) continue; out.push({ x: a.x + (b.x - a.x) * tt, z: a.z + (b.z - a.z) * tt, yaw, layer: r }); }
+        acc = d + step - len;
+      }
+      if (acc < 0) acc = 0;
+    }
+    return out;
+  }
+
+  function flagPoles(list) {
+    const m = modeller(), low = quality === 'low', H = 4.2, st = low ? 3 : 6, fw = 1.3, fh = 0.8;
+    m.cyl([0, 0, 0], [0, 0.12, 0], 0.22, 0.2, 8, [0.4, 0.4, 0.42]);
+    m.cyl([0, 0.1, 0], [0, H, 0], 0.05, 0.026, 6, [0.8, 0.82, 0.86]); m.sph(0, H + 0.04, 0, 0.05, 0.05, 0.05, 6, 4, [0.95, 0.85, 0.3]);
+    m.cyl([0, 0.1, 0], [0, 0.5, 0], 0.08, 0.055, 6, [0.55, 0.57, 0.6]);
+    for (let i = 0; i < st; i++) {
+      const x0 = 0.05 + fw * i / st, x1 = 0.05 + fw * (i + 1) / st, tw = (x) => [0, 0, (x - 0.05) / fw, 0];
+      m.quad([x0, H - fh / 2, 0], [x1, H - fh / 2, 0], [x1, H - 0.1, 0], [x0, H - 0.1, 0], [1, 1, 1], { two: true, tw: (x) => [1, 0, (x - 0.05) / fw, 0] });
+      m.quad([x0, H - fh - 0.1, 0], [x1, H - fh - 0.1, 0], [x1, H - fh / 2, 0], [x0, H - fh / 2, 0], [0.96, 0.96, 0.94], { two: true, tw });
+    }
+    return instanced(m.geo(), detailMat(), list, dPlace, { color: dColor(0xd32f2f) });
+  }
+
+  function marshalPosts(list) {
+    const m = modeller(), low = quality === 'low', orange = [1, 0.42, 0.08], white = [0.96, 0.96, 0.94];
+    // warning post with an orange / white striped board
+    m.cyl([0, 0, 0], [0, 2.3, 0], 0.045, 0.045, 6, [0.5, 0.52, 0.56]); m.cyl([0, 0, 0], [0, 0.1, 0], 0.2, 0.17, 8, [0.4, 0.4, 0.42]);
+    m.box(0, 2.05, 0.04, 0.9, 0.5, 0.04, [0.12, 0.13, 0.16]);
+    for (let i = 0; i < 6; i++) m.quad([-0.42 + i * 0.14, 1.82, 0.065], [-0.28 + i * 0.14, 1.82, 0.065], [-0.14 + i * 0.14, 2.28, 0.065], [-0.28 + i * 0.14, 2.28, 0.065], i % 2 ? white : orange);
+    // cones, chair, triangle, first-aid box
+    for (const [x, z] of [[-0.9, 0.9], [0.5, 1.2]]) { m.cyl([x, 0.0, z], [x, 0.5, z], 0.17, 0.04, low ? 6 : 8, orange); m.cyl([x, 0.2, z], [x, 0.3, z], 0.12, 0.1, low ? 6 : 8, white, { open: true }); m.box(x, 0.012, z, 0.4, 0.025, 0.4, [0.1, 0.1, 0.12]); }
+    m.box(-0.6, 0.42, -0.5, 0.45, 0.04, 0.42, [0.12, 0.3, 0.7]); m.box(-0.6, 0.66, -0.7, 0.45, 0.45, 0.04, [0.12, 0.3, 0.7]);
+    for (const a of [-1, 1]) for (const b of [-1, 1]) m.cyl([-0.6 + a * 0.2, 0, -0.5 + b * 0.18], [-0.6 + a * 0.2, 0.42, -0.5 + b * 0.18], 0.015, 0.015, 3, [0.7, 0.72, 0.76], { open: true });
+    m.box(0.9, 0.16, -0.4, 0.4, 0.3, 0.25, [0.9, 0.9, 0.9]); m.box(0.9, 0.17, -0.274, 0.2, 0.06, 0.01, [0.85, 0.1, 0.1]); m.box(0.9, 0.17, -0.274, 0.06, 0.2, 0.01, [0.85, 0.1, 0.1]);
+    const tri = (s) => { m.tri([0, 0.0, 1.4 + s], [0.3, 0.0, 1.4 - 0.1 + s], [0.15, 0.32, 1.4 + s], [0.85, 0.1, 0.1], { two: true }); };
+    m.at(1.2, 0, 0.3, 0.5, () => tri(0));
+    const geo = m.geo(), mesh = instanced(geo, detailMat(), list, dPlace, {});
+    const people = list.map(it => { const yaw = it.yaw || 0, s = it.s || 1, ox = Math.cos(yaw) * 1.1 * s, oz = -Math.sin(yaw) * 1.1 * s;
+      return { x: it.x + ox, z: it.z + oz, y: it.y, yaw: yaw + 0.4, pose: it.flag ? 'flag' : 'stand', shirt: SHIRT_HIVIS, hat: 1, kid: false, s: 1.0, amp: 0.5 }; });
+    crowdAdd(people);
+    return mesh;
+  }
+  function photographers(list) {
+    crowdAdd(list.map(it => ({ x: it.x, z: it.z, y: it.y, yaw: it.yaw || 0, pose: 'camera', shirt: it.shirt != null ? it.shirt : SHIRT_HIVIS, hat: it.hat != null ? it.hat : 1, kid: !!it.kid, amp: 0.3 })));
+  }
+  function spectatorGroup(spot, opt) { crowdAdd(crowdGroup(spot, opt)); }
+
+  function serviceTents(list) {
+    const m = modeller(), low = quality === 'low', alu = [0.78, 0.8, 0.84], W = 3.0, D = 3.0, hs = 2.35, hp = 3.3;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const x = sx * W / 2, z = sz * D / 2;
+      m.box(x, hs / 2, z, 0.07, hs, 0.07, alu); m.box(x, 0.02, z, 0.2, 0.04, 0.2, [0.4, 0.4, 0.42]);
+      m.cyl([x, hs - 0.2, z], [x * 0.55, hs + 0.35, z * 0.55], 0.025, 0.025, 4, alu, { open: true });
+    }
+    const roof = [0.95, 0.95, 0.95], rc = { tw: TW1 }, E = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    const eave = E.map(([a, b]) => [a * (W / 2 + 0.25), hs + 0.35, b * (D / 2 + 0.25)]), peak = [0, hp + 0.15, 0];
+    for (let i = 0; i < 4; i++) m.tri(eave[i], eave[(i + 1) % 4], peak, (x, y) => [roof[0], roof[1], roof[2]], Object.assign({ two: true }, rc));
+    for (let i = 0; i < 4; i++) {                                                                       // valance
+      const a = eave[i], b = eave[(i + 1) % 4];
+      m.quad([a[0], a[1] - 0.3, a[2]], [b[0], b[1] - 0.3, b[2]], [b[0], b[1], b[2]], [a[0], a[1], a[2]], [0.97, 0.97, 0.96], { two: true });
+      m.quad([a[0], a[1] - 0.3, a[2]], [b[0], b[1] - 0.3, b[2]], [b[0], b[1] - 0.2, b[2]], [a[0], a[1] - 0.2, a[2]], [0.15, 0.16, 0.2], { two: true });
+    }
+    m.quad([-W / 2, 0, -D / 2], [W / 2, 0, -D / 2], [W / 2, hs, -D / 2], [-W / 2, hs, -D / 2], [0.92, 0.93, 0.95], { two: true });          // back and left wall
+    m.quad([-W / 2, 0, D / 2], [-W / 2, 0, -D / 2], [-W / 2, hs, -D / 2], [-W / 2, hs, D / 2], [0.9, 0.91, 0.94], { two: true });
+    m.box(0.1, 0.78, -0.95, 2.1, 0.05, 0.8, [0.7, 0.55, 0.38]); for (const a of [-1, 1]) for (const b of [-1, 1]) m.box(0.1 + a * 0.95, 0.38, -0.95 + b * 0.32, 0.05, 0.76, 0.05, alu);
+    m.box(-0.5, 0.92, -0.95, 0.5, 0.22, 0.3, [0.8, 0.12, 0.1]); m.box(0.5, 0.88, -0.9, 0.35, 0.14, 0.35, [0.2, 0.22, 0.26]); m.box(0.9, 0.9, -1.0, 0.2, 0.18, 0.2, [0.95, 0.75, 0.1]);
+    for (const x of [-0.5, 0.4]) { m.box(x, 0.42, 0.15, 0.42, 0.04, 0.4, [0.15, 0.3, 0.6]); m.box(x, 0.66, -0.04, 0.42, 0.45, 0.04, [0.15, 0.3, 0.6]); }
+    for (let k = 0; k < 3; k++) m.cyl([1.0, 0.1 + k * 0.22, 0.8], [1.0, 0.3 + k * 0.22, 0.8], 0.33, 0.33, low ? 8 : 12, [0.1, 0.1, 0.11]);
+    m.box(-1.1, 0.25, 0.9, 0.3, 0.5, 0.12, [0.7, 0.12, 0.1]); m.box(-0.8, 0.25, 1.0, 0.3, 0.5, 0.12, [0.7, 0.12, 0.1], { ry: 0.5 });
+    return instanced(m.geo(), detailMat(), list.map(t => Object.assign({}, t, { s: t.s })), (o, t) => { dPlace(o, t); o.scale.set((t.w || 3) / 3 * (t.s || 1), t.s || 1, t.s || 1); }, { color: dColor(0xd32f2f) });
+  }
+
+  function tvTowers(list) {
+    const m = modeller(), low = quality === 'low', S = 1.3, steel = [0.62, 0.64, 0.68], H = 7;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { m.cyl([sx * S, 0.05, sz * S], [sx * S, H, sz * S], 0.045, 0.045, 5, steel); m.box(sx * S, 0.03, sz * S, 0.3, 0.06, 0.3, [0.35, 0.36, 0.4]); }
+    const bay = 1.4;
+    for (let y = 0; y < H - 0.5; y += bay) for (let f = 0; f < 4; f++) {
+      const a = [[-S, -S], [S, -S], [S, S], [-S, S]][f], b = [[-S, -S], [S, -S], [S, S], [-S, S]][(f + 1) % 4];
+      m.cyl([a[0], y + bay, a[1]], [b[0], y + bay, b[1]], 0.025, 0.025, 4, steel, { open: true });
+      if (f !== 0) { m.cyl([a[0], y, a[1]], [b[0], y + bay, b[1]], 0.018, 0.018, 3, steel, { open: true }); if (!low) m.cyl([b[0], y, b[1]], [a[0], y + bay, a[1]], 0.018, 0.018, 3, steel, { open: true }); }
+    }
+    for (let y = 0.4; y < H - 0.8; y += low ? 0.7 : 0.35) m.box(0, y, -S - 0.06, 0.5, 0.03, 0.03, steel);                // ladder on the -z face
+    for (const sx of [-0.25, 0.25]) m.box(sx, H / 2, -S - 0.06, 0.04, H - 0.5, 0.04, steel);
+    m.box(0, H - 0.5, 0, 2 * S + 0.3, 0.1, 2 * S + 0.3, [0.66, 0.5, 0.32]);                                          // platform
+    for (const [x, z, w, d] of [[0, S + 0.12, 2 * S + 0.3, 0.04], [-S - 0.12, 0, 0.04, 2 * S + 0.3], [S + 0.12, 0, 0.04, 2 * S + 0.3]]) { m.box(x, H + 0.1, z, w, 0.05, d, steel); m.box(x, H - 0.2, z, w, 0.04, d, steel); }
+    for (const [x, z] of [[-S, S], [S, S]]) m.box(x, H + 0.4, z, 0.06, 0.8, 0.06, steel);
+    for (let k = 0; k < 3; k++) { const a = k * 2.1 + 0.5; m.cyl([Math.cos(a) * 0.5, H - 0.4, Math.sin(a) * 0.5], [0, H + 0.45, 0], 0.025, 0.02, 4, [0.1, 0.1, 0.12], { open: true }); }       // tripod
+    m.box(0, H + 0.62, 0.0, 0.42, 0.34, 0.8, [0.9, 0.9, 0.92]); m.cyl([0, H + 0.64, 0.4], [0, H + 0.64, 1.0], 0.12, 0.17, 8, [0.12, 0.12, 0.14]); m.box(0, H + 0.82, -0.1, 0.26, 0.12, 0.3, [0.1, 0.1, 0.12]);
+    m.box(1.0, H + 0.55, -0.3, 0.5, 0.5, 0.45, [0.95, 0.6, 0.1]);                                                   // a flight case
+    return instanced(m.geo(), detailMat(), list, dPlace, { shadow: true });
+  }
+
+  function portaLoos(list) {
+    const m = modeller(), W = 1.15, H = 2.3;
+    m.box(0, 0.09, 0, W + 0.06, 0.18, W + 0.06, [0.3, 0.32, 0.36]);
+    m.box(0, H / 2 + 0.18, 0, W, H, W, (x, y, z, ny) => { const k = 0.88 + 0.12 * (y / H); return [0.55 * k, 0.78 * k, 0.95 * k]; }, { tw: TW1 });
+    m.box(0, H + 0.22, 0, W + 0.12, 0.08, W + 0.12, [0.95, 0.95, 0.96]); m.cyl([0.3, H + 0.26, -0.3], [0.3, H + 0.55, -0.3], 0.07, 0.07, 6, [0.8, 0.82, 0.86]);
+    m.box(0, 1.1, W / 2 + 0.012, 0.85, 1.9, 0.03, [0.98, 0.98, 0.98], { tw: [0.35, 0, 0, 0] });
+    for (let k = 0; k < 4; k++) m.box(0, 2.0 + k * 0.06, W / 2 + 0.032, 0.5, 0.02, 0.01, [0.1, 0.1, 0.12]);
+    m.box(0.3, 1.1, W / 2 + 0.04, 0.05, 0.14, 0.04, [0.2, 0.2, 0.24]); m.box(0.3, 1.32, W / 2 + 0.035, 0.07, 0.09, 0.02, [0.15, 0.75, 0.25]);
+    m.box(0, 2.35, W / 2 + 0.01, 0.4, 0.14, 0.01, [0.1, 0.3, 0.7]);
+    return instanced(m.geo(), detailMat(), list, dPlace, { color: dColor(0xffffff) });
+  }
+
+  const CAR_PROFILES = {
+    hatch: { len: 4.1, p: [[0.25, -2.0], [0.5, -2.05], [0.95, -1.98], [1.32, -1.2], [1.42, -0.5], [1.42, 0.45], [1.02, 1.05], [0.92, 2.0], [0.55, 2.08], [0.25, 1.95]], win: [-1.15, 0.95], wy: [1.02, 1.36] },
+    estate: { len: 4.5, p: [[0.25, -2.2], [0.5, -2.25], [1.05, -2.2], [1.45, -1.95], [1.5, 0.35], [1.04, 1.1], [0.92, 2.1], [0.55, 2.18], [0.25, 2.05]], win: [-1.9, 0.9], wy: [1.04, 1.4] },
+    pickup: { len: 4.6, p: [[0.3, -2.3], [0.55, -2.35], [0.98, -2.3], [0.98, -0.7], [1.5, -0.55], [1.5, 0.45], [1.04, 1.0], [0.95, 2.1], [0.55, 2.2], [0.3, 2.05]], win: [-0.5, 0.9], wy: [1.08, 1.42] },
+  };
+  const CAR_PAINT = [0xc0392b, 0x2e6fb7, 0xd9d9d9, 0x3a3d45, 0x2f8f5b, 0xe0a82e, 0x9aa0a8, 0x7e57c2, 0xd35400, 0x4a78b5, 0xf0f0ea, 0x7a2f2f];
+  function carGeo(kind) {
+    const m = modeller(), K = CAR_PROFILES[kind] || CAR_PROFILES.hatch, hw = 0.86, low = quality === 'low', pr = K.p;
+    m.sweep(pr, -hw, hw, (x, y, z, ny) => { const k = 0.8 + 0.2 * clamp(ny + 0.5, 0, 1); return [k, k, k]; }, { tw: TW1 });
+    let cy = 0, cz = 0; for (const [y, z] of pr) { cy += y; cz += z; } cy /= pr.length; cz /= pr.length;
+    for (const sx of [-1, 1]) for (let i = 0; i < pr.length; i++) {                                  // side panels (fan from the middle)
+      const a = pr[i], b = pr[(i + 1) % pr.length], x = sx * hw, c = (x, y, z) => { const k = 0.9; return [k, k, k]; };
+      const sgn = ((a[0] - cy) * (b[1] - cz) - (a[1] - cz) * (b[0] - cy)) * sx;
+      if (sgn > 0) m.tri([x, cy, cz], [x, a[0], a[1]], [x, b[0], b[1]], [0.92, 0.92, 0.92], { tw: TW1 }); else m.tri([x, cy, cz], [x, b[0], b[1]], [x, a[0], a[1]], [0.92, 0.92, 0.92], { tw: TW1 });
+    }
+    const glass = [0.16, 0.22, 0.3], [z0, z1] = K.win, [y0, y1] = K.wy;
+    for (const sx of [-1, 1]) { const x = sx * (hw + 0.012); m.quad([x, y0, z0], [x, y0, z1], [x, y1, z1 - 0.3], [x, y1, z0 + 0.25], glass, { two: true }); }
+    m.quad([-0.76, y1 - 0.02, z1 - 0.32], [0.76, y1 - 0.02, z1 - 0.32], [0.76, y0 - 0.0, z1 + 0.02], [-0.76, y0 - 0.0, z1 + 0.02], glass, { two: true });
+    for (const sx of [-1, 1]) for (const z of [-K.len / 2 + 0.85, K.len / 2 - 0.85]) {
+      const x = sx * 0.79; m.cyl([x - 0.13, 0.31, z], [x + 0.13, 0.31, z], 0.31, 0.31, low ? 8 : 12, [0.1, 0.1, 0.11]); m.cyl([x + sx * 0.13, 0.31, z], [x + sx * 0.14, 0.31, z], 0.17, 0.17, low ? 6 : 8, [0.72, 0.74, 0.78]);
+    }
+    for (const sx of [-1, 1]) { m.box(sx * 0.62, 0.7, K.len / 2 + 0.01, 0.3, 0.12, 0.05, [1, 0.97, 0.85]); m.box(sx * 0.66, 0.72, -K.len / 2 - 0.02, 0.28, 0.1, 0.04, [0.8, 0.1, 0.08]); }
+    m.box(0, 0.4, -K.len / 2 - 0.03, 0.5, 0.12, 0.03, [0.95, 0.95, 0.9]);
+    if (kind === 'pickup') { m.box(0, 1.07, -1.5, 1.5, 0.03, 1.6, [0.14, 0.14, 0.16]); for (const sx of [-1, 1]) m.box(sx * 0.8, 1.14, -1.5, 0.07, 0.16, 1.7, [0.5, 0.5, 0.54]); m.box(0, 1.14, -2.3, 1.7, 0.16, 0.07, [0.5, 0.5, 0.54]); }
+    return m.geo();
+  }
+  function parkedCars(list) {
+    const out = [];
+    for (const kind of ['hatch', 'estate', 'pickup']) {
+      const l = list.filter(c => (c.kind || 'hatch') === kind); if (!l.length) continue;
+      out.push(instanced(carGeo(kind), detailMat(), l, dPlace, { color: (c, it) => { const h = it.color != null ? it.color : CAR_PAINT[Math.floor(dHash(it.x, it.z) * CAR_PAINT.length)]; c.setRGB(...hexRGB(h)); } }));
+    }
+    return out;
+  }
+
+  const SIGN_KINDS = { spectator: [0, '#1f8a4c', '#ffffff', 'SPECTATORS'], parking: [1, '#1d5fd1', '#ffffff', 'P'], service: [2, '#f0a01e', '#16181c', 'SERVICE'], wc: [3, '#1a2a5a', '#ffffff', 'WC'] };
+  let _signTex = null;
+  function signAtlas() {
+    if (_signTex) return _signTex;
+    _signTex = canvasTex(512, 256, (g) => {
+      for (const [id, bg, fg, txt] of Object.values(SIGN_KINDS)) {
+        const cx = (id % 2) * 256, cy = Math.floor(id / 2) * 128;
+        g.fillStyle = '#16181c'; g.fillRect(cx, cy, 256, 128); g.fillStyle = bg; g.fillRect(cx + 5, cy + 5, 246, 118);
+        g.fillStyle = fg; g.font = '800 ' + (txt.length > 4 ? 40 : 66) + 'px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, cx + 108, cy + 66);
+        g.beginPath(); g.moveTo(cx + 196, cy + 28); g.lineTo(cx + 240, cy + 64); g.lineTo(cx + 196, cy + 100); g.lineTo(cx + 196, cy + 78); g.lineTo(cx + 170, cy + 78); g.lineTo(cx + 170, cy + 50); g.lineTo(cx + 196, cy + 50); g.closePath(); g.fill();
+      }
+    });
+    _signTex.userData.keep = true; return _signTex;
+  }
+  function signPosts(list) {
+    const m = modeller(), bw = 1.3, bh = 0.5, by = 2.3, steel = [0.55, 0.58, 0.62];
+    m.cyl([0, 0, 0], [0, 2.7, 0], 0.045, 0.045, 6, steel); m.cyl([0, 0, 0], [0, 0.12, 0], 0.16, 0.14, 7, [0.45, 0.45, 0.43]);
+    m.box(0, by, 0, bw + 0.08, bh + 0.08, 0.04, [0.12, 0.13, 0.16]);
+    for (const sy of [-0.15, 0.15]) m.box(0, by + sy, -0.035, 0.12, 0.06, 0.04, [0.85, 0.86, 0.9]);
+    const mesh = instanced(m.geo(), detailMat(), list, dPlace, {}), meshes = [mesh];
+    for (const [kind, [id]] of Object.entries(SIGN_KINDS)) {
+      const l = list.filter(s => (s.kind || 'spectator') === kind); if (!l.length) continue;
+      const cell = (flip) => { const g = new THREE.PlaneGeometry(bw, bh); g.translate(0, by, 0); const uv = g.attributes.uv, u0 = (id % 2) / 2, v0 = 1 - (Math.floor(id / 2) + 1) / 2;
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * 0.5, v0 + uv.getY(i) * 0.5);
+        if (flip) { g.rotateY(Math.PI); g.translate(0, 0, -0.026); } else g.translate(0, 0, 0.026); return g; };
+      meshes.push(instanced(mergeGeos([cell(false), cell(true)]), new THREE.MeshBasicMaterial({ map: signAtlas() }), l, dPlace, { shadow: false }));
+    }
+    return meshes;
+  }
   /* ---------- theme: forest (Kettle Ridge) ---------- */
   function sceneryForest(rng) {
     const trees = scatter(rng, 2600, 12000, (x, z, d, y, s0) => {
@@ -3998,7 +4779,7 @@ function boot() {
     conifers(cedars.concat(groves), (c) => c.setRGB(0.10 + rng() * 0.04, 0.34 + rng() * 0.08, 0.26 + rng() * 0.05), { tall: 1.6, wide: 0.7 });
     rocks(rng, roadsideRocks(rng, 90, p => p.s > 700 && p.s < city0 - 60));
     // white guardrails on the pass
-    cornerRails(t => t.r <= 80 && t.s0 > 680 && t.s1 < city0 - 30, { postColor: 0x8d939c, railColor: 0xeef1f5, railH: 0.32, railY: 0.62, offset: 1.4, postH: 0.8, solid: true });
+    cornerRails(t => t.r <= 80 && t.s0 > 680 && t.s1 < city0 - 30, { postColor: 0x8d939c, railColor: 0xeef1f5, style: 'guard', railH: 0.32, railY: 0.62, offset: 1.4, postH: 0.8, solid: true });
 
     // tunnel of vermilion torii gates
     const VERM = 0xe2432b, gates = [];
@@ -4147,32 +4928,14 @@ function boot() {
   /* ---------- trackside: spectators behind tape and sponsor boards (all brands invented) ---------- */
   const SPONSORS = [['ROTOR OIL', '#d32f2f', '#ffffff'], ['KAISER TYRES', '#ffd600', '#111111'], ['NOVA FUEL', '#1565c0', '#ffffff'], ['GRIPMAX', '#111111', '#ffd600'],
     ['SOLARIS', '#ef6c00', '#ffffff'], ['TURBO COLA', '#c62828', '#ffe082'], ['VELOCE', '#2e7d32', '#ffffff'], ['ZENITH WATCHES', '#283593', '#ffd54f']];
-  let sponsorMats = null, crowdTex = null;
+  let sponsorMats = null;
   function getSponsorMats() {
     if (!sponsorMats) sponsorMats = SPONSORS.map(([txt, bg, fg]) => lit({ map: canvasTex(512, 96, (g, w, h) => {
       g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; g.fillRect(0, 6, w, 4); g.fillRect(0, h - 10, w, 4);
       g.font = 'italic 900 58px "Arial Black", "Saira Condensed", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = fg; g.fillText(txt, w / 2, h / 2 + 2);
-    }), side: THREE.DoubleSide }));
+    }) }));
     for (const m of sponsorMats) { m.userData.keep = true; m.map.userData.keep = true; }     // cached for every stage: the stage dispose leaves them
     return sponsorMats;
-  }
-  function getCrowdTex() {
-    if (!crowdTex) {
-      crowdTex = makeTex(512, 128, (g, w, h) => {
-        g.clearRect(0, 0, w, h);
-        const r = mulberry32(11), shirts = ['#d32f2f', '#1976d2', '#fbc02d', '#388e3c', '#f5f5f5', '#212121', '#7b1fa2', '#f57c00', '#00897b'], skins = ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac'];
-        for (let row = 0; row < 2; row++) for (let i = 0; i < 26; i++) {
-          const x = 10 + i * 19.2 + r() * 6 + row * 9, base = h - 4 - row * 26, bh = 34 + r() * 12;
-          g.fillStyle = shirts[r() * shirts.length | 0]; g.fillRect(x - 7, base - bh, 14, bh - 12);
-          g.fillStyle = '#2b2b33'; g.fillRect(x - 6, base - 14, 12, 14);
-          g.fillStyle = skins[r() * skins.length | 0]; g.beginPath(); g.arc(x, base - bh - 6, 6.5, 0, 7); g.fill();
-          if (r() < 0.25) { g.fillStyle = shirts[r() * shirts.length | 0]; g.fillRect(x + 4, base - bh - 26, 2, 22); g.fillRect(x + 6, base - bh - 26, 16, 10); }      // flag
-          if (r() < 0.2) { g.fillStyle = '#222'; g.fillRect(x - 8, base - bh - 4, 16, 3); }                                                      // cap
-        }
-      });
-      crowdTex.wrapS = THREE.RepeatWrapping; crowdTex.wrapT = THREE.ClampToEdgeWrapping;
-    }
-    return crowdTex;
   }
   function trackside(rng) {
     const boards = [], crowds = [], tapes = [];
@@ -4183,30 +4946,25 @@ function boot() {
     for (const cp of ST.checkpoints) for (const d of [-22, -10, 10]) addBoard(cp + d, d < 0 ? -1 : 1);
     for (let s0 = track.finishS - 70; s0 < track.finishS + 30; s0 += 12) { addBoard(s0, 1); addBoard(s0 + 6, -1); }
     // spectators: start, finish, tight corners (outside, well back) and jumps
-    const spots = [[30, 1], [44, -1], [track.finishS - 30, -1], [track.finishS + 15, 1]];
-    for (const t of track.turns) if (t.r <= 45) spots.push([(t.s0 + t.s1) / 2, t.dir === 'R' ? -1 : 1]);
-    for (const [js] of ST.jumps) spots.push([js + 8, 1], [js + 8, -1]);
-    for (const [s0, side] of spots) {
+    const spots = [[30, 1, 'start'], [44, -1, 'start'], [track.finishS - 30, -1, 'finish'], [track.finishS + 15, 1, 'finish']];
+    for (const t of track.turns) if (t.r <= 45) spots.push([(t.s0 + t.s1) / 2, t.dir === 'R' ? -1 : 1, 'corner']);
+    for (const [js] of ST.jumps) spots.push([js + 8, 1, 'jump'], [js + 8, -1, 'jump']);
+    for (const [s0, side, tag] of spots) {
       if (s0 > city - 20 && s0 < track.finishS - 40) continue;
       for (let k = -1; k <= 1; k++) {
         const p = sampleAt(s0 + k * 7.5), off = side * (half + 6.5 + rng() * 1.5), [x, z] = sideXZ(p, off);
         if (!groundOk(x, z, p)) continue;
-        crowds.push({ x, z, y: terrain.heightAt(x, z), th: p.th, side, u: rng() });
+        crowds.push({ x, z, y: terrain.heightAt(x, z), th: p.th, side, u: rng(), tag });
         const [tx, tz] = sideXZ(p, side * (half + 4.2)); tapes.push({ x: tx, z: tz, y: terrain.heightAt(tx, tz), th: p.th });
         obstacles.push({ x: tx, z: tz, r: 0.2 });
       }
     }
-    const mats = getSponsorMats();
-    mats.forEach((m, mi) => {
-      const list = boards.filter(b => b.k % mats.length === mi);
-      instanced(new THREE.PlaneGeometry(6, 1.1).translate(0, 1.15, 0), m, list, (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.th + (b.side > 0 ? Math.PI / 2 : -Math.PI / 2), 0); o.scale.setScalar(1); });
-    });
-    instanced(new THREE.BoxGeometry(0.1, 1.7, 0.1).translate(0, 0.85, 0), lit({ color: 0x9aa0a8 }), boards.flatMap(b => [-2.9, 2.9].map(d => ({ x: b.x + Math.sin(b.th) * d, z: b.z + Math.cos(b.th) * d, y: b.y }))), (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
-    const cm = lit({ map: getCrowdTex(), alphaTest: 0.5, side: THREE.DoubleSide });
-    const crowdMesh = instanced(new THREE.PlaneGeometry(7.5, 1.9).translate(0, 0.95, 0), cm, crowds, (o, c) => { o.position.set(c.x, c.y, c.z); o.rotation.set(0, c.th + (c.side > 0 ? Math.PI / 2 : -Math.PI / 2), 0); o.scale.setScalar(1); });
-    crowdMesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: getCrowdTex(), alphaTest: 0.5 });
-    instanced(new THREE.BoxGeometry(7.5, 0.12, 0.02).translate(0, 0.9, 0), lit({ map: canvasTex(64, 8, (g) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#e53935'; g.fillRect(i * 8, 0, 8, 8); } }) }), tapes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th + Math.PI / 2, 0); o.scale.setScalar(1); }, { shadow: false });
-    instanced(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 5).translate(0, 0.5, 0), lit({ color: 0xe53935 }), tapes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
+    const mats = getSponsorMats(), sponsorPlace = (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.th + (b.side > 0 ? Math.PI / 2 : -Math.PI / 2), 0); o.scale.setScalar(1); };
+    const faces = sponsorFaceGeo();
+    mats.forEach((m, mi) => instanced(faces, m, boards.filter(b => b.k % mats.length === mi), sponsorPlace));
+    instanced(sponsorFrameGeo(), structMat(), boards, sponsorPlace);                // frame, legs and stays (3D), one mesh for all sponsors
+    for (const c of crowds) crowdAdd(crowdGroup(c, { tag: c.tag }));              // 3D spectators (art/people.js)
+    instanced(tapeGeo(), structMat(), tapes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th + Math.PI / 2, 0); o.scale.setScalar(1); }, { shadow: false });      // stakes and sagging tape (3D)
     readabilityBoards();
   }
 
@@ -4247,11 +5005,13 @@ function boot() {
       g.fillStyle = '#e8322b'; for (let k = 0; k < (label === '100' ? 3 : 2); k++) g.fillRect(14, 74 + k * 15, 68, 9);
       g.fillStyle = '#16181c'; g.font = '800 40px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, 48, 40);
     });
-    const board = (list, tex, w, h) => instanced(new THREE.PlaneGeometry(w, h).translate(0, 1.9 + h / 2 - 0.3, 0), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }), list,
-      (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.rot, 0); o.scale.setScalar(1); }, { shadow: false });
-    board(signs.R, chev(true), 2.3, 1.7); board(signs.L, chev(false), 2.3, 1.7);
-    board(signs.b100, dist('100'), 1.3, 1.75); board(signs.b50, dist('50'), 1.3, 1.75);
-    instanced(new THREE.BoxGeometry(0.1, 1, 0.1).translate(0, 0.5, 0), lit({ color: 0x55595f }), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.set(1, q.h, 1); }, { shadow: false });
+    const placeB = (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.rot, 0); o.scale.setScalar(1); };
+    const board = (list, tex, w, h) => instanced(boardFaceGeo(w, h), new THREE.MeshBasicMaterial({ map: tex }), list, placeB, { shadow: false });
+    const frame = (list, w, h) => instanced(boardFrameGeo(w, h), structMat(), list, placeB, { shadow: false });
+    board(signs.R, chev(true), 2.3, 1.7); board(signs.L, chev(false), 2.3, 1.7); frame(signs.R.concat(signs.L), 2.3, 1.7);
+    board(signs.b100, dist('100'), 1.3, 1.75); board(signs.b50, dist('50'), 1.3, 1.75); frame(signs.b100.concat(signs.b50), 1.3, 1.75);
+    instanced(postGeo(), structMat(), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.set(1, q.h, 1); }, { shadow: false });
+    instanced(postFootGeo(), structMat(), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
   }
 
   /* ---------- gates: start, checkpoints, finish ---------- */
@@ -4266,15 +5026,18 @@ function boot() {
       }
     });
   }
-  function makeGate(s, text, bg, fg, checker) {
+  // look = { kind: 'arch' | 'truss', lights: 'start' | 'finish' | 'cp' }: the 3D structure is built in art/structures.js (gateModel)
+  function makeGate(s, text, bg, fg, checker, look = { kind: 'arch' }) {
     const p = sampleAt(s), g = new THREE.Group(), w = half * 2 + 3.4;
-    const postMat = lit({ color: 0x2b2f33 });
-    for (const sx of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.32, 5.6, 0.32), postMat); post.position.set(sx * w / 2, 2.8, 0); post.castShadow = true; g.add(post); }
+    const M = gateModel(look.kind, w, { c1: cssRGB(bg), c2: cssRGB(fg), checker, lights: look.lights });
+    const body = new THREE.Mesh(M.struct, structMat()); body.castShadow = body.receiveShadow = true; g.add(body);
+    g.add(new THREE.Mesh(M.beacons, beaconMat()));
     const mat = new THREE.MeshBasicMaterial({ map: labelTexture(text, bg, fg, checker), side: THREE.FrontSide, fog: true });
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, (w + 0.3) / 8), mat); front.position.set(0, 5.0, 0.02);
-    const back = front.clone(); back.rotation.y = Math.PI; back.position.z = -0.02;
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(M.bw, M.bh), mat); front.position.set(0, M.bannerY, M.bannerZ);
+    const back = front.clone(); back.rotation.y = Math.PI; back.position.z = -M.bannerZ;
     g.add(front, back);
     g.position.set(p.x, terrain.heightAt(p.x, p.z), p.z); g.rotation.y = p.th;
+    if (ST.look.night) for (const [lx, ly, lz, c] of M.glows) glowSpots.push({ x: g.position.x + lx * Math.cos(p.th) + lz * Math.sin(p.th), y: g.position.y + ly, z: g.position.z - lx * Math.sin(p.th) + lz * Math.cos(p.th), c, size: 1.4 });
     add(g);
   }
 
@@ -4306,15 +5069,16 @@ function boot() {
     if (stageGroup) { scene.remove(stageGroup); disposeTree(stageGroup); }
     stageGroup = new THREE.Group(); scene.add(stageGroup);
     track = buildTrack(ST); terrain = buildTerrain(track, ST); world = makeWorld(track, terrain, ST); P = track.samples;
-    obstacles = [];
+    obstacles = []; crowdReset();
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
     if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
-    makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff');
-    ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216'));
-    makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true);
+    makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
+    ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216', false, { kind: 'truss', lights: 'cp' }));
+    makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
+    crowdBuild();
     hashObstacles();
     buildMinimap();
     applyLook(ST.look);
@@ -6752,7 +7516,7 @@ function boot() {
   }
   function renderFrame(dt) {
     if (stageGroup && (prewarmFor !== stageGroup || prewarmQ !== quality)) { prewarmFor = stageGroup; prewarmQ = quality; prewarm(); }
-    updateTrees(dt); updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
+    updateTrees(dt); updateCrowd(); updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
     if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;

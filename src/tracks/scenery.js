@@ -98,11 +98,12 @@
         prev = [x, y, z];
       }
     }
-    instanced(new THREE.BoxGeometry(0.12, opt.postH || 1.1, 0.12).translate(0, (opt.postH || 1.1) / 2, 0), lit({ color: opt.postColor }), posts,
-      (o, p) => { o.position.set(p[0], p[1], p[2]); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
-    instanced(new THREE.BoxGeometry(1, opt.railH || 0.5, 0.04), lit({ color: opt.railColor }), rails, (o, [a, b]) => {
+    // look: posts and rails are 3D (art/structures.js). opt.style = 'guard' for a corrugated steel beam, otherwise timber boards
+    const pH = opt.postH || 1.1, rH = opt.railH || 0.5, rY = opt.railY || 0.7, pc = hexRGB(opt.postColor), rc = hexRGB(opt.railColor);
+    instanced(railPostGeo(pH, pc, rY, rH), structMat(), posts, (o, p) => { o.position.set(p[0], p[1], p[2]); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
+    instanced(railGeo(opt.style, rH, rc), structMat(), rails, (o, [a, b]) => {
       const dx = b[0] - a[0], dz = b[2] - a[2];
-      o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + (opt.railY || 0.7), (a[2] + b[2]) / 2);
+      o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + rY, (a[2] + b[2]) / 2);
       o.rotation.set(0, Math.atan2(-dz, dx), 0); o.scale.set(Math.hypot(dx, dz), 1, 1);
     });
   }

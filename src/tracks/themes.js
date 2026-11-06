@@ -67,7 +67,7 @@
     conifers(cedars.concat(groves), (c) => c.setRGB(0.10 + rng() * 0.04, 0.34 + rng() * 0.08, 0.26 + rng() * 0.05), { tall: 1.6, wide: 0.7 });
     rocks(rng, roadsideRocks(rng, 90, p => p.s > 700 && p.s < city0 - 60));
     // white guardrails on the pass
-    cornerRails(t => t.r <= 80 && t.s0 > 680 && t.s1 < city0 - 30, { postColor: 0x8d939c, railColor: 0xeef1f5, railH: 0.32, railY: 0.62, offset: 1.4, postH: 0.8, solid: true });
+    cornerRails(t => t.r <= 80 && t.s0 > 680 && t.s1 < city0 - 30, { postColor: 0x8d939c, railColor: 0xeef1f5, style: 'guard', railH: 0.32, railY: 0.62, offset: 1.4, postH: 0.8, solid: true });
 
     // tunnel of vermilion torii gates
     const VERM = 0xe2432b, gates = [];
@@ -216,32 +216,14 @@
   /* ---------- trackside: spectators behind tape and sponsor boards (all brands invented) ---------- */
   const SPONSORS = [['ROTOR OIL', '#d32f2f', '#ffffff'], ['KAISER TYRES', '#ffd600', '#111111'], ['NOVA FUEL', '#1565c0', '#ffffff'], ['GRIPMAX', '#111111', '#ffd600'],
     ['SOLARIS', '#ef6c00', '#ffffff'], ['TURBO COLA', '#c62828', '#ffe082'], ['VELOCE', '#2e7d32', '#ffffff'], ['ZENITH WATCHES', '#283593', '#ffd54f']];
-  let sponsorMats = null, crowdTex = null;
+  let sponsorMats = null;
   function getSponsorMats() {
     if (!sponsorMats) sponsorMats = SPONSORS.map(([txt, bg, fg]) => lit({ map: canvasTex(512, 96, (g, w, h) => {
       g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; g.fillRect(0, 6, w, 4); g.fillRect(0, h - 10, w, 4);
       g.font = 'italic 900 58px "Arial Black", "Saira Condensed", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = fg; g.fillText(txt, w / 2, h / 2 + 2);
-    }), side: THREE.DoubleSide }));
+    }) }));
     for (const m of sponsorMats) { m.userData.keep = true; m.map.userData.keep = true; }     // cached for every stage: the stage dispose leaves them
     return sponsorMats;
-  }
-  function getCrowdTex() {
-    if (!crowdTex) {
-      crowdTex = makeTex(512, 128, (g, w, h) => {
-        g.clearRect(0, 0, w, h);
-        const r = mulberry32(11), shirts = ['#d32f2f', '#1976d2', '#fbc02d', '#388e3c', '#f5f5f5', '#212121', '#7b1fa2', '#f57c00', '#00897b'], skins = ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac'];
-        for (let row = 0; row < 2; row++) for (let i = 0; i < 26; i++) {
-          const x = 10 + i * 19.2 + r() * 6 + row * 9, base = h - 4 - row * 26, bh = 34 + r() * 12;
-          g.fillStyle = shirts[r() * shirts.length | 0]; g.fillRect(x - 7, base - bh, 14, bh - 12);
-          g.fillStyle = '#2b2b33'; g.fillRect(x - 6, base - 14, 12, 14);
-          g.fillStyle = skins[r() * skins.length | 0]; g.beginPath(); g.arc(x, base - bh - 6, 6.5, 0, 7); g.fill();
-          if (r() < 0.25) { g.fillStyle = shirts[r() * shirts.length | 0]; g.fillRect(x + 4, base - bh - 26, 2, 22); g.fillRect(x + 6, base - bh - 26, 16, 10); }      // flag
-          if (r() < 0.2) { g.fillStyle = '#222'; g.fillRect(x - 8, base - bh - 4, 16, 3); }                                                      // cap
-        }
-      });
-      crowdTex.wrapS = THREE.RepeatWrapping; crowdTex.wrapT = THREE.ClampToEdgeWrapping;
-    }
-    return crowdTex;
   }
   function trackside(rng) {
     const boards = [], crowds = [], tapes = [];
@@ -252,30 +234,25 @@
     for (const cp of ST.checkpoints) for (const d of [-22, -10, 10]) addBoard(cp + d, d < 0 ? -1 : 1);
     for (let s0 = track.finishS - 70; s0 < track.finishS + 30; s0 += 12) { addBoard(s0, 1); addBoard(s0 + 6, -1); }
     // spectators: start, finish, tight corners (outside, well back) and jumps
-    const spots = [[30, 1], [44, -1], [track.finishS - 30, -1], [track.finishS + 15, 1]];
-    for (const t of track.turns) if (t.r <= 45) spots.push([(t.s0 + t.s1) / 2, t.dir === 'R' ? -1 : 1]);
-    for (const [js] of ST.jumps) spots.push([js + 8, 1], [js + 8, -1]);
-    for (const [s0, side] of spots) {
+    const spots = [[30, 1, 'start'], [44, -1, 'start'], [track.finishS - 30, -1, 'finish'], [track.finishS + 15, 1, 'finish']];
+    for (const t of track.turns) if (t.r <= 45) spots.push([(t.s0 + t.s1) / 2, t.dir === 'R' ? -1 : 1, 'corner']);
+    for (const [js] of ST.jumps) spots.push([js + 8, 1, 'jump'], [js + 8, -1, 'jump']);
+    for (const [s0, side, tag] of spots) {
       if (s0 > city - 20 && s0 < track.finishS - 40) continue;
       for (let k = -1; k <= 1; k++) {
         const p = sampleAt(s0 + k * 7.5), off = side * (half + 6.5 + rng() * 1.5), [x, z] = sideXZ(p, off);
         if (!groundOk(x, z, p)) continue;
-        crowds.push({ x, z, y: terrain.heightAt(x, z), th: p.th, side, u: rng() });
+        crowds.push({ x, z, y: terrain.heightAt(x, z), th: p.th, side, u: rng(), tag });
         const [tx, tz] = sideXZ(p, side * (half + 4.2)); tapes.push({ x: tx, z: tz, y: terrain.heightAt(tx, tz), th: p.th });
         obstacles.push({ x: tx, z: tz, r: 0.2 });
       }
     }
-    const mats = getSponsorMats();
-    mats.forEach((m, mi) => {
-      const list = boards.filter(b => b.k % mats.length === mi);
-      instanced(new THREE.PlaneGeometry(6, 1.1).translate(0, 1.15, 0), m, list, (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.th + (b.side > 0 ? Math.PI / 2 : -Math.PI / 2), 0); o.scale.setScalar(1); });
-    });
-    instanced(new THREE.BoxGeometry(0.1, 1.7, 0.1).translate(0, 0.85, 0), lit({ color: 0x9aa0a8 }), boards.flatMap(b => [-2.9, 2.9].map(d => ({ x: b.x + Math.sin(b.th) * d, z: b.z + Math.cos(b.th) * d, y: b.y }))), (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
-    const cm = lit({ map: getCrowdTex(), alphaTest: 0.5, side: THREE.DoubleSide });
-    const crowdMesh = instanced(new THREE.PlaneGeometry(7.5, 1.9).translate(0, 0.95, 0), cm, crowds, (o, c) => { o.position.set(c.x, c.y, c.z); o.rotation.set(0, c.th + (c.side > 0 ? Math.PI / 2 : -Math.PI / 2), 0); o.scale.setScalar(1); });
-    crowdMesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: getCrowdTex(), alphaTest: 0.5 });
-    instanced(new THREE.BoxGeometry(7.5, 0.12, 0.02).translate(0, 0.9, 0), lit({ map: canvasTex(64, 8, (g) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#e53935'; g.fillRect(i * 8, 0, 8, 8); } }) }), tapes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th + Math.PI / 2, 0); o.scale.setScalar(1); }, { shadow: false });
-    instanced(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 5).translate(0, 0.5, 0), lit({ color: 0xe53935 }), tapes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
+    const mats = getSponsorMats(), sponsorPlace = (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.th + (b.side > 0 ? Math.PI / 2 : -Math.PI / 2), 0); o.scale.setScalar(1); };
+    const faces = sponsorFaceGeo();
+    mats.forEach((m, mi) => instanced(faces, m, boards.filter(b => b.k % mats.length === mi), sponsorPlace));
+    instanced(sponsorFrameGeo(), structMat(), boards, sponsorPlace);                // frame, legs and stays (3D), one mesh for all sponsors
+    for (const c of crowds) crowdAdd(crowdGroup(c, { tag: c.tag }));              // 3D spectators (art/people.js)
+    instanced(tapeGeo(), structMat(), tapes, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th + Math.PI / 2, 0); o.scale.setScalar(1); }, { shadow: false });      // stakes and sagging tape (3D)
     readabilityBoards();
   }
 
@@ -316,10 +293,12 @@
       g.fillStyle = '#e8322b'; for (let k = 0; k < (label === '100' ? 3 : 2); k++) g.fillRect(14, 74 + k * 15, 68, 9);
       g.fillStyle = '#16181c'; g.font = '800 40px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, 48, 40);
     });
-    const board = (list, tex, w, h) => instanced(new THREE.PlaneGeometry(w, h).translate(0, 1.9 + h / 2 - 0.3, 0), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }), list,
-      (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.rot, 0); o.scale.setScalar(1); }, { shadow: false });
-    board(signs.R, chev(true), 2.3, 1.7); board(signs.L, chev(false), 2.3, 1.7);
-    board(signs.b100, dist('100'), 1.3, 1.75); board(signs.b50, dist('50'), 1.3, 1.75);
-    instanced(new THREE.BoxGeometry(0.1, 1, 0.1).translate(0, 0.5, 0), lit({ color: 0x55595f }), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.set(1, q.h, 1); }, { shadow: false });
+    const placeB = (o, b) => { o.position.set(b.x, b.y, b.z); o.rotation.set(0, b.rot, 0); o.scale.setScalar(1); };
+    const board = (list, tex, w, h) => instanced(boardFaceGeo(w, h), new THREE.MeshBasicMaterial({ map: tex }), list, placeB, { shadow: false });
+    const frame = (list, w, h) => instanced(boardFrameGeo(w, h), structMat(), list, placeB, { shadow: false });
+    board(signs.R, chev(true), 2.3, 1.7); board(signs.L, chev(false), 2.3, 1.7); frame(signs.R.concat(signs.L), 2.3, 1.7);
+    board(signs.b100, dist('100'), 1.3, 1.75); board(signs.b50, dist('50'), 1.3, 1.75); frame(signs.b100.concat(signs.b50), 1.3, 1.75);
+    instanced(postGeo(), structMat(), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.set(1, q.h, 1); }, { shadow: false });
+    instanced(postFootGeo(), structMat(), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
   }
 
