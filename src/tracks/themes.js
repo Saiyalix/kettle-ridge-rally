@@ -17,6 +17,12 @@
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 
+  /* ---------- theme: test (Test Track): open country, a few trees far back for orientation, nothing solid anywhere near the road ---------- */
+  function sceneryTest(rng) {
+    const trees = scatter(rng, 90, 6000, (x, z, d, y, s0) => d > 70 && rng() < 0.5 ? { col: false } : false);
+    conifers(trees, (c) => c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+  }
+
   /* ---------- theme: castle (Thornwick Keep) ---------- */
   function sceneryCastle(rng) {
     const C = ST.castle, g1 = C.gate1, g2 = C.gate2, fin = track.finishS, L = castleL;
@@ -249,6 +255,7 @@
     return sponsorMats;
   }
   function trackside(rng) {
+    if (ST.practice) { readabilityBoards(); return; }       // practice stage: no sponsor boards, crowds or tape, nothing beside the road but the corner boards
     const boards = [], crowds = [], tapes = [];
     const groundOk = (x, z, p) => Math.abs(terrain.heightAt(x, z) - p.y) < 2.5 && terrain.distAt(x, z) > half + 2.2;
     const city = isFinite(track.cityStart) ? track.cityStart : Infinity;
@@ -292,7 +299,7 @@
       if (y - ground > 6) return;
       list.push({ x, z, y, rot: Math.atan2(q.x - x, q.z - z) });
       posts.push({ x, z, y0: ground, h: y - ground + 1.9 });
-      obstacles.push({ x, z, r: 0.12 });
+      if (!ST.practice) obstacles.push({ x, z, r: 0.12 });      // (practice stage: the corner boards are not solid)
     };
     for (const t of track.turns) {
       const side = t.dir === 'R' ? -1 : 1;                                 // boards stand on the outside

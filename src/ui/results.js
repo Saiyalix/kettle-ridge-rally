@@ -26,7 +26,7 @@
     return html;
   }
   function showResults(rows, myRow) {
-    const champDone = champ && champ.idx >= STAGES.length - 1;
+    const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
     if (champ) { rows.forEach(r => { champ.points[r.name] = (champ.points[r.name] || 0) + r.pts; }); champ.results.push({ stage: ST.name, pos: myRow.pos }); }
     let html = '<div class="tbl-title">Stage result</div><div class="classif">' + rowsHtml(rows, 'stage') + '</div>';
     if (champ) {
@@ -36,7 +36,7 @@
       if (champDone) $('bestLine').textContent = myRank === 1 ? `Champion! You won the rally with ${champ.points.You || 0} points.` : `You finished the rally ${ordinal(myRank)} with ${champ.points.You || 0} points. ${st[0].name} won with ${st[0].pts}.`;
       else $('bestLine').textContent += ` You're ${ordinal(myRank)} in the championship and start the next stage ${ordinal(champOrder().indexOf('You') + 1)}.`;
     }
-    $('resultTable').innerHTML = html;
+    $('resultTable').innerHTML = ST.practice ? '' : html;
     $('nextBtn').hidden = !(champ && !champDone);
     $('againBtn').hidden = !!(champ && !champDone);
   }
@@ -45,20 +45,21 @@
     lastClass = classify(raceTime);
     const me = lastClass.find(r => r.you);
     finishPos = me.pos;
-    banner('GOAL!', 'goal', 2.4); elBannerSub(`${ordinal(finishPos)} on time  ·  ${fmtTime(raceTime)}`);
+    banner('GOAL!', 'goal', 2.4); elBannerSub(ST.practice ? fmtTime(raceTime) : `${ordinal(finishPos)} on time  ·  ${fmtTime(raceTime)}`);
     cue.goal(); say(finishPos === 1 ? 'Goal! Fastest time!' : 'Goal!', true);
     const isBest = !best || raceTime < best.time;
     const prev = best;
     if (isBest) { best = { time: raceTime, splits: splits.slice() }; try { localStorage.setItem(ST.bestKey, JSON.stringify(best)); } catch (e) { /* storage unavailable */ } }
-    const champDone = champ && champ.idx >= STAGES.length - 1;
-    $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${STAGES.length} · ${ST.name}`) : ST.code + ' · ' + ST.name;
+    const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
+    $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${CHAMP_STAGES} · ${ST.name}`) : ST.code + ' · ' + ST.name;
     $('resPos').textContent = ordinal(finishPos);
     $('resPos').className = 'big pos' + (finishPos === 1 ? ' p1' : '');
     const lead = lastClass[0];
     $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
     $('bestLine').textContent = prev ? (isBest ? `Your best time on this stage, ${(prev.time - raceTime).toFixed(2)} s quicker.` : `Your best here is ${fmtTime(best.time)}.`) : 'First time recorded on this stage.';
+    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
     showResults(lastClass, me);
-    $('againBtn').textContent = 'Race again';
+    $('againBtn').textContent = ST.practice ? 'Drive again' : 'Race again';
     setTimeout(() => { if (state === 'finished') { $('finishScreen').hidden = false; ($('nextBtn').hidden ? $('againBtn') : $('nextBtn')).focus(); } }, 2400);
   }
   function gameOver() {
@@ -73,7 +74,7 @@
       $('finalTime').innerHTML = `${(Math.min(P[progIdx].s, track.finishS) / 1000).toFixed(2)} km<span class="left">of ${(track.finishS / 1000).toFixed(2)} km · no points</span>`;
       $('bestLine').textContent = 'The clock ran out. Every checkpoint adds time, so carry speed through the corners and keep it on the road.';
       showResults(lastClass, me);
-      if (champ) { $('nextBtn').hidden = champ.idx >= STAGES.length - 1; $('againBtn').hidden = !$('nextBtn').hidden; }
+      if (champ) { $('nextBtn').hidden = champ.idx >= CHAMP_STAGES - 1; $('againBtn').hidden = !$('nextBtn').hidden; }
       $('againBtn').textContent = 'Try again';
       $('finishScreen').hidden = false; (!$('nextBtn').hidden ? $('nextBtn') : $('againBtn')).focus();
     }, 2600);

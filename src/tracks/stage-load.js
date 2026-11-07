@@ -58,12 +58,13 @@
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
-    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else sceneryForest(rng);
+    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else if (ST.theme === 'test') sceneryTest(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
+    for (const g of ST.signs || []) makeGate(g.s, g.text, g.bg, g.fg, false, { kind: 'arch', lights: 'cp' });      // practice stage: a big banner over the road at the start of each section
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
     ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216', false, { kind: 'truss', lights: 'cp' }));
     makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
-    eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
+    if (!ST.practice) eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
     crowdBuild();
     hashObstacles();
     buildMinimap();

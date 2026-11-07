@@ -55,7 +55,7 @@
   }
   function startStage(order) {
     if (loading || !track) return;
-    raceOrder = order || defaultOrder();
+    raceOrder = ST.practice ? ['You'] : order || defaultOrder();       // practice stage: no other crews
     initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
     $('menu').hidden = true; $('finishScreen').hidden = true; document.body.classList.remove('menu-mode');
     placeAt(startS); raceTime = 0; nextCp = 0; splits = []; lastCpS = 0; countdown = 3.6; lastBeep = 9;
@@ -64,8 +64,8 @@
     setupRivals(raceOrder);
     state = 'countdown'; renderSplits();
     const slot = raceOrder.indexOf('You') + 1;
-    showMsg('', false); banner(`START  #${slot}`, 'ext', 3.2);
-    elBannerSub(`${slot - 1} crews ahead of you on the road, one every ${START_GAP} s`);
+    showMsg('', false); banner(ST.practice ? 'START' : `START  #${slot}`, 'ext', 3.2);
+    elBannerSub(ST.practice ? 'Test track: no clock, no rivals' : `${slot - 1} crews ahead of you on the road, one every ${START_GAP} s`);
     canvas.focus();
   }
   function goMenu() {
