@@ -5,7 +5,7 @@ const _M = new THREE.Vector3(), _P = new THREE.Vector3(), _r = new THREE.Vector3
   _fw = new THREE.Vector3(), _rw = new THREE.Vector3(), _F = new THREE.Vector3(), _t = new THREE.Vector3(),
   _qInv = new THREE.Quaternion(), _dq = new THREE.Quaternion(), _g = { h: 0, n: new THREE.Vector3() };
 const _ag = new THREE.Vector3(), _af = new THREE.Vector3(), _ar = new THREE.Vector3(), _aF = new THREE.Vector3(), _aP = new THREE.Vector3(), _Yup = new THREE.Vector3(0, 1, 0);
-const _aT = new THREE.Vector3(), _aL = new THREE.Vector3(), _aD = new THREE.Vector3();
+const _aT = new THREE.Vector3(), _aL = new THREE.Vector3(), _aD = new THREE.Vector3(), _aV = new THREE.Vector3();
 
 const BODY_POINTS = [];
 for (const x of [-0.86, 0.86]) for (const y of [-0.32, 0.62]) for (const z of [-2.0, 2.0]) BODY_POINTS.push(new THREE.Vector3(x, y, z));
@@ -35,7 +35,8 @@ class Car {
     this.speed = 0; this.vForward = 0; this.throttleOut = 0; this.frontPeak = 8 * D2R;
     this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null;
+    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0;
+    this.lastVel = new THREE.Vector3(); this.vis = { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false };   // visual body attitude
     this.dbg = { gripUse: 0, traction: 1, yawT: 0, yawNow: 0, drift: false };
     this.prevPos = new THREE.Vector3(); this.prevQ = new THREE.Quaternion();      // for smooth rendering between physics steps
   }
@@ -47,7 +48,8 @@ class Car {
     for (const w of this.wheels) { w.omega = 0; w.comp = w.prevComp = w.compVel = 0; }
     this.gear = 1; this.steer = 0; this.shiftTimer = 0; this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null;
+    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0;
+    this.lastVel.set(0, 0, 0); Object.assign(this.vis, { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false });
   }
 
   addForceAt(F, P) {
@@ -307,7 +309,7 @@ class Car {
     _qInv.copy(this.q).invert();
     const wb = _t.copy(this.angVel).applyQuaternion(_qInv);
     const tb = this.torque.applyQuaternion(_qInv);
-    const Ix = I.pitch, Iy = I.yaw, Iz = I.roll;
+    const Ix = I.pitch, Iy = arcade ? I.yaw / ((C.cars[C.carIndex] || C.cars[0]).turn || 1) : I.yaw, Iz = I.roll;
     const gx = wb.y * (Iz * wb.z) - wb.z * (Iy * wb.y);      // gyroscopic term ω × Iω
     const gy = wb.z * (Ix * wb.x) - wb.x * (Iz * wb.z);
     const gz = wb.x * (Iy * wb.y) - wb.y * (Ix * wb.x);
@@ -319,33 +321,38 @@ class Car {
     this.q.x += _dq.x; this.q.y += _dq.y; this.q.z += _dq.z; this.q.w += _dq.w; this.q.normalize();
 
     for (const w of this.wheels) w.spin += w.omega * dt;
+    if (arcade) this.updateBodyPose(dt);
   }
 
-  /* ARCADE DRIVING (Sega Rally style)
-     - Steering sets a target rotation speed; the car turns towards it directly.
-     - Sideways speed is bled off at a rate set by the surface: tarmac grips, gravel and snow slide.
-     - Drift: a flick of the steering, a dab of brake while turning, the handbrake, or simply a big slide
-       puts the car into a drift. Grip drops, rotation increases, and throttle holds the slide. Lifting tidies it up.
-     - Sideways speed that the tyres kill is partly handed back as forward speed, so slides carry momentum.
-     - Past maxSlideAngle the car swings back, so a slide very rarely turns into a spin. */
+  /* ARCADE DRIVING (90s arcade rally style): a two-axle car with simple, forgiving tyres.
+     - Steering: at speed a held key asks the front tyres for grip towards that side, measured from where the
+       front axle is travelling. No key = the wheels follow the slide (automatic countersteer).
+     - Each axle has a grip limit from the surface, the car and the load on it (weight transfer comes from the
+       suspension). When the rear runs out first the tail swings out by itself: loose surfaces, speed,
+       throttle (power slide), a brake tap or lifting off (weight forward) and the handbrake all make that happen.
+     - As the slide grows, a held key asks for less front grip (`slideHold`), so the slide settles at an angle
+       set by surface and car instead of spinning. The spin guard stops the rest.
+     - The engine pushes along the car's nose, so in a slide throttle drives the car round the corner and keeps
+       its speed. Brakes and drag act along the direction of travel. */
   arcadeForces(dt, inp, throttle, brake, fwd, up) {
     const A = CONFIG.arcade, D = A.drift, CAR = CONFIG.cars[CONFIG.carIndex] || CONFIG.cars[0], m = CONFIG.car.mass, g = CONFIG.gravity, R = CONFIG.wheels.radius;
+    const a = CONFIG.wheels.frontZ, b = -CONFIG.wheels.rearZ, L = a + b, Iy = CONFIG.car.inertia.yaw / (CAR.turn || 1);
+    const w0 = this.wheels;
 
-    // --- Ground contact and surface. Both are smoothed so a bump or a wheel on the verge doesn't make
-    //     the grip flicker: the car always knows roughly how much grip it has.
-    let nC = 0, maxG = 0, top = 0, drag = 0, look = 0, slide = 0;
+    // --- Ground contact and surface. Smoothed so a bump or a wheel on the verge doesn't make the grip flicker.
+    let nC = 0, maxG = 0, top = 0, drag = 0, rear = 0, peak = 0, slide = 0;
     _ag.set(0, 0, 0);
-    for (const w of this.wheels) if (w.contact) {
+    for (const w of w0) if (w.contact) {
       nC++; _ag.add(w.normal);
       const sp = A.surfaces[w.surface] || A.surfaces.gravel;
-      maxG += sp.maxG; top += sp.top; drag += sp.drag; look += sp.look; slide += sp.slide;
+      maxG += sp.maxG; top += sp.top; drag += sp.drag; rear += sp.rear; peak += sp.peak; slide += sp.slide;
     }
-    if (!this.surfS) this.surfS = { maxG: 1.3, top: 1, drag: 0.04, look: 7, slide: 1 };
+    if (!this.surfS) { const s0 = A.surfaces.gravel; this.surfS = { maxG: s0.maxG, top: s0.top, drag: s0.drag, rear: s0.rear, peak: s0.peak, slide: s0.slide }; }
     const SS = this.surfS;
     if (nC) {
       const k = Math.min(1, dt * 10);
       SS.maxG += (maxG / nC - SS.maxG) * k; SS.top += (top / nC - SS.top) * k; SS.drag += (drag / nC - SS.drag) * k;
-      SS.look += (look / nC - SS.look) * k; SS.slide += (slide / nC - SS.slide) * k;
+      SS.rear += (rear / nC - SS.rear) * k; SS.peak += (peak / nC - SS.peak) * k; SS.slide += (slide / nC - SS.slide) * k;
       _ag.normalize();
     } else _ag.copy(up);
     const contact = nC >= 2 ? 1 : nC === 1 ? 0.5 : 0;
@@ -354,101 +361,149 @@ class Car {
     this.airTime = nC ? 0 : this.airTime + dt;
     const n = _ag;
 
+    // --- Load on each axle, from the springs (smoothed): braking loads the front, a crest makes the car light
+    const Nf0 = m * g * b / L, Nr0 = m * g * a / L;
+    const kL = Math.min(1, dt * 20);
+    this.loadF += ((w0[0].load + w0[1].load) / Nf0 - this.loadF) * kL;
+    this.loadR += ((w0[2].load + w0[3].load) / Nr0 - this.loadR) * kL;
+    // weight transfer between the axles, scaled by weightShift (total load unchanged)
+    const tot = (this.loadF * Nf0 + this.loadR * Nr0) / (Nf0 + Nr0);
+    const lf = clamp(tot + (this.loadF - tot) * A.weightShift, 0, 1.7), lr = clamp(tot + (this.loadR - tot) * A.weightShift, 0, 1.7);
+
     // Ground-plane frame: forward, right and left of the car; speed along and across
     const fG = _af.copy(fwd).addScaledVector(n, -fwd.dot(n)).normalize();
     const rG = _ar.crossVectors(fG, n);
+    const lG = _aL.copy(rG).negate();
     const vF = this.vel.dot(fG), vL = this.vel.dot(rG), speed = Math.hypot(vF, vL);
     // slide angle: + = the car is moving to its right, i.e. its nose points left of where it is going
     const beta = speed > 0.5 ? Math.atan2(vL, Math.max(Math.abs(vF), 1.5)) * (vF >= 0 ? 1 : -1) : 0;
     this.beta = beta;
+    const r = this.angVel.dot(n);                                       // rotation, + = turning left
 
-    // --- Steering input, smoothed so a key press feels like turning a wheel
+    // --- Steering input, smoothed so a key press feels like turning a wheel (same on every surface)
     const sTarget = inp.steer;
     let sRate;
     if (sTarget !== 0 && this.steerIn !== 0 && Math.sign(sTarget) !== Math.sign(this.steerIn)) sRate = A.steerReverse;
     else if (Math.abs(sTarget) < Math.abs(this.steerIn)) sRate = A.steerReturn;
     else sRate = A.steerAttackSlow + (A.steerAttackFast - A.steerAttackSlow) * clamp(speed / A.steerFastSpeed, 0, 1);
     this.steerIn += clamp(sTarget - this.steerIn, -sRate * dt, sRate * dt);
-    const steer = this.steerIn;                                   // + = right
+    const sc = -this.steerIn;                                           // + = left (same sign as rotation)
 
-    // --- Drift: only when you ask for it. Brake or handbrake while steering above ~32 km/h starts one in
-    //     the direction you're steering. Steering into it tightens the arc, letting go of the key widens
-    //     it and then straightens the car, steering the other way ends it.
-    const yawDirOfSteer = -Math.sign(steer);                      // + = turning left
-    // the brake only starts a drift when you press it while already steering (a tap mid-corner), so braking
-    // in a straight line and then turning in stays a clean, gripping corner
-    const brakeTap = inp.brake > 0.3 && !(this.prevBrakeKey > 0.3) && Math.abs(steer) > 0.5 && vF > D.minSpeed + 5;
-    this.prevBrakeKey = inp.brake;
-    if (!this.drift && nC >= 2 && vF > D.minSpeed && Math.abs(steer) > 0.35 && (inp.handbrake || brakeTap)) {
-      this.drift = true; this.driftDir = yawDirOfSteer; this.driftNeutral = 0; this.driftCounter = 0;
-      this.driftKick = inp.handbrake ? 0.3 : 0.18;               // swing out briskly on entry
-    }
-    let into = 0;
-    if (this.drift) {
-      into = -steer * this.driftDir;                              // + = steering into the drift
-      this.driftCounter = into < -0.3 ? this.driftCounter + dt : 0;
-      this.driftNeutral = Math.abs(steer) < 0.15 ? this.driftNeutral + dt : 0;
-      if (this.driftCounter > 0.1 || this.driftNeutral > D.release || speed < 6 || vF < 3 || this.airTime > 0.6) this.drift = false;
-    }
-    this.driftBlend = clamp(this.driftBlend + (this.drift ? 7 : -5) * dt, 0, 1);
-    this.driftKick = Math.max(0, this.driftKick - dt);
-    const db = this.driftBlend, dirD = this.driftDir || 1;
-    const drifting = db > 0.5;
-
-    // --- 1. Where you go: how fast the direction of travel turns (+ = left)
-    const aG = SS.maxG * CAR.grip * g;                            // the tyres' cornering limit here
+    // --- Axle velocities and grip limits
     const v = Math.max(speed, 0.5);
-    const kGeo = 1 / ((A.minRadius + A.radiusGrow * v) / CAR.turn);   // wheel-lock limit (low speed)
-    const kGrip = aG * A.gripUse / (v * v);                       // tyre limit
-    const rateGrip = -steer * Math.min(kGeo, kGrip) * v;
-    let arc = into >= 0 ? D.wideArc + (D.grip - D.wideArc) * into : D.wideArc * (1 + 0.7 * into);
-    const rateDrift = dirD * Math.min(aG * arc / v, kGeo * v);
-    const rateCmd = rateGrip + (rateDrift - rateGrip) * db;
-    // The tyres provide whatever sideways push is needed on top of everything else acting sideways (gravity on
-    // a camber, the springs as the body rolls), so the path follows the steering exactly, up to their limit.
-    const travel = speed > 0.5 ? _aT.copy(this.vel).addScaledVector(n, -this.vel.dot(n)).normalize() : _aT.copy(fG);
-    const left = _aL.crossVectors(n, travel);
-    const aOther = this.force.dot(left) / m - g * left.y;         // springs so far + gravity (added after this)
-    const aCap = aG * (1 + (D.grip - 1) * db) * 1.04;
-    const wv = vF > 0 ? clamp((speed - 1.5) / 3, 0, 1) : 0;       // 0 = walking pace / reversing: plain wheel steering
-    const aTyre = clamp(v * rateCmd - aOther, -aCap, aCap) * wv;
-    const gripUse = Math.abs(aTyre) / aG;
-    this.dbg.gripUse = gripUse;
+    const vx = Math.max(Math.abs(vF), 3);
+    const vy = -vL;                                                     // + = moving to the car's left
+    const travF = Math.atan2(vy + r * a, vx), travR = Math.atan2(vy - r * b, vx);
+    const muF = SS.maxG * CAR.grip;
+    // the rear's looseness fades in with speed: at a crawl both axles grip the same
+    const loose = smoothstep(clamp((speed - A.slideFrom) / (A.slideFull - A.slideFrom), 0, 1));
+    const rearRatio = 1 + (SS.rear * (CAR.rear || 1) - 1) * loose;
+    const muR = muF * rearRatio;
+    let capF = muF * Nf0 * lf, capR = muR * Nr0 * lr, capRfull = muF * Math.max(1, rearRatio) * Nr0 * lr;
+    // engine force (along the nose), split between the axles; part of the rear's share uses up rear grip
+    const topV = A.topSpeed * SS.top * CAR.top;
+    let aDrive = 0;
+    if (this.gear > 0) aDrive = throttle * A.accel * CAR.accel * Math.max(0, 1 - Math.pow(Math.max(0, vF) / topV, 1.8));
+    else aDrive = -throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
+    const rearShare = clamp(A.rearDrive * (CAR.rearDrive || 1), 0, 1);
+    const aLift = this.gear > 0 && throttle === 0 && vF > 3 ? A.liftDecel : 0;
+    const holdA = Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift);
+    // throttle eats rear grip (power slide) up to about the hold angle; past it, it just drives the car forwards
+    const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
+    const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * 0.35 * m + aLift * m * 0.5;
+    const circle = Math.sqrt(Math.max(0.04, 1 - (used / Math.max(capR, 1)) ** 2));
+    capR *= circle; capRfull *= circle;
+    if (inp.handbrake) capR *= A.handbrakeGrip;
+    const peakF = SS.peak * D2R, peakR = SS.peak * D2R * 1.1;
 
-    // --- 2. Where the car points: its angle to the direction of travel
-    const lookA = SS.look * D2R * clamp(v * rateGrip / aG, -1, 1);                    // small slide at the limit
-    const driftA = dirD * D.angle * D2R * SS.slide * CAR.drift * (into >= 0 ? 0.75 + 0.25 * into : 0.75 * (1 + into));
-    const betaT = lookA + (driftA - lookA) * db;
-    const rateNow = wv > 0 ? (aTyre / Math.max(wv, 1e-3) + aOther) / v : 0;           // how fast the path is actually turning
-    const align = A.alignRate * (this.driftKick > 0 ? 1.6 : 1);
-    let yawT = rateNow + (betaT - beta) * align;
-    const yawLow = -steer * kGeo * vF;                                                 // walking pace / reverse: wheels steer the car
-    yawT = yawLow + (yawT - yawLow) * wv;
-    const yawNow = this.angVel.dot(n);
-    let yawK = ground > 0.2 ? A.yawResponse : 0;
-    if (!nC && speed > 5) { yawT = -beta * A.airAlign; yawK = 3; }                     // in the air: line the nose up with the travel
-    this.dbg.yawT = yawT; this.dbg.yawNow = yawNow; this.dbg.drift = drifting;
-    this.torque.addScaledVector(n, CONFIG.car.inertia.yaw * clamp((yawT - yawNow) * yawK, -A.yawAccelMax, A.yawAccelMax));
+    // --- Front wheel angle. Low speed: plain lock. At speed: the key asks for front slip; as the car rotates
+    //     towards the key the request shrinks (the slide settles at slideHold × surface slide × car drift)
+    const kGeo = 1 / ((A.minRadius + A.radiusGrow * v) / (CAR.turn || 1));
+    const lockLow = Math.atan(L * kGeo);
+    const sf = clamp((vF - A.steerFrom) / (A.steerFull - A.steerFrom), 0, 1);
+    this.betaRate += ((beta - this.prevBeta) / dt - this.betaRate) * Math.min(1, dt * 30); this.prevBeta = beta;
+    // + = already rotated towards the key (looking slideCatch s ahead, so a fast swing is caught early)
+    const into = (beta + clamp(this.betaRate, -3, 3) * A.slideCatch) * Math.sign(sc);
+    const aim = into > 0 ? clamp(1 - into / holdA, -0.6, 1) : 1;
+    const deltaHigh = travF * A.selfAlign + sc * peakF * A.frontAim * aim;
+    const maxLock = 0.62;
+    const delta = clamp(sc * lockLow * (1 - sf) + deltaHigh * sf, -maxLock, maxLock);
+
+    // --- Tyre forces (left = +): rise to the peak, then ease down to a sliding grip
+    const tyre = (alpha, pk, fall) => {
+      const x = Math.abs(alpha) / pk;
+      const f = x < 1 ? x * (2 - x) : 0.78 + 0.22 * Math.exp(-(x - 1) * fall);
+      return -Math.sign(alpha) * f;
+    };
+    const alphaF = travF - delta, alphaR = travR;
+    let Ff = capF * tyre(alphaF, peakF, A.falloff.front), Fr = capR * tyre(alphaR, peakR, A.falloff.rear);
+    // slide carry: the grip the rear lost to the surface's looseness is handed back as a side force at the centre
+    // of mass. The tail still swings out (no turning push from it), but the car keeps cornering in a slide.
+    let Fc = A.slideCarry * (capRfull * tyre(alphaR, peakR, 0) - Fr * (inp.handbrake ? 1 / A.handbrakeGrip : 1));
+    if (Fc * Fr < 0) Fc = 0;
+    // never push harder than would cancel the axle's sideways slip in a couple of steps (stable at low speed)
+    const mEf = 1 / (1 / m + a * a / Iy), mEr = 1 / (1 / m + b * b / Iy);
+    Ff = clamp(Ff, -mEf * vx * Math.abs(Math.tan(alphaF)) / dt * 0.5, mEf * vx * Math.abs(Math.tan(alphaF)) / dt * 0.5);
+    Fr = clamp(Fr, -mEr * vx * Math.abs(Math.tan(alphaR)) / dt * 0.5, mEr * vx * Math.abs(Math.tan(alphaR)) / dt * 0.5);
+    const wv = vF > 0 ? clamp((speed - 1.5) / 3, 0, 1) : 0;            // 0 = walking pace / reversing: plain wheel steering
+    Ff *= wv; Fr *= wv; Fc *= wv;
+    this.dbg.gripUse = Math.max(Math.abs(Ff) / Math.max(capF, 1), Math.abs(Fr) / Math.max(capR, 1));
+    this.dbg.traction = capR / Math.max(1, muR * Nr0 * lr);
+
+    // --- Rotation helpers: settle (no key: bring the car back in line), spin guard, air, walking pace
+    const travel = speed > 0.5 ? _aT.copy(this.vel).addScaledVector(n, -this.vel.dot(n)).normalize() : _aT.copy(fG);
+    const left = _aD.crossVectors(n, travel);
+    const pathRate = speed > 2 ? (this.force.dot(left) / m - g * left.y + (Ff + Fr + Fc) * Math.cos(beta) / m) / v : 0;
+    const rel = r - pathRate;                                          // how fast the slide angle is changing (+ = nose going left)
+    let yawAcc = 0;
+    if (wv > 0 && nC) {
+      const neutral = 1 - clamp(Math.abs(this.steerIn) / 0.3, 0, 1);
+      yawAcc += -A.settle * neutral * (rel + beta * 3) * wv;
+      const over = clamp((Math.abs(beta) - A.guard.from * D2R) / (A.guard.range * D2R), 0, 1);
+      if (over > 0) {
+        yawAcc += -Math.sign(beta) * A.guard.push * over;
+        if (rel * beta > 0) yawAcc += -A.guard.damp * over * rel;
+      }
+    }
+    const yawLow = sc * kGeo * vF;                                     // walking pace / reverse: wheels steer the car
+    if (nC) yawAcc += clamp((yawLow - r) * 16, -26, 26) * (1 - wv);
+    if (!nC && speed > 5) yawAcc += clamp((-beta * A.airAlign - r) * 3, -26, 26);    // in the air: line the nose up with the travel
+    this.dbg.yawT = pathRate; this.dbg.yawNow = r;
+    this.torque.addScaledVector(n, Iy * yawAcc);
+
+    // --- Drift state (for HUD, sound, dust, replays): a big enough slide at speed
+    const absB = Math.abs(beta) * 57.2958;
+    if (!this.drift && nC >= 2 && speed > D.minSpeed && absB > D.on) { this.drift = true; this.driftDir = Math.sign(beta); }
+    else if (this.drift && (absB < D.off || speed < D.minSpeed - 3)) this.drift = false;
+    this.dbg.drift = this.drift;
+    const drifting = this.drift;
 
     if (ground > 0.05) {
-      // --- Pace: engine, brakes, drag, all along the direction of travel so they never bend your line
-      const topV = A.topSpeed * SS.top * CAR.top;
-      const traction = (1 - A.cornerDrain * Math.min(1, gripUse) ** 2) * (drifting ? Math.max(0.75, Math.cos(beta)) : 1);
-      this.dbg.traction = traction;
-      let a = 0;
-      if (this.gear > 0) a += throttle * A.accel * CAR.accel * Math.max(0, 1 - Math.pow(Math.max(0, vF) / topV, 1.8)) * traction;
-      else a -= throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
+      // tyre side forces at each axle, at road level: they turn the car, bend its path and roll the body
+      _aP.copy(this.pos).addScaledVector(fwd, a).addScaledVector(up, -0.35);
+      _aF.copy(lG).multiplyScalar(Ff * ground); this.addForceAt(_aF, _aP);
+      _aP.copy(this.pos).addScaledVector(fwd, -b).addScaledVector(up, -0.35);
+      _aF.copy(lG).multiplyScalar(Fr * ground); this.addForceAt(_aF, _aP);
+      _aP.copy(this.pos).addScaledVector(up, -0.35);
+      _aF.copy(lG).multiplyScalar(Fc * ground); this.addForceAt(_aF, _aP);
+      // engine along the nose (front and rear axle), so in a slide throttle drives the car round
+      _aF.copy(fG).multiplyScalar(m * aDrive * (1 - rearShare) * ground * wv);
+      _aP.copy(this.pos).addScaledVector(fwd, a).addScaledVector(up, -0.35); this.addForceAt(_aF, _aP);
+      _aF.copy(fG).multiplyScalar(m * aDrive * rearShare * ground * wv);
+      _aP.copy(this.pos).addScaledVector(fwd, -b).addScaledVector(up, -0.35); this.addForceAt(_aF, _aP);
+      // brakes, engine braking, drag: along the direction of travel
+      let ac = 0;
       const vAlong = this.vel.dot(travel);
-      if (Math.abs(vAlong) > 0.4) a -= Math.sign(vAlong) * brake * A.brakeDecel;
-      if (inp.handbrake && speed > 1) a -= Math.sign(vAlong) * D.handbrakeDecel;
-      a -= vAlong * SS.drag + (vF > topV ? (vF - topV) * 0.5 : 0);
-      a -= vAlong * Math.abs(Math.sin(beta)) * D.drag * 0.1;
+      if (Math.abs(vAlong) > 0.4) ac -= Math.sign(vAlong) * (brake * A.brakeDecel + aLift);
+      if (inp.handbrake && speed > 1) ac -= Math.sign(vAlong) * D.handbrakeDecel;
+      ac -= vAlong * SS.drag + (vF > topV ? (vF - topV) * 0.5 : 0);
       // walking pace and reverse: the car rolls where it points
-      const dir = _aD.copy(fG).multiplyScalar(1 - wv).addScaledVector(travel, wv);
+      const dir = _aV.copy(fG).multiplyScalar(1 - wv).addScaledVector(travel, wv);
       if (dir.lengthSq() > 1e-6) dir.normalize(); else dir.copy(fG);
+      ac += aDrive * (1 - wv);
       let dvLow = -vL * (1 - Math.exp(-10 * dt)) * (1 - wv);
-      if (speed < 0.6 && throttle === 0) { dvLow = -vL; a = -vF / dt * 0.5; }           // parked: don't creep
-      _aF.copy(dir).multiplyScalar(m * a * ground).addScaledVector(left, m * aTyre * ground).addScaledVector(rG, m * dvLow / dt * ground);
+      if (speed < 0.6 && throttle === 0) { dvLow = -vL; ac = -vF / dt * 0.5; }           // parked: don't creep
+      _aF.copy(dir).multiplyScalar(m * ac * ground).addScaledVector(rG, m * dvLow / dt * ground);
       _aP.copy(this.pos).addScaledVector(up, -0.35);                                     // below the centre of mass: body pitches and rolls
       this.addForceAt(_aF, _aP);
     } else {
@@ -472,12 +527,31 @@ class Car {
       this.rpm += (Math.min(rpm, CONFIG.engine.redlineRpm) - this.rpm) * Math.min(1, dt * 14);
     } else this.rpm += (1800 + kmh * 120 - this.rpm) * Math.min(1, dt * 10);
     if (this.shiftTimer > 0) this.shiftTimer -= dt;
-    const lock = (28 - 18 * clamp(speed / 40, 0, 1)) * D2R;
-    this.steer = clamp(this.steerIn * lock + (drifting ? beta * 0.9 : 0), -0.6, 0.6);          // wheels countersteer visually in a slide
-    for (const w of this.wheels) {
-      w.omega = vF / R * (!w.front && drifting && throttle > 0.2 ? 1.35 : 1);
+    this.steer = clamp(delta, -0.6, 0.6) * -1;                        // + = right, as the wheel meshes expect
+    const spinR = !inp.handbrake && drifting && throttle > 0.2;
+    for (const w of w0) {
+      w.omega = inp.handbrake && !w.front ? 0 : vF / R * (!w.front && spinR ? 1.35 : 1);
       w.vLong = vF;
-      w.slipSpeed = w.contact ? Math.abs(vL) * (w.front ? 0.5 : 1) + (!w.front && drifting && throttle > 0.2 ? 4 : 0) : 0;
+      w.slipSpeed = w.contact ? (w.front ? vx * Math.abs(Math.sin(alphaF)) : vx * Math.abs(Math.sin(alphaR)) + (spinR ? 4 : 0) + (inp.handbrake ? Math.abs(vF) * 0.5 : 0)) : 0;
+    }
+  }
+
+  // Visual weight: body roll / pitch / heave from the accelerations the car really feels (drawn only).
+  updateBodyPose(dt) {
+    const B = CONFIG.arcade.body, V = this.vis;
+    _aV.subVectors(this.vel, this.lastVel).divideScalar(dt);
+    this.lastVel.copy(this.vel);
+    if (!V.init) { V.init = true; return; }
+    const aLeft = clamp(-_aV.dot(this.right), -25, 25), aFwd = clamp(_aV.dot(this.fwd), -25, 25), aUp = clamp(_aV.dot(this.up), -40, 40);
+    const air = this.grounded === 0;
+    const tR = air ? 0 : clamp(aLeft * B.roll, -B.maxRoll, B.maxRoll);
+    const tP = air ? 0 : clamp(-aFwd * B.pitch, -B.maxPitch, B.maxPitch);
+    const tH = air ? 0.02 : clamp(-aUp * B.heave, -B.maxHeave, B.maxHeave);
+    const w = 2 * Math.PI * B.freq, z = B.damping;
+    for (const [k, t] of [['roll', tR], ['pitch', tP], ['heave', tH]]) {
+      const kv = k + 'V';
+      V[kv] += (w * w * (t - V[k]) - 2 * z * w * V[kv]) * dt;
+      V[k] += V[kv] * dt;
     }
   }
 
