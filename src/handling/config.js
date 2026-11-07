@@ -116,7 +116,7 @@ const CONFIG = {
     steerFrom: 4,                 // m/s: below this a key is plain wheel angle (full lock for hairpins)...
     steerFull: 12,                // m/s: ...above this a key asks the front tyres for grip (blend in between)
     frontAim: 1.0,                // held key = front tyres at this × their peak slip angle. Higher = sharper turn-in, more rotation
-    slideHold: 1.0,               // × the surface's `slide` angle where a held key stops adding rotation (the slide settles there).
+    slideHold: 1.15,              // × the surface's `slide` angle where a held key stops adding rotation (the slide settles there).
                                   // Higher = bigger, longer slides from steering alone
     slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
@@ -124,15 +124,19 @@ const CONFIG = {
     slideFull: 19,                // m/s (68 km/h): ...above this the surface's full rear looseness applies
     slideCarry: 1.0,              // share of the rear grip lost to a loose surface that still bends your path (at the centre, so the
                                   // tail still swings out). Higher = slides corner as hard as gripping: sliding is the fast way round
+    slideKeep: 0.6,               // share of the speed a slide scrubs that you keep. Higher = a held slide loses less speed (1 = none)
     weightShift: 1.4,             // × the real load transfer between the axles. Higher = braking or lifting swings the tail more
-    powerSlide: 0.55,             // share of the rear drive force that eats rear grip. Higher = throttle pushes the tail out more
+    powerSlide: 1.0,              // share of the rear drive force that eats rear grip. Higher = throttle pushes the tail out more
+    brakeRear: 0.35,              // share of braking done by the rear wheels
     brakeSlide: 0.35,             // share of the rear braking force that eats rear grip. Higher = a brake tap mid-corner rotates more
     rearDrive: 0.6,               // share of the engine force through the rear axle (× car rearDrive)
     liftDecel: 0.7,               // m/s² engine braking off the throttle (also shifts weight forward: lift-off tuck-in)
     handbrakeGrip: 0.28,          // rear grip left while the handbrake is held. Lower = the tail swings round faster
+    slideGrip: 0.78,              // share of grip a tyre keeps when sliding well past its peak. Higher = slides keep more bite (calmer)
     falloff: { front: 0.45, rear: 0.9 }, // how fast grip drops past the tyre's peak (higher = snappier). Fronts hold on, rears let go
     selfAlign: 1.0,               // with no key the front wheels point this much along the slide (1 = exactly: no force, the rear straightens the car)
-    settle: 2.2,                  // 1/s: with no key, extra help bringing the car back in line (higher = quicker, less swing-back)
+    catchDamp: 12,                // 1/s: as a slide swings back through straight, this brakes the swing. Higher = less swing-back after a catch
+    settle: 4,                    // 1/s: with no key, extra help bringing the car back in line (higher = quicker, less swing-back)
     guard: { from: 42, range: 30, push: 9, damp: 7 }, // spin guard: from this angle (°), fully on `range` ° later; push = rad/s² back
                                                        // towards the travel, damp = how hard it brakes the rotation. Higher = harder to spin
     drift: {
@@ -140,6 +144,10 @@ const CONFIG = {
       on: 12,                     // ° of slide that counts as a drift (HUD, sound, replays, dust)...
       off: 7,                     // ...and the drift ends below this
       handbrakeDecel: 4,          // m/s² while the handbrake is held
+      // drift memory (handbrake pull or brake tap while steering): for that slide the rear is looser and the slide may grow bigger
+      looser: 0.3,                // share of rear grip taken away while it lasts. Higher = tarmac drifts hold longer on the throttle
+      holdExtra: 14,              // ° added to where a held key settles the slide (× car drift). Higher = bigger deliberate drifts
+      release: 0.32,              // s of neutral steering (or countersteer) that ends it
     },
     airFloat: 0.22,               // share of gravity cancelled in the air: floaty jumps
     airLevel: 6,                  // how strongly the car levels itself in the air
@@ -147,9 +155,9 @@ const CONFIG = {
     gears: [0, 45, 80, 115, 150, 182], // km/h where each gear starts (6-speed automatic)
     // Visual weight: the body leans on its wheels from the real accelerations (drawn only; physics unaffected).
     body: {
-      roll: 0.0042,               // rad per m/s² sideways: leaning out in corners and slides. Higher = more lean
-      pitch: 0.0034,              // rad per m/s² along: nose dips under braking, squats under power
-      heave: 0.006,               // m per m/s² up/down: squashes on landings and compressions
+      roll: 0.005,                // rad per m/s² sideways: leaning out in corners and slides. Higher = more lean
+      pitch: 0.004,               // rad per m/s² along: nose dips under braking, squats under power
+      heave: 0.004,               // m per m/s² up/down: squashes on landings and compressions
       maxRoll: 0.11, maxPitch: 0.08, maxHeave: 0.09,   // rad, rad, m: caps
       freq: 1.7,                  // Hz: how quickly the body follows. Lower = softer, lazier body
       damping: 0.42,              // 1 = no bounce; lower = it settles with a visible bounce or two
@@ -157,7 +165,8 @@ const CONFIG = {
     // per surface: maxG = front grip in g (the cornering limit; the test bot and rivals pick speeds from it),
     // top = top speed share, drag = rolling drag,
     // rear = rear grip vs front (lower = the tail lets go more easily; below 1 a held key slides the car),
-    // peak = slip angle of most grip (°; higher = softer, more progressive), slide = slide angle (°) where a held key settles
+    // peak = slip angle of most grip (°; higher = softer, more progressive),
+    // slide = angle (° × slideHold × car drift) where a held key stops adding rotation; a held slide settles at about 0.6× that
     surfaces: {
       tarmac: { maxG: 1.6,  top: 1.0,  drag: 0.02, rear: 1.04, peak: 6.5, slide: 16 },
       gravel: { maxG: 1.3,  top: 0.96, drag: 0.04, rear: 0.6,  peak: 9,   slide: 30 },
@@ -171,7 +180,7 @@ const CONFIG = {
   //   base = body, a / b = accents, c = dark trim, wheel = rim colour, numBg / numFg = number panel, plate = invented plate text,
   //   design = which painter function, pod = rally light bar on the nose, wing = wing / roof spoiler colour.
   cars: [
-    { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.9, turn: 1.0, rear: 1.0, rearDrive: 0.85,
+    { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.85, turn: 1.0, rear: 1.0, rearDrive: 0.85,
       paint: 0xf4f6f8, stripe: 0xffc928, skirt: 0x1f4fa3, number: '7',
       liveries: [
         { id: 'ridgeline', name: 'Ridgeline',   design: 'ridgeline', base: 0xf4f6f8, a: 0xffc928, b: 0x1f4fa3, c: 0x14213f, wheel: 0xd9dde2, numBg: 0xffc928, numFg: 0x101820, plate: 'KR 07-GT', wing: 0x14213f, spons: ['ROTOR OIL', 'NORTHGATE', 'BRINDLE'] },
@@ -179,7 +188,7 @@ const CONFIG = {
         { id: 'magma',     name: 'Magma',       design: 'magma',     base: 0x17181c, a: 0xff4a12, b: 0xffb81c, c: 0x2a1208, wheel: 0xff4a12, numBg: 0xffb81c, numFg: 0x17181c, plate: 'MG 66-HT', pod: true, wing: 0xff4a12, spons: ['TAMARACK', 'NORTHGATE', 'ROTOR OIL'], number: '66' },
         { id: 'mint',      name: 'Alpine Mint', design: 'mint',      base: 0x35d6a4, a: 0x3a1a6b, b: 0xf4f6f8, c: 0x1a0d36, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x3a1a6b, plate: 'AM 12-IN', wing: 0x3a1a6b, spons: ['BRINDLE BANK', 'HALCYON', 'PIKE RACING'], number: '12' },
       ] },
-    { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.1, turn: 1.12, rear: 0.95, rearDrive: 1.15,
+    { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.05, turn: 1.12, rear: 0.95, rearDrive: 1.15,
       paint: 0xd8342c, stripe: 0xf4f6f8, skirt: 0x1b1d20, number: '4',
       liveries: [
         { id: 'signal',  name: 'Signal Red',   design: 'signal', base: 0xd8342c, a: 0xf4f6f8, b: 0x1b1d20, c: 0x1b1d20, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x1b1d20, plate: 'SR 04-HF', wing: 0x1b1d20, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'BRINDLE'] },

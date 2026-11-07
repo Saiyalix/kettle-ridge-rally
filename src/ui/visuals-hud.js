@@ -4,6 +4,9 @@
 
   function updateVisuals(dt) {
     carGroup.position.copy(vPos); carGroup.quaternion.copy(vQ);
+    // visual weight (handling): the body leans, dips and squats on its wheels (car.vis, from the physics); level in replays
+    const vb = state === 'replay' ? null : car.vis;
+    bodyRoot.rotation.set(vb ? vb.pitch : 0, 0, vb ? vb.roll : 0); bodyRoot.position.y = vb ? vb.heave : 0;
     car.wheels.forEach((w, i) => {
       const wm = wheelMeshes[i];
       wm.steerG.position.set(w.local.x, w.local.y - w.susp, w.local.z);
