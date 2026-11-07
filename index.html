@@ -896,6 +896,32 @@ const THORN_POST = [
 ];
 const THORN_G1 = THORN_PRE.reduce((a, g) => a + segLen(g), 0), THORN_G2 = THORN_G1 + THORN_CASTLE.slice(0, 3).reduce((a, g) => a + segLen(g), 0);
 
+// TEST track (practice stage, not part of the championship): wide, open, nearly flat country for trying the driving on every surface.
+function testHeight(x, z) {
+  return 1.6 * Math.sin(x * 0.0045 + 0.7) * Math.cos(z * 0.004 - 0.4) + 0.5 * Math.sin(x * 0.012 + z * 0.009 + 1.3);
+}
+// The route is written as labelled sections: [label, surface, segments]. Section starts (s) are worked out from the segments, so surfaceChanges,
+// the section banners over the road, the bumps and the flat drift area all follow if a section is made longer or shorter.
+const TEST_SECTIONS = [
+  ['TARMAC - SWEEPER', 'tarmac', [['S', 70], ['L', 40, 260], ['R', 40, 260], ['S', 30]]],
+  ['TARMAC - 90 DEGREE CORNER', 'tarmac', [['S', 40], ['L', 90, 28], ['S', 70]]],
+  ['TARMAC - HAIRPIN', 'tarmac', [['S', 40], ['R', 180, 24], ['S', 70]]],
+  ['TARMAC - CHICANE', 'tarmac', [['S', 40], ['L', 35, 50], ['R', 70, 50], ['L', 35, 50], ['S', 60]]],
+  ['GRAVEL - SWEEPERS', 'gravel', [['S', 40], ['L', 50, 220], ['R', 50, 220], ['S', 40]]],
+  ['GRAVEL - HAIRPIN', 'gravel', [['S', 40], ['L', 180, 26], ['S', 60]]],
+  ['GRAVEL - SLALOM', 'gravel', [['S', 40], ['R', 35, 60], ['L', 70, 60], ['R', 70, 60], ['L', 35, 60], ['S', 40]]],
+  ['GRAVEL - WHOOPS', 'gravel', [['S', 280]]],
+  ['DIRT - CORNERS', 'dirt', [['S', 40], ['L', 60, 70], ['R', 50, 90], ['L', 75, 50], ['S', 40]]],
+  ['DIRT - CREST JUMP', 'dirt', [['S', 230]]],
+  ['DRIFT AREA', 'gravel', [['S', 50], ['L', 360, 32], ['S', 60]]],
+  ['SNOW - SWEEPER', 'snow', [['S', 40], ['L', 60, 150], ['R', 40, 180], ['S', 40]]],
+  ['SNOW - HAIRPIN', 'snow', [['S', 40], ['L', 170, 24], ['S', 60], ['S', 120]]],
+];
+const TEST_LEN = TEST_SECTIONS.map(g => g[2].reduce((a, s) => a + segLen(s), 0));
+const TEST_AT = TEST_LEN.map((_, i) => TEST_LEN.slice(0, i).reduce((a, b) => a + b, 0));     // s where each section starts
+const testIdx = name => TEST_SECTIONS.findIndex(g => g[0] === name);
+const TEST_SIGN_COL = { tarmac: ['#4a5058', '#ffffff'], gravel: ['#b0813f', '#ffffff'], dirt: ['#7d4f2c', '#ffffff'], snow: ['#2f6fb0', '#ffffff'] };
+
 const STAGES = [
   {
     id: 'kettle', code: 'SS1', name: 'Kettle Ridge', place: 'Forest hills',
@@ -1031,7 +1057,24 @@ const STAGES = [
       grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
     },
   },
+  {
+    id: 'test', code: 'TEST', name: 'Test Track', place: 'Driving playground', practice: true,
+    blurb: 'Practice only: no clock, no rivals, not in the championship. Tarmac, gravel, dirt and snow in labelled sections, with a hairpin, a slalom, bumps, a jump and an open drift area. Restart as often as you like.',
+    bestKey: 'rallyBest_test', seed: 61, theme: 'test', terrain: 'blend', height: testHeight,
+    roadHalfWidth: 7.0, runoff: 120,
+    surfaceChanges: TEST_SECTIONS.map((g, i) => [TEST_AT[i], g[1]]).filter((c, i, a) => !i || c[1] !== a[i - 1][1]),
+    snowFrom: TEST_AT[testIdx('SNOW - SWEEPER')],
+    checkpoints: [],
+    timeStart: 99999, timeExt: [], refTime: 150,
+    jumps: [...[0, 1, 2, 3, 4].map(k => [TEST_AT[testIdx('GRAVEL - WHOOPS')] + 60 + k * 45, 0.5, 'bump']), [TEST_AT[testIdx('DIRT - CREST JUMP')] + 120, 1.8]],
+    flatRoad: [{ from: TEST_AT[testIdx('DRIFT AREA')] - 40, to: TEST_AT[testIdx('DRIFT AREA')] + TEST_LEN[testIdx('DRIFT AREA')] + 40, ramp: 150 }],
+    signs: TEST_SECTIONS.map((g, i) => ({ s: i ? TEST_AT[i] + 24 : 70, text: g[0], bg: TEST_SIGN_COL[g[1]][0], fg: TEST_SIGN_COL[g[1]][1] })),
+    segments: TEST_SECTIONS.flatMap(g => g[2]),
+    look: null,   // set below: the SS1 daytime look, with the fog pushed back so the whole playground can be seen
+  },
 ];
+STAGES[STAGES.length - 1].look = Object.assign({}, STAGES[0].look, { fogNear: 260, fogFar: 1100 });
+const CHAMP_STAGES = STAGES.filter(s => !s.practice).length;      // the championship runs the stages that are not practice stages (they come first in the list)
 CONFIG.stage = STAGES[0];
 
 /* =====================================================================
@@ -1040,6 +1083,7 @@ CONFIG.stage = STAGES[0];
 // Co-driver calls in the Sega Rally manner: Easy / Medium / Sharp, Long, Square, Hairpin, "maybe", "don't cut"
 function paceNote(seg) {
   const dir = seg[0] === 'R' ? 'right' : 'left', ang = seg[1], r = seg[2];
+  if (ang >= 300) return 'Full circle ' + dir + ', drift area';
   if (ang >= 140) return 'Hairpin ' + dir;
   if (ang >= 75 && r < 32) return 'Square ' + dir;
   const sev = r >= 110 ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
@@ -1107,12 +1151,14 @@ function buildTrack(ST = CONFIG.stage) {
     h = out;
   }
   // Crests: quick rise, then the road falls away so the car takes off
-  for (const [js, jh] of ST.jumps) {
-    notes.push({ s: js - 22, text: 'Crest, jump!', kind: 'jump', dir: '' });
+  // (a jump entry [s, height, 'bump'] is a short whoop: half as long, no call)
+  for (const [js, jh, kind] of ST.jumps) {
+    const bump = kind === 'bump', up = bump ? 14 : 28, down = bump ? 11 : 22;
+    if (!bump) notes.push({ s: js - 22, text: 'Crest, jump!', kind: 'jump', dir: '' });
     for (let i = 0; i < n; i++) {
       const u = pts[i].s - js;
-      if (u > -28 && u <= 0) h[i] += jh * smoothstep((u + 28) / 28);
-      else if (u > 0 && u < 22) h[i] += jh * (1 - smoothstep(u / 22));
+      if (u > -up && u <= 0) h[i] += jh * smoothstep((u + up) / up);
+      else if (u > 0 && u < down) h[i] += jh * (1 - smoothstep(u / down));
     }
   }
   // Cliff sides: 1 = rock wall rising on that side, 0 = drop
@@ -3086,6 +3132,8 @@ function boot() {
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }
+    } else if (ST.id === 'test') {
+      // practice stage: no walls, fences or houses
     } else {
       const city = track.cityStart;
       for (const side of [-1, 1]) {
@@ -5093,6 +5141,12 @@ function boot() {
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 
+  /* ---------- theme: test (Test Track): open country, a few trees far back for orientation, nothing solid anywhere near the road ---------- */
+  function sceneryTest(rng) {
+    const trees = scatter(rng, 90, 6000, (x, z, d, y, s0) => d > 70 && rng() < 0.5 ? { col: false } : false);
+    conifers(trees, (c) => c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+  }
+
   /* ---------- theme: castle (Thornwick Keep) ---------- */
   function sceneryCastle(rng) {
     const C = ST.castle, g1 = C.gate1, g2 = C.gate2, fin = track.finishS, L = castleL;
@@ -5325,6 +5379,7 @@ function boot() {
     return sponsorMats;
   }
   function trackside(rng) {
+    if (ST.practice) { readabilityBoards(); return; }       // practice stage: no sponsor boards, crowds or tape, nothing beside the road but the corner boards
     const boards = [], crowds = [], tapes = [];
     const groundOk = (x, z, p) => Math.abs(terrain.heightAt(x, z) - p.y) < 2.5 && terrain.distAt(x, z) > half + 2.2;
     const city = isFinite(track.cityStart) ? track.cityStart : Infinity;
@@ -5368,7 +5423,7 @@ function boot() {
       if (y - ground > 6) return;
       list.push({ x, z, y, rot: Math.atan2(q.x - x, q.z - z) });
       posts.push({ x, z, y0: ground, h: y - ground + 1.9 });
-      obstacles.push({ x, z, r: 0.12 });
+      if (!ST.practice) obstacles.push({ x, z, r: 0.12 });      // (practice stage: the corner boards are not solid)
     };
     for (const t of track.turns) {
       const side = t.dir === 'R' ? -1 : 1;                                 // boards stand on the outside
@@ -6338,12 +6393,13 @@ function boot() {
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
-    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else sceneryForest(rng);
+    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else if (ST.theme === 'test') sceneryTest(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
+    for (const g of ST.signs || []) makeGate(g.s, g.text, g.bg, g.fg, false, { kind: 'arch', lights: 'cp' });      // practice stage: a big banner over the road at the start of each section
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
     ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216', false, { kind: 'truss', lights: 'cp' }));
     makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
-    eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
+    if (!ST.practice) eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
     crowdBuild();
     hashObstacles();
     buildMinimap();
@@ -7618,6 +7674,7 @@ function boot() {
   let startOrder = [];
   function setupRivals(order) {
     startOrder = order || defaultOrder();
+    if (ST.practice) { for (const r of rivals) { r.tab = null; r.stageTime = null; r.g.visible = false; } return; }     // practice stage: nobody else on the road
     const slotOf = name => startOrder.indexOf(name);
     const me = slotOf('You');
     for (const r of rivals) {
@@ -7698,7 +7755,7 @@ function boot() {
   }
   function splitGap(d, t) { let best = Infinity; for (const r of rivals) if (r.tab) best = Math.min(best, timeAtDist(r.tab, d)); return t - best; }
   function classify(myTime) {          // stage classification: everyone's time, you included (null = did not finish)
-    const rows = rivals.map(r => ({ name: r.name, time: r.stageTime }));
+    const rows = ST.practice ? [] : rivals.map(r => ({ name: r.name, time: r.stageTime }));
     rows.push({ name: 'You', time: myTime, you: true });
     rows.sort((a, b) => (a.time == null) - (b.time == null) || a.time - b.time);
     rows.forEach((r, k) => { r.pos = r.time == null ? null : k + 1; r.pts = r.time == null ? 0 : (POINTS[k] || 0); });
@@ -8087,7 +8144,7 @@ function boot() {
   }
   function startStage(order) {
     if (loading || !track) return;
-    raceOrder = order || defaultOrder();
+    raceOrder = ST.practice ? ['You'] : order || defaultOrder();       // practice stage: no other crews
     initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
     $('menu').hidden = true; $('finishScreen').hidden = true; document.body.classList.remove('menu-mode');
     placeAt(startS); raceTime = 0; nextCp = 0; splits = []; lastCpS = 0; countdown = 3.6; lastBeep = 9;
@@ -8096,8 +8153,8 @@ function boot() {
     setupRivals(raceOrder);
     state = 'countdown'; renderSplits();
     const slot = raceOrder.indexOf('You') + 1;
-    showMsg('', false); banner(`START  #${slot}`, 'ext', 3.2);
-    elBannerSub(`${slot - 1} crews ahead of you on the road, one every ${START_GAP} s`);
+    showMsg('', false); banner(ST.practice ? 'START' : `START  #${slot}`, 'ext', 3.2);
+    elBannerSub(ST.practice ? 'Test track: no clock, no rivals' : `${slot - 1} crews ahead of you on the road, one every ${START_GAP} s`);
     canvas.focus();
   }
   function goMenu() {
@@ -8241,7 +8298,7 @@ function boot() {
     return html;
   }
   function showResults(rows, myRow) {
-    const champDone = champ && champ.idx >= STAGES.length - 1;
+    const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
     if (champ) { rows.forEach(r => { champ.points[r.name] = (champ.points[r.name] || 0) + r.pts; }); champ.results.push({ stage: ST.name, pos: myRow.pos }); }
     let html = '<div class="tbl-title">Stage result</div><div class="classif">' + rowsHtml(rows, 'stage') + '</div>';
     if (champ) {
@@ -8251,7 +8308,7 @@ function boot() {
       if (champDone) $('bestLine').textContent = myRank === 1 ? `Champion! You won the rally with ${champ.points.You || 0} points.` : `You finished the rally ${ordinal(myRank)} with ${champ.points.You || 0} points. ${st[0].name} won with ${st[0].pts}.`;
       else $('bestLine').textContent += ` You're ${ordinal(myRank)} in the championship and start the next stage ${ordinal(champOrder().indexOf('You') + 1)}.`;
     }
-    $('resultTable').innerHTML = html;
+    $('resultTable').innerHTML = ST.practice ? '' : html;
     $('nextBtn').hidden = !(champ && !champDone);
     $('againBtn').hidden = !!(champ && !champDone);
   }
@@ -8260,20 +8317,21 @@ function boot() {
     lastClass = classify(raceTime);
     const me = lastClass.find(r => r.you);
     finishPos = me.pos;
-    banner('GOAL!', 'goal', 2.4); elBannerSub(`${ordinal(finishPos)} on time  ·  ${fmtTime(raceTime)}`);
+    banner('GOAL!', 'goal', 2.4); elBannerSub(ST.practice ? fmtTime(raceTime) : `${ordinal(finishPos)} on time  ·  ${fmtTime(raceTime)}`);
     cue.goal(); say(finishPos === 1 ? 'Goal! Fastest time!' : 'Goal!', true);
     const isBest = !best || raceTime < best.time;
     const prev = best;
     if (isBest) { best = { time: raceTime, splits: splits.slice() }; try { localStorage.setItem(ST.bestKey, JSON.stringify(best)); } catch (e) { /* storage unavailable */ } }
-    const champDone = champ && champ.idx >= STAGES.length - 1;
-    $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${STAGES.length} · ${ST.name}`) : ST.code + ' · ' + ST.name;
+    const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
+    $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${CHAMP_STAGES} · ${ST.name}`) : ST.code + ' · ' + ST.name;
     $('resPos').textContent = ordinal(finishPos);
     $('resPos').className = 'big pos' + (finishPos === 1 ? ' p1' : '');
     const lead = lastClass[0];
     $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
     $('bestLine').textContent = prev ? (isBest ? `Your best time on this stage, ${(prev.time - raceTime).toFixed(2)} s quicker.` : `Your best here is ${fmtTime(best.time)}.`) : 'First time recorded on this stage.';
+    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
     showResults(lastClass, me);
-    $('againBtn').textContent = 'Race again';
+    $('againBtn').textContent = ST.practice ? 'Drive again' : 'Race again';
     setTimeout(() => { if (state === 'finished') { $('finishScreen').hidden = false; ($('nextBtn').hidden ? $('againBtn') : $('nextBtn')).focus(); } }, 2400);
   }
   function gameOver() {
@@ -8288,7 +8346,7 @@ function boot() {
       $('finalTime').innerHTML = `${(Math.min(P[progIdx].s, track.finishS) / 1000).toFixed(2)} km<span class="left">of ${(track.finishS / 1000).toFixed(2)} km · no points</span>`;
       $('bestLine').textContent = 'The clock ran out. Every checkpoint adds time, so carry speed through the corners and keep it on the road.';
       showResults(lastClass, me);
-      if (champ) { $('nextBtn').hidden = champ.idx >= STAGES.length - 1; $('againBtn').hidden = !$('nextBtn').hidden; }
+      if (champ) { $('nextBtn').hidden = champ.idx >= CHAMP_STAGES - 1; $('againBtn').hidden = !$('nextBtn').hidden; }
       $('againBtn').textContent = 'Try again';
       $('finishScreen').hidden = false; (!$('nextBtn').hidden ? $('nextBtn') : $('againBtn')).focus();
     }, 2600);
@@ -8635,9 +8693,9 @@ function boot() {
     if (state !== 'menu') {
       const onStage = state === 'running' && P[progIdx].s > startS + 15;
       const pos = state === 'finished' ? finishPos : onStage || state === 'gameover' ? racePosition() : (raceOrder ? raceOrder.indexOf('You') + 1 : 8);
-      setText(elPos, 'pos', String(pos));
+      setText(elPos, 'pos', ST.practice ? '-' : String(pos));
       const tl = Math.max(0, timeLeft);
-      setText(elClock, 'clk', state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
+      setText(elClock, 'clk', ST.practice ? '--' : state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
       elClockBox.classList.toggle('low', state === 'running' && tl < 10);
       if (state === 'running' && tl < 10 && Math.ceil(tl) !== lastWarn) { lastWarn = Math.ceil(tl); cue.warn(); }
     }

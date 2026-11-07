@@ -4,6 +4,7 @@
 // Co-driver calls in the Sega Rally manner: Easy / Medium / Sharp, Long, Square, Hairpin, "maybe", "don't cut"
 function paceNote(seg) {
   const dir = seg[0] === 'R' ? 'right' : 'left', ang = seg[1], r = seg[2];
+  if (ang >= 300) return 'Full circle ' + dir + ', drift area';
   if (ang >= 140) return 'Hairpin ' + dir;
   if (ang >= 75 && r < 32) return 'Square ' + dir;
   const sev = r >= 110 ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
@@ -71,12 +72,14 @@ function buildTrack(ST = CONFIG.stage) {
     h = out;
   }
   // Crests: quick rise, then the road falls away so the car takes off
-  for (const [js, jh] of ST.jumps) {
-    notes.push({ s: js - 22, text: 'Crest, jump!', kind: 'jump', dir: '' });
+  // (a jump entry [s, height, 'bump'] is a short whoop: half as long, no call)
+  for (const [js, jh, kind] of ST.jumps) {
+    const bump = kind === 'bump', up = bump ? 14 : 28, down = bump ? 11 : 22;
+    if (!bump) notes.push({ s: js - 22, text: 'Crest, jump!', kind: 'jump', dir: '' });
     for (let i = 0; i < n; i++) {
       const u = pts[i].s - js;
-      if (u > -28 && u <= 0) h[i] += jh * smoothstep((u + 28) / 28);
-      else if (u > 0 && u < 22) h[i] += jh * (1 - smoothstep(u / 22));
+      if (u > -up && u <= 0) h[i] += jh * smoothstep((u + up) / up);
+      else if (u > 0 && u < down) h[i] += jh * (1 - smoothstep(u / down));
     }
   }
   // Cliff sides: 1 = rock wall rising on that side, 0 = drop

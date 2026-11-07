@@ -55,9 +55,9 @@
     if (state !== 'menu') {
       const onStage = state === 'running' && P[progIdx].s > startS + 15;
       const pos = state === 'finished' ? finishPos : onStage || state === 'gameover' ? racePosition() : (raceOrder ? raceOrder.indexOf('You') + 1 : 8);
-      setText(elPos, 'pos', String(pos));
+      setText(elPos, 'pos', ST.practice ? '-' : String(pos));
       const tl = Math.max(0, timeLeft);
-      setText(elClock, 'clk', state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
+      setText(elClock, 'clk', ST.practice ? '--' : state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
       elClockBox.classList.toggle('low', state === 'running' && tl < 10);
       if (state === 'running' && tl < 10 && Math.ceil(tl) !== lastWarn) { lastWarn = Math.ceil(tl); cue.warn(); }
     }

@@ -52,6 +52,32 @@ const THORN_POST = [
 ];
 const THORN_G1 = THORN_PRE.reduce((a, g) => a + segLen(g), 0), THORN_G2 = THORN_G1 + THORN_CASTLE.slice(0, 3).reduce((a, g) => a + segLen(g), 0);
 
+// TEST track (practice stage, not part of the championship): wide, open, nearly flat country for trying the driving on every surface.
+function testHeight(x, z) {
+  return 1.6 * Math.sin(x * 0.0045 + 0.7) * Math.cos(z * 0.004 - 0.4) + 0.5 * Math.sin(x * 0.012 + z * 0.009 + 1.3);
+}
+// The route is written as labelled sections: [label, surface, segments]. Section starts (s) are worked out from the segments, so surfaceChanges,
+// the section banners over the road, the bumps and the flat drift area all follow if a section is made longer or shorter.
+const TEST_SECTIONS = [
+  ['TARMAC - SWEEPER', 'tarmac', [['S', 70], ['L', 40, 260], ['R', 40, 260], ['S', 30]]],
+  ['TARMAC - 90 DEGREE CORNER', 'tarmac', [['S', 40], ['L', 90, 28], ['S', 70]]],
+  ['TARMAC - HAIRPIN', 'tarmac', [['S', 40], ['R', 180, 24], ['S', 70]]],
+  ['TARMAC - CHICANE', 'tarmac', [['S', 40], ['L', 35, 50], ['R', 70, 50], ['L', 35, 50], ['S', 60]]],
+  ['GRAVEL - SWEEPERS', 'gravel', [['S', 40], ['L', 50, 220], ['R', 50, 220], ['S', 40]]],
+  ['GRAVEL - HAIRPIN', 'gravel', [['S', 40], ['L', 180, 26], ['S', 60]]],
+  ['GRAVEL - SLALOM', 'gravel', [['S', 40], ['R', 35, 60], ['L', 70, 60], ['R', 70, 60], ['L', 35, 60], ['S', 40]]],
+  ['GRAVEL - WHOOPS', 'gravel', [['S', 280]]],
+  ['DIRT - CORNERS', 'dirt', [['S', 40], ['L', 60, 70], ['R', 50, 90], ['L', 75, 50], ['S', 40]]],
+  ['DIRT - CREST JUMP', 'dirt', [['S', 230]]],
+  ['DRIFT AREA', 'gravel', [['S', 50], ['L', 360, 32], ['S', 60]]],
+  ['SNOW - SWEEPER', 'snow', [['S', 40], ['L', 60, 150], ['R', 40, 180], ['S', 40]]],
+  ['SNOW - HAIRPIN', 'snow', [['S', 40], ['L', 170, 24], ['S', 60], ['S', 120]]],
+];
+const TEST_LEN = TEST_SECTIONS.map(g => g[2].reduce((a, s) => a + segLen(s), 0));
+const TEST_AT = TEST_LEN.map((_, i) => TEST_LEN.slice(0, i).reduce((a, b) => a + b, 0));     // s where each section starts
+const testIdx = name => TEST_SECTIONS.findIndex(g => g[0] === name);
+const TEST_SIGN_COL = { tarmac: ['#4a5058', '#ffffff'], gravel: ['#b0813f', '#ffffff'], dirt: ['#7d4f2c', '#ffffff'], snow: ['#2f6fb0', '#ffffff'] };
+
 const STAGES = [
   {
     id: 'kettle', code: 'SS1', name: 'Kettle Ridge', place: 'Forest hills',
@@ -187,6 +213,23 @@ const STAGES = [
       grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
     },
   },
+  {
+    id: 'test', code: 'TEST', name: 'Test Track', place: 'Driving playground', practice: true,
+    blurb: 'Practice only: no clock, no rivals, not in the championship. Tarmac, gravel, dirt and snow in labelled sections, with a hairpin, a slalom, bumps, a jump and an open drift area. Restart as often as you like.',
+    bestKey: 'rallyBest_test', seed: 61, theme: 'test', terrain: 'blend', height: testHeight,
+    roadHalfWidth: 7.0, runoff: 120,
+    surfaceChanges: TEST_SECTIONS.map((g, i) => [TEST_AT[i], g[1]]).filter((c, i, a) => !i || c[1] !== a[i - 1][1]),
+    snowFrom: TEST_AT[testIdx('SNOW - SWEEPER')],
+    checkpoints: [],
+    timeStart: 99999, timeExt: [], refTime: 150,
+    jumps: [...[0, 1, 2, 3, 4].map(k => [TEST_AT[testIdx('GRAVEL - WHOOPS')] + 60 + k * 45, 0.5, 'bump']), [TEST_AT[testIdx('DIRT - CREST JUMP')] + 120, 1.8]],
+    flatRoad: [{ from: TEST_AT[testIdx('DRIFT AREA')] - 40, to: TEST_AT[testIdx('DRIFT AREA')] + TEST_LEN[testIdx('DRIFT AREA')] + 40, ramp: 150 }],
+    signs: TEST_SECTIONS.map((g, i) => ({ s: i ? TEST_AT[i] + 24 : 70, text: g[0], bg: TEST_SIGN_COL[g[1]][0], fg: TEST_SIGN_COL[g[1]][1] })),
+    segments: TEST_SECTIONS.flatMap(g => g[2]),
+    look: null,   // set below: the SS1 daytime look, with the fog pushed back so the whole playground can be seen
+  },
 ];
+STAGES[STAGES.length - 1].look = Object.assign({}, STAGES[0].look, { fogNear: 260, fogFar: 1100 });
+const CHAMP_STAGES = STAGES.filter(s => !s.practice).length;      // the championship runs the stages that are not practice stages (they come first in the list)
 CONFIG.stage = STAGES[0];
 
