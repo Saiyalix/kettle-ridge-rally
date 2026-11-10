@@ -69,13 +69,16 @@ const expected = JSON.parse(fs.readFileSync(EXPECTED_FILE, 'utf8'));
     L.push('');
   }
   if (data.bot) {
-    L.push('## Bot runs', '', '| Stage / car | Time s | Clock s | Off road s | Drift s | Top km/h |', '|---|---|---|---|---|---|');
-    for (const r of data.bot) L.push(`| ${r.stageName} / ${r.car} | ${r.time.toFixed(2)} | ${r.clock} | ${r.offRoadS.toFixed(1)} | ${r.driftS.toFixed(1)} | ${r.maxKmh.toFixed(0)} |`);
+    L.push('## Bot runs', '', '| Stage / car | Time s | Clock s | Tightest clock margin s | Off road s | Spins | Rescues | Top km/h |', '|---|---|---|---|---|---|---|---|');
+    for (const r of data.bot) L.push(`| ${r.stageName} / ${r.car} | ${r.time.toFixed(2)} | ${r.clock} | ${r.minMarginS == null ? '–' : r.minMarginS.toFixed(1)} | ${r.offRoadS.toFixed(1)} | ${r.spins} | ${r.rescues} | ${r.maxKmh.toFixed(0)} |`);
     L.push('');
   }
   if (data.handling) {
-    L.push('## Skid pad', '', '| Car | Surface | km/h | Slide ° | Steering wound on ms | Car response ms | Radius m |', '|---|---|---|---|---|---|---|');
-    for (const r of data.handling) L.push(`| ${r.car} | ${r.surface} | ${r.kmh} | ${r.slideDeg.toFixed(1)} | ${r.wheelMs == null ? '–' : r.wheelMs.toFixed(0)} | ${r.pathMs == null ? '–' : r.pathMs.toFixed(0)} | ${r.radiusM == null ? '–' : r.radiusM.toFixed(0)} |`);
+    const f = (v, d = 1) => v == null ? '–' : v.toFixed(d);
+    L.push('## Skid pad: held key', '', '| Car | Surface | km/h | Slide ° | First swing-out ° | Wound on ms | Back under 5° s | Overshoot ° |', '|---|---|---|---|---|---|---|---|');
+    for (const r of data.handling.filter(r => r.mode === 'held')) L.push(`| ${r.car} | ${r.surface} | ${r.kmh} | ${f(r.slideDeg)} | ${f(r.swingDeg)} | ${f(r.wheelMs, 0)} | ${f(r.recoverS, 2)} | ${f(r.overshootDeg)} |`);
+    L.push('', '## Skid pad: spin test and handbrake', '', '| Car | Test | Surface | km/h | Max slide ° | Seconds past 45° | 90° turned at s |', '|---|---|---|---|---|---|---|');
+    for (const r of data.handling.filter(r => r.mode !== 'held')) L.push(`| ${r.car} | ${r.mode} | ${r.surface} | ${r.kmh} | ${f(r.maxDeg, 0)} | ${f(r.over45S, 2)} | ${f(r.t90, 2)} |`);
     L.push('');
   }
   L.push('Screenshots: tests/results/*.png');

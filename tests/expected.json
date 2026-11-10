@@ -31,17 +31,52 @@
       140
     ],
     "offRoadKmh": 50,
-    "slideDeg": [
-      2,
-      10
+    "slideDeg": {
+      "tarmac": [
+        0,
+        6
+      ],
+      "gravel": [
+        12,
+        32
+      ],
+      "dirt": [
+        12,
+        32
+      ],
+      "snow": [
+        12,
+        32
+      ]
+    },
+    "grassMaxSlideDeg": 40,
+    "swingMaxDeg": 50,
+    "spinKmh": [
+      60,
+      90,
+      120
     ],
+    "spin": {
+      "maxDeg": 90,
+      "over45S": 0.5
+    },
+    "recoverS": {
+      "default": 0.8,
+      "grass": 1.5
+    },
+    "overshootMaxDeg": 3,
     "turnInMs": [
       67,
       100
     ],
     "turnInUpToKmh": 80,
     "maxWheelSpreadMs": 9,
-    "maxPathSpreadMs": 25
+    "stradaExtraDeg": 4,
+    "handbrake": {
+      "surface": "gravel",
+      "kmh": 55,
+      "maxS": 1.2
+    }
   },
   "mobile": {
     "viewport": {
