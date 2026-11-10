@@ -46,7 +46,7 @@
       this.big = strength > 1.2 ? 1 : 0;
       this.popD = Math.exp(-1 / ((this.big ? 0.03 + this.rnd() * 0.03 : 0.004 + this.rnd() * 0.012) * this.sr));
       this.crack = 1;
-      if (!this.burst && this.rnd() < 0.4) { this.burst = 1 + ((this.rnd() * 3) | 0); this.burstT = (0.015 + this.rnd() * 0.05) * this.sr; }
+      if (!this.burst && this.rnd() < 0.15) { this.burst = 1 + ((this.rnd() * 3) | 0); this.burstT = (0.015 + this.rnd() * 0.05) * this.sr; }
     }
     fire(P) {
       const s = this.slot, L = this.load;
@@ -56,7 +56,7 @@
       a *= this.exh;                                              // Engine B turns the firing pulses down; pops and crackle stay
       this.eD += a; this.eA += a * (1 + this.cylBias[s] * 300);
       this.tick = 0.6 + this.rnd() * 0.4;
-      if (P.crackle > 0 && this.rnd() < P.crackle) this.startPop(this.rnd() < 0.1 ? 1.5 : 0.8);
+      if (P.crackle > 0 && this.rnd() < P.crackle) this.startPop(this.rnd() < 0.03 ? 1.5 : 0.4);
     }
     render(out, n, P) {
       const sr = this.sr, TAU = 2 * Math.PI;
@@ -85,8 +85,8 @@
         if (this.popA > 0.001) {
           this.popA *= this.popD;
           this.popLP += (white - this.popLP) * (this.big ? 0.25 : 0.5);
-          const bang = this.popLP * this.popA * 3.8;
-          u += bang; direct += this.crack * white * this.popA * this.popA * (this.big ? 1.4 : 2.4);
+          const bang = this.popLP * this.popA * 3.8 * 0.6;
+          u += bang; direct += this.crack * white * this.popA * this.popA * (this.big ? 1.0 : 1.2);
         } else this.crack = 0;
         // exhaust pipe (inverting, damped) then muffler (non-inverting, damped)
         const i1 = this.i1, i2 = this.i2;
