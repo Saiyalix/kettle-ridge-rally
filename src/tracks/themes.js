@@ -83,7 +83,8 @@
       rows: [{ o0: 5, o1: 8, step: 6.5, p: 0.75, s0: 0.9, s1: 1.3, sep: 4.5 }, { o0: 10, o1: 15, step: 9, p: 0.4, s0: 0.9, s1: 1.4, sep: 5 }] });
     const sakuraAll = sakura.concat(lining);
     treeStand(sakuraAll, () => SPECIES.sakura);
-    for (const t of sakuraAll) if (t.col !== undefined ? t.col : t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    // trunks you can hit stay 7 m or more from the road edge (a car that slides wide at 150 km/h runs out onto open ground, not into a tree); nearer ones are for looks only
+    for (const t of sakuraAll) if ((t.col !== undefined ? t.col : t.d < 30) && Math.sqrt(world.nearest(t.x, t.z).d2) - half >= 7) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
       if (d < half + 5 || s0 < 690 || s0 > city0 - 60 || inTunnel(s0)) return false;
