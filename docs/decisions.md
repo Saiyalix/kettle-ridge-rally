@@ -5,6 +5,47 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-10 · Sound overhaul: modelled engine AND recorded engine, to pick by ear (audio)
+**Request (owner):** "Currently the car sounds nothing like a car ... look up sound bites of rally cars, be creative."
+Owner chose: build both a physically modelled engine and a recording-based one and pick by ear; improve engine and exhaust,
+rally signatures, surfaces, and world / crowd.
+
+**What was decided**
+- **Engine A "Modelled"** (`src/audio/engine-dsp.js`, runs in one AudioWorklet from a Blob URL; falls back to a ScriptProcessor running the
+  same class, and the rest of the sound still works if neither exists). Firing pulses (4 cylinders, uneven) go through a pipe resonator and
+  a muffler resonator (two damped feedback delay lines), then body resonances and a throttle-controlled low-pass. Intake roar, valve ticks,
+  straight-cut gearbox whine (a different note per gear), turbo whistle. Overrun pops and crackle are injected into the pipe.
+- **Engine B "Recorded"** (`src/audio/engine-samples.js`): two short loops, pitched so their pulse rate follows rpm/30 and cross-faded at
+  about 2400-3900 rpm, shaped by throttle. The same pops, whine, turbo, shifts and effects sit on top, plus a quiet copy of Engine A's exhaust.
+- **Switch and volumes** in the pause menu ("Engine sound: Modelled / Recorded", default Modelled; Master / Engine / Effects / Co-driver
+  sliders). Saved in localStorage key `rallyAudio`. The small edit is in `src/page/body.html` and `style.css` (ui-mobile's files); the
+  wiring is in `audio.js`.
+- Rally signatures: bangs on lift-off at revs, blow-off hiss or flutter, a dog-box clunk on every shift (ignition cut during the shift, a pop
+  on hard upshifts), rev-limiter chatter.
+- Surfaces: tarmac roar and squeal; gravel / dirt / snow / grass spray with their own colour; stones thrown at the underbody (more when
+  sliding); bump knocks; heavy landing thump + rattle; wall scrape; impacts (wood, metal, stone, picked by a guess, see below).
+- World: crowd murmur panned to the nearest spectators, cheers, whistles and air horns; echo (generated impulse response) in the castle
+  gatehouses, the torii tunnel and, lightly, the castle courtyard; one passing rival with Doppler. Engine ducks to 55% and radio clicks play
+  while the co-driver speaks. Quality "low": no echo, no rival voice, half the stone hits.
+- Co-driver voice: better voice choice (local British male first), slightly slower, volume slider, a late call is dropped instead of queued.
+  Browser speech cannot be filtered, so the "radio" is the clicks, not an EQ.
+- Final soft limiter so nothing passes 0.95; the engine at full throttle is the loudest single thing (about 4x the RMS of the tyre layers).
+
+**Why two engines:** the modelled one has no recording weakness but is only as good as the model; the only free CC0 engine loops found
+(see below) are weak material, so the owner decides by ear.
+
+**Known weak spots (honest):** impact material is guessed (a scrape marks rails / walls, castle stage = stone, otherwise wood / stone),
+because collisions do not say what was hit; `tracks` could add `fx.kind` later. Replays rebuild slide and surface sounds from position and the
+recorded slide, so they are less detailed than live. The rival voice is a simple buzz, not a model.
+
+**Sources and credit:** Engine B loops come from "Racing car engine sound loops" by domasx2, OpenGameArt.org, licence CC0 (public domain),
+which were made from a public-domain recording of an ordinary car start-up. Only `loop_0` and `loop_5_0` are used; they were
+high-passed, normalised, loop seams cross-faded, resampled to 12 kHz, 8-bit mu-law, base64. Added size about 22 KB; the whole sound
+code adds about 53 KB to `index.html` (696 KB to 749 KB). No new files next to `index.html`, so it works from the Pages root and from /preview/.
+Credits are also in `docs/credits.md`.
+
+---
+
 ### 2026-11-07 · New driving model: 90s arcade rally slides, weight you can see (PROPOSAL, owner to try the preview)
 **Request (owner):** "The game feels static ... take the way the driving is in that video [a 1990s arcade rally game] as
 inspiration." What bothered them: (1) on rails, the car never slides or rotates by itself; (2) drifts feel fake (only from

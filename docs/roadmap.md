@@ -34,7 +34,7 @@ Phone cost (30 fps target, lighter version on phones) is checked by ui-mobile wi
 
 ## Ideas (not planned yet)
 - Menu polish pass: on short landscape phones the Start button sits below the fold. (ui-mobile)
-- Engine and surface audio: richer engine, distinct gravel / snow / tarmac sounds. (audio)
+- Engine and surface audio: richer engine, distinct gravel / snow / tarmac sounds. (audio) Done on branch `audio/rally-sound` (2026-11-10): modelled + recorded engine, rally effects, surfaces, crowd, echo. Open: owner picks the engine by ear; tracks could tag obstacle material for impact sounds.
 - More stages. (tracks, art)
 - More cars. (handling, art)
 - Weather and time of day variants of existing stages.
