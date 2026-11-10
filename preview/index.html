@@ -7889,7 +7889,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       this.big = strength > 1.2 ? 1 : 0;
       this.popD = Math.exp(-1 / ((this.big ? 0.03 + this.rnd() * 0.03 : 0.004 + this.rnd() * 0.012) * this.sr));
       this.crack = 1;
-      if (!this.burst && this.rnd() < 0.4) { this.burst = 1 + ((this.rnd() * 3) | 0); this.burstT = (0.015 + this.rnd() * 0.05) * this.sr; }
+      if (!this.burst && this.rnd() < 0.15) { this.burst = 1 + ((this.rnd() * 3) | 0); this.burstT = (0.015 + this.rnd() * 0.05) * this.sr; }
     }
     fire(P) {
       const s = this.slot, L = this.load;
@@ -7899,7 +7899,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       a *= this.exh;                                              // Engine B turns the firing pulses down; pops and crackle stay
       this.eD += a; this.eA += a * (1 + this.cylBias[s] * 300);
       this.tick = 0.6 + this.rnd() * 0.4;
-      if (P.crackle > 0 && this.rnd() < P.crackle) this.startPop(this.rnd() < 0.1 ? 1.5 : 0.8);
+      if (P.crackle > 0 && this.rnd() < P.crackle) this.startPop(this.rnd() < 0.03 ? 1.5 : 0.4);
     }
     render(out, n, P) {
       const sr = this.sr, TAU = 2 * Math.PI;
@@ -7928,8 +7928,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
         if (this.popA > 0.001) {
           this.popA *= this.popD;
           this.popLP += (white - this.popLP) * (this.big ? 0.25 : 0.5);
-          const bang = this.popLP * this.popA * 3.8;
-          u += bang; direct += this.crack * white * this.popA * this.popA * (this.big ? 1.4 : 2.4);
+          const bang = this.popLP * this.popA * 3.8 * 0.6;
+          u += bang; direct += this.crack * white * this.popA * this.popA * (this.big ? 1.0 : 1.2);
         } else this.crack = 0;
         // exhaust pipe (inverting, damped) then muffler (non-inverting, damped)
         const i1 = this.i1, i2 = this.i2;
@@ -8170,7 +8170,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
 
   /* ---------- per frame ---------- */
   const GEAR_TEETH = [12.5, 11, 10, 9.2, 8.5];       // whine pitch = engine Hz x this, so each gear has its own note
-  let prevThr = 0, boost = 0, prevGear = 1, landCool = 0, bumpCool = 0, stoneAcc = 0, cheerCool = 0, whistleCool = 9, popWindow = 0, wasSpeaking = false, resumeCool = 0;
+  let liftWin = 0, prevThr = 0, boost = 0, prevGear = 1, landCool = 0, bumpCool = 0, stoneAcc = 0, cheerCool = 0, whistleCool = 9, popWindow = 0, wasSpeaking = false, resumeCool = 0;
   let prevVy = 0, prevPY = 0, wetNow = 0, flick = 1, flickT = 0, rivalPrevD = 0;
   const wt = { tarmac: 0, gravel: 0, dirt: 0, snow: 0, grass: 0 };
   function locationEcho() {      // 0..1: castle gatehouses, the torii tunnel, the castle courtyard
@@ -8225,14 +8225,15 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     // ---- engine ----
     const thr = car.throttleOut, cutting = car.shiftTimer > 0, rpm = state === 'countdown' ? Math.max(car.rpm, E.idleRpm) : car.rpm;
     const limiter = thr > 0.5 && rpm > E.redlineRpm - 150;
-    popWindow = Math.max(0, popWindow - dt);
+    popWindow = Math.max(0, popWindow - dt); liftWin = Math.max(0, liftWin - dt);
+    if (prevThr > 0.5 && thr < 0.15 && rpm > 5500) liftWin = 0.9;      // a real lift from high rpm: the only time the exhaust pops
     const overrun = thr < 0.05 && rpm > 3000 && sp > 4;
     const E_ = A.eng, RB = A.rec, useRec = AUDIO_PREFS.engine === 'rec';
     if (useRec) A.ensureRec();
     const recOn = useRec && RB.ready;
     E_.set('rpm', rpm); E_.set('load', clamp(thr, 0, 1)); E_.set('inside', inside);
-    E_.set('cut', cutting ? 1 : limiter ? 0.45 : 0);
-    E_.set('crackle', (overrun ? 0.2 * clamp((rpm - 3000) / 4000, 0.15, 1) : 0) + (popWindow > 0 ? 0.3 : 0));
+    E_.set('cut', cutting ? 1 : limiter ? 0.25 : 0);
+    E_.set('crackle', (liftWin > 0 && thr < 0.05 && rpm > 4500 ? 0.03 * clamp((rpm - 4000) / 3000, 0.3, 1) : 0) + (popWindow > 0 ? 0.12 : 0));
     E_.set('exh', recOn ? 0.22 : 1);
     E_.set('mix', 1);
     // turbo builds with throttle and rpm; lifting off vents it
@@ -8252,12 +8253,12 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     // lift-off: blow-off hiss or flutter, and a bang when it happens at revs; shifts: dog-box clunk + a pop on a hard upshift
     if (prevThr > 0.6 && thr < 0.1) {
       if (boost > 0.3) A.play(Math.random() < 0.5 ? A.B.pssh : A.B.flutter, 0.16 * boost, 0.9 + Math.random() * 0.2);
-      if (rpm > 4500 && Math.random() < 0.8) A.play(A.B.bang, 0.3 * clamp((rpm - 3500) / 3500, 0.2, 1), 0.85 + Math.random() * 0.3);
+      if (rpm > 5500 && Math.random() < 0.3) A.play(A.B.bang, 0.2 * clamp((rpm - 3500) / 3500, 0.2, 1), 0.85 + Math.random() * 0.3);
     }
     if (car.gear !== prevGear) {
       if (car.gear > 0 && prevGear > 0) {
         A.play(A.B.clunk, 0.4 + (car.gear > prevGear ? 0.1 : 0.2), 0.9 + Math.random() * 0.2);
-        if (prevThr > 0.5 && car.gear > prevGear) { popWindow = 0.28; if (Math.random() < 0.6) A.play(A.B.bang, 0.18, 1.1); }
+        if (prevThr > 0.5 && car.gear > prevGear) { if (Math.random() < 0.1) { popWindow = 0.28; A.play(A.B.bang, 0.12, 1.1); } }
       }
       prevGear = car.gear;
     }
@@ -8268,25 +8269,25 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     for (const k in wt) { const S = SURF[k]; roar += wt[k] * S.roar; rum += wt[k] * S.rum; sG += wt[k] * S.sG; sF += wt[k] * S.sF; stones += wt[k] * S.stone; }
     let sFreq = 0, wsum = 0; for (const k in wt) { const w = wt[k] * SURF[k].sG; sFreq += w * SURF[k].sF; wsum += w; } sFreq = wsum > 1e-4 ? sFreq / wsum : 2000;
     const spd = clamp(sp / 30, 0, 1.4), onGround = nC / 4;
-    set(N.rum.g.gain, Math.min(0.24, sp * 0.0048 * rum) * onGround);
-    set(N.roar.g.gain, Math.min(0.2, spd * 0.15 * roar * (0.6 + 0.5 * tyreLoad)) * onGround * flick, 0.04);
+    set(N.rum.g.gain, Math.min(0.085, sp * 0.0017 * rum) * onGround);
+    set(N.roar.g.gain, Math.min(0.07, spd * 0.05 * roar * (0.6 + 0.5 * tyreLoad)) * onGround * flick, 0.04);
     set(N.roar.bp.frequency, 380 + sp * 5, 0.1);
-    set(N.spray.g.gain, Math.min(0.34, spd * sG * (0.55 + 0.9 * tyreLoad + 0.4 * slipN)) * (lowQ ? 0.8 : 1) * onGround * flick, 0.03);
+    set(N.spray.g.gain, Math.min(0.12, spd * sG * 0.35 * (0.55 + 0.9 * tyreLoad + 0.4 * slipN)) * (lowQ ? 0.8 : 1) * onGround * flick, 0.03);
     set(N.spray.bp.frequency, sFreq * (1 - 0.25 * tyreLoad), 0.05);
-    set(N.squeal.g.gain, 0.5 * tyreLoad * tyreLoad * wt.tarmac * onGround, 0.04);
+    set(N.squeal.g.gain, 0.35 * tyreLoad * tyreLoad * wt.tarmac * onGround, 0.04);
     set(N.squeal.bp.frequency, 980 + 260 * tyreLoad + Math.random() * 40, 0.03);
     scrapeLevel = Math.max(0, scrapeLevel - dt * 6);
     set(N.scrape.g.gain, Math.min(0.16, scrapeLevel * 0.16) * (0.7 + Math.random() * 0.6), 0.02);
-    set(N.wind.g.gain, Math.min(0.3, (sp / 45) ** 2 * 0.15) * (inside ? 0.5 : 1), 0.2);
+    set(N.wind.g.gain, Math.min(0.3, (sp / 45) ** 2 * 0.09) * (inside ? 0.5 : 1), 0.2);
     set(N.wind.bp.frequency, 250 + sp * 9, 0.2);
     // stones against the underbody and arches: more on gravel, a lot more when sliding
     if (stones > 0.05 && nC && sp > 3) {
-      stoneAcc += dt * stones * clamp(sp / 8, 0, 1) * (3 + 14 * tyreLoad + 4 * spd) * (lowQ ? 0.5 : 1);
+      stoneAcc += dt * stones * clamp(sp / 8, 0, 1) * (2 + 8 * tyreLoad + 2 * spd) * 0.6 * (lowQ ? 0.5 : 1);
       let n = 0;
       while (stoneAcc >= 1 && n++ < 3) {
         stoneAcc -= 1;
-        if (Math.random() < 0.1) A.play(A.B.knock, 0.1 + Math.random() * 0.12, 0.8 + Math.random() * 0.5, A.fxBus, (Math.random() - 0.5) * 0.6);
-        else A.play(A.B.stone[(Math.random() * 4) | 0], 0.06 + Math.random() * 0.14 * (0.4 + tyreLoad), 0.8 + Math.random() * 0.6, A.fxBus, (Math.random() - 0.5) * 0.8);
+        if (Math.random() < 0.1) A.play(A.B.knock, (0.1 + Math.random() * 0.12) * 0.4, 0.8 + Math.random() * 0.5, A.fxBus, (Math.random() - 0.5) * 0.6);
+        else A.play(A.B.stone[(Math.random() * 4) | 0], (0.06 + Math.random() * 0.14 * (0.4 + tyreLoad)) * 0.3, 0.8 + Math.random() * 0.6, A.fxBus, (Math.random() - 0.5) * 0.8);
       }
       if (stoneAcc > 2) stoneAcc = 0;
     } else stoneAcc = 0;
@@ -8294,9 +8295,9 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     landCool -= dt; bumpCool -= dt;
     if (hardest > 1.8 && landCool <= 0) {
       const s = Math.min(1, (hardest - 1.4) / 3);
-      A.play(A.B.thump, 0.7 * s, 0.9 + Math.random() * 0.2); if (hardest > 2.6) A.play(A.B.rattle, 0.35 * s, 0.9 + Math.random() * 0.2);
+      A.play(A.B.thump, 0.5 * s, 0.9 + Math.random() * 0.2); if (hardest > 2.6) A.play(A.B.rattle, 0.25 * s, 0.9 + Math.random() * 0.2);
       landCool = 0.35; bumpCool = 0.2;
-    } else if (hardest > 0.8 && bumpCool <= 0) { A.play(A.B.knock, 0.1 + 0.18 * clamp((hardest - 0.8) / 1, 0, 1), 0.7 + Math.random() * 0.3); bumpCool = 0.22; }
+    } else if (hardest > 0.8 && bumpCool <= 0) { A.play(A.B.knock, 0.07 + 0.12 * clamp((hardest - 0.8) / 1, 0, 1), 0.7 + Math.random() * 0.3); bumpCool = 0.22; }
     // impacts: wood for trees and fences, metal for rails and walls (a scrape along it marks those), stone in the castle and for big rocks
     while (impacts.length) {
       const s = impacts.pop(), seg = scrapeLevel > 0.02, castle = ST && ST.theme === 'castle', r = Math.random();
@@ -8309,7 +8310,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     let best = 1e9, bx = 0, bz = 0;
     if (typeof crowdClusters !== 'undefined') for (const cl of crowdClusters) { const dx = cl.x - car.pos.x, dz = cl.z - car.pos.z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bx = dx; bz = dz; } }
     const cd = best < 1e8 ? Math.sqrt(best) - 3 : 1e9, lvl = cd < 45 ? Math.pow(1 - Math.max(0, cd) / 45, 1.6) : 0;
-    set(N.crowd.g.gain, lvl * 0.2 * (0.7 + Math.random() * 0.6), 0.1);
+    set(N.crowd.g.gain, lvl * 0.12 * (0.7 + Math.random() * 0.6), 0.1);
     set(N.crowd.bp.frequency, 800 + 500 * Math.random(), 0.1);
     const lat = Math.hypot(bx, bz) > 0.1 ? clamp((bx * car.right.x + bz * car.right.z) / Math.hypot(bx, bz), -1, 1) * 0.75 : 0;
     if (N.crowd.pan) set(N.crowd.pan.pan, lat, 0.1);
