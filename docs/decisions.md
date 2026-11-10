@@ -5,6 +5,30 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-10 · QA: tests rewritten for the new driving (owner approved the driving and its targets)
+**Request (owner):** "Driving is fine for now. Make that live, make sure the stages are tested and adjusted for the driving."
+**Handling test** (`tests/handling.test.js`, `tests/lib/skidpad.js`, `expected.json` "handling") now checks the targets of the
+2026-11-07 entry, both cars. Worst measured value vs the limit:
+- Held-key slide: tarmac 0.1-4.3 deg (0-6); gravel 14.6-28.1, dirt 16.2-28.3, snow 18.8-26.9 (12-32); grass 26.2 / 35.8 (max 40).
+- First swing-out: worst Strada grass 47.7 deg, snow 46.9 (max 50).
+- Spin test 60/90/120 km/h, every surface: worst max 47 deg (Strada grass), never past 90; worst time past 45 deg 0.35 s (Strada snow 120), limit 0.5.
+- Letting go: back under 5 deg in 0.44-0.69 s on gravel/dirt/snow (limit 0.8), overshoot 0 deg (limit 3).
+- Steering wound on: 92 / 100 / 108 / 125 ms at 50 / 80 / 110 / 140 km/h, identical on every surface (67-100 up to 80 km/h).
+- Strada vs Kestrel average slide: gravel +8.7 deg, dirt +7.2 (needs 4).
+- Handbrake 55 km/h gravel: 90 deg turned at 1.02 s (Kestrel), 1.00 s (Strada); peaks 46 / 50 deg, no spin (limit 1.2 s).
+- Dropped: "slide 2-10 deg", "no drift from steering" (drifts start naturally now), "car response same on all surfaces" (differs on purpose).
+**Value I had to set myself (not in the proposal):** letting go on grass is slower: Kestrel 0.98 s, Strada 1.08 s to get under 5 deg,
+so grass gets its own limit of 1.5 s (`recoverS.grass`). Measured, not designed. Handling may tighten it if wanted.
+**Bot:** aims by the direction of travel (not the nose), the one-line change from the 2026-11-07 experiment. "Unrequested drifts"
+is gone; the clean-run check is now "no spins (past 90 deg), no rescues", plus a new check "clock holds at every checkpoint"
+(seconds left on arrival at each checkpoint and the finish must be > 0). Finish, clock and off-road <= 8 s checks unchanged.
+**Bot results (times not re-recorded yet; tracks may still change stages):** time s / off-road s / tightest clock margin s:
+Kettle Ridge 90.85 / 0.0 / 10.5 (Kestrel), 90.77 / 0.0 / 10.7 (Strada); Vulture Ledge 93.23 / 0.8 / 7.9, 87.03 / 0.0 / 8.2;
+Sakura Touge 88.53 / 0.0 / 7.0, 88.63 / 0.0 / 7.3; Thornwick Keep 94.22 / 0.0 / 12.2, 95.13 / 1.2 / 12.4. 0 spins, 0 rescues.
+Old time windows: only Vulture Ledge / Kestrel (93.23 vs 86.1-91.5) fails until times are re-recorded.
+
+---
+
 ### 2026-11-07 · New driving model: 90s arcade rally slides, weight you can see (PROPOSAL, owner to try the preview)
 **Request (owner):** "The game feels static ... take the way the driving is in that video [a 1990s arcade rally game] as
 inspiration." What bothered them: (1) on rails, the car never slides or rotates by itself; (2) drifts feel fake (only from
