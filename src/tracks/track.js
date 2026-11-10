@@ -2,12 +2,13 @@
    TRACK: a spline built from the stage's segments
    ===================================================================== */
 // Co-driver calls in the Sega Rally manner: Easy / Medium / Sharp, Long, Square, Hairpin, "maybe", "don't cut"
-function paceNote(seg) {
+// surf: the surface the corner is on. On tarmac the car can only hold about 150 km/h round a 110 m radius, so "Easy" (= keep your foot down) needs 150 m there
+function paceNote(seg, surf) {
   const dir = seg[0] === 'R' ? 'right' : 'left', ang = seg[1], r = seg[2];
   if (ang >= 300) return 'Full circle ' + dir + ', drift area';
   if (ang >= 140) return 'Hairpin ' + dir;
   if (ang >= 75 && r < 32) return 'Square ' + dir;
-  const sev = r >= 110 ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
+  const sev = r >= (surf === 'tarmac' ? 150 : 110) ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
   let t = (ang >= 70 ? 'Long ' + sev.toLowerCase() : sev) + ' ' + dir;
   if (sev === 'Easy' && r >= 170) t += ', maybe';
   else if (sev !== 'Easy' && ang >= 60 && r < 60) t += ", don't cut";
@@ -19,6 +20,7 @@ function buildTrack(ST = CONFIG.stage) {
   let x = 0, z = 0, th = 0, s = 0;
   const pts = [{ x, z, th, s }];
   const notes = [], turns = [];
+  const surfaceAtS = s0 => { let sf = ST.surfaceChanges[0][1]; for (const [d, sname] of ST.surfaceChanges) if (s0 >= d) sf = sname; return sf; };
   for (const seg of ST.segments) {
     if (seg[0] === 'S') {
       const n = Math.max(1, Math.round(seg[1] / step)), ds = seg[1] / n;
@@ -26,7 +28,7 @@ function buildTrack(ST = CONFIG.stage) {
     } else {
       // Right turn = heading decreases (car's right is -x when facing +z)
       const dir = seg[0] === 'R' ? -1 : 1, ang = seg[1] * D2R, r = seg[2], len = ang * r;
-      notes.push({ s, s1: s + len, r, text: paceNote(seg), kind: seg[1] >= 140 ? 'hairpin' : 'turn', dir: seg[0] });
+      notes.push({ s, s1: s + len, r, text: paceNote(seg, surfaceAtS(s)), kind: seg[1] >= 140 ? 'hairpin' : 'turn', dir: seg[0] });
       turns.push({ s0: s, s1: s + len, dir: seg[0], r });
       const n = Math.max(2, Math.round(len / step)), ds = len / n, dth = dir * ang / n;
       for (let i = 0; i < n; i++) {

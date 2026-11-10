@@ -119,7 +119,7 @@ const STAGES = [
     surfaceChanges: [[0, 'gravel'], [640, 'dirt'], [1360, 'gravel'], [1900, 'dirt']],
     snowLine: 95,
     checkpoints: [560, 1150, 1700, 2150],
-    timeStart: 29, timeExt: [31, 23, 21, 11], refTime: 107,
+    timeStart: 30, timeExt: [31, 23, 21, 11], refTime: 104,
     jumps: [[1320, 1.7]],
     // grade profile (fraction): the road climbs and dips along the mountainside
     elevation: s => 0.075 * Math.sin(s / 150 + 0.4) * 150 + 0.035 * Math.sin(s / 52) * 52 + s * 0.02,
@@ -157,7 +157,7 @@ const STAGES = [
     roadHalfWidth: 4.4, runoff: 150,
     surfaceChanges: [[0, 'tarmac'], [1250, 'gravel'], [1620, 'tarmac']],
     checkpoints: [600, 1150, 1700, 2150],
-    timeStart: 24, timeExt: [29, 27, 21, 11], refTime: 102,
+    timeStart: 26, timeExt: [29, 27, 21, 11], refTime: 102,
     jumps: [],
     cityLength: 640,                 // the last part of the run is in town
     toriiTunnel: [580, 672],

@@ -5,6 +5,27 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-10 · Tracks: stages checked and adjusted for the new driving
+**Request (owner):** "Make that live, make sure the stages are tested and adjusted for the driving if need be."
+**How checked:** the bot plus scripted drivers on all 4 stages, both cars: pushing 17% / 35% over the bot's corner speed, late braking,
+handbrake into every hairpin, lifting mid-corner, full-speed jumps. Logged every wall hit, off-road spot, drop and landing.
+**Found and fixed:**
+- Vulture Ledge hairpin (s 1075-1122): the rock wall on the inside turned into a drop wall half-way round, so a car cutting the inside hit a
+  wall and stopped (2 km/h). This was the whole Kestrel-is-6-s-slower problem (Kestrel 93.2 s, Strada 87.0 s). The change from wall to
+  drop now happens on the straight after the hairpin (`cliffSides` keys 1080/1125 -> 1122/1175). Kestrel now 87.5 s, 0 hits.
+- Pace notes: on tarmac "Easy" needs a 150 m radius (110 m elsewhere). A 110 m tarmac corner is only about 147 km/h in the new driving, so
+  Sakura's first sweeper (s 405) now reads "Medium right, downhill" and the r140 corner in town "Medium right".
+- Sakura Touge: tree trunks closer than 7 m to the road edge are looks only (a car sliding wide at 150 km/h runs onto open ground).
+**Checked and fine:** jumps at full speed on every stage (Kettle 54 m / 3.3 m high, Vulture 0.8 s, Thornwick 0.9 s) land flat, no slide,
+no spin. Handbrake into hairpins and lifting mid-corner: no wall hits except scrapes along the outside wall of Vulture's hairpin.
+Overspeed (+35%) runs off the road at the outside of corners with open ground, and are slowed by grass, as intended.
+**Clocks:** first-checkpoint margin of the bot now >= 8.9 s everywhere (Vulture timeStart 29 -> 30, Sakura 24 -> 26); finish margin >= 25 s.
+**refTime** (rivals about 15-20% slower than the bot): Vulture 107 -> 104 (was 22%); Kettle 109 (20%), Sakura 102 (15%), Thornwick 111 (17%) unchanged.
+**Bot times old -> new (recorded):** Kettle 91.51 -> 90.85 / 92.55 -> 90.77; Vulture 88.81 -> 87.46 / 88.34 -> 87.52;
+Sakura 87.95 -> 88.53 / 88.13 -> 88.63; Thornwick 94.73 -> 94.22 / 95.53 -> 95.13 (Kestrel / Strada).
+
+---
+
 ### 2026-11-10 · QA: tests rewritten for the new driving (owner approved the driving and its targets)
 **Request (owner):** "Driving is fine for now. Make that live, make sure the stages are tested and adjusted for the driving."
 **Handling test** (`tests/handling.test.js`, `tests/lib/skidpad.js`, `expected.json` "handling") now checks the targets of the
