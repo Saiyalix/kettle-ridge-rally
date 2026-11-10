@@ -17,6 +17,12 @@
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 
+  /* ---------- theme: test (Test Track): open country, a few trees far back for orientation, nothing solid anywhere near the road ---------- */
+  function sceneryTest(rng) {
+    const trees = scatter(rng, 90, 6000, (x, z, d, y, s0) => d > 70 && rng() < 0.5 ? { col: false } : false);
+    conifers(trees, (c) => c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+  }
+
   /* ---------- theme: castle (Thornwick Keep) ---------- */
   function sceneryCastle(rng) {
     const C = ST.castle, g1 = C.gate1, g2 = C.gate2, fin = track.finishS, L = castleL;
@@ -77,7 +83,8 @@
       rows: [{ o0: 5, o1: 8, step: 6.5, p: 0.75, s0: 0.9, s1: 1.3, sep: 4.5 }, { o0: 10, o1: 15, step: 9, p: 0.4, s0: 0.9, s1: 1.4, sep: 5 }] });
     const sakuraAll = sakura.concat(lining);
     treeStand(sakuraAll, () => SPECIES.sakura);
-    for (const t of sakuraAll) if (t.col !== undefined ? t.col : t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    // trunks you can hit stay 7 m or more from the road edge (a car that slides wide at 150 km/h runs out onto open ground, not into a tree); nearer ones are for looks only
+    for (const t of sakuraAll) if ((t.col !== undefined ? t.col : t.d < 30) && Math.sqrt(world.nearest(t.x, t.z).d2) - half >= 7) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
       if (d < half + 5 || s0 < 690 || s0 > city0 - 60 || inTunnel(s0)) return false;
@@ -249,6 +256,7 @@
     return sponsorMats;
   }
   function trackside(rng) {
+    if (ST.practice) { readabilityBoards(); return; }       // practice stage: no sponsor boards, crowds or tape, nothing beside the road but the corner boards
     const boards = [], crowds = [], tapes = [];
     const groundOk = (x, z, p) => Math.abs(terrain.heightAt(x, z) - p.y) < 2.5 && terrain.distAt(x, z) > half + 2.2;
     const city = isFinite(track.cityStart) ? track.cityStart : Infinity;
@@ -292,7 +300,7 @@
       if (y - ground > 6) return;
       list.push({ x, z, y, rot: Math.atan2(q.x - x, q.z - z) });
       posts.push({ x, z, y0: ground, h: y - ground + 1.9 });
-      obstacles.push({ x, z, r: 0.12 });
+      if (!ST.practice) obstacles.push({ x, z, r: 0.12 });      // (practice stage: the corner boards are not solid)
     };
     for (const t of track.turns) {
       const side = t.dir === 'R' ? -1 : 1;                                 // boards stand on the outside

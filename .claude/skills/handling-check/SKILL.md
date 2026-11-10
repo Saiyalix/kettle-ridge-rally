@@ -1,6 +1,6 @@
 ---
 name: handling-check
-description: Measure Kettle Ridge Rally's handling against the targets (held-key slide 2-10 degrees, turn-in 67-100 ms, same on all surfaces, no unrequested drifts, bot times and off-road) and show before/after numbers for a change. Use before and after any handling or track change, or when the owner asks how the car drives now.
+description: Measure Kettle Ridge Rally's handling against the targets (held-key slide per surface, spin test, letting go, steering wind-on 67-100 ms and same on all surfaces, bot times, off-road, spins and rescues) and show before/after numbers for a change. Use before and after any handling or track change, or when the owner asks how the car drives now.
 ---
 
 # Handling check
@@ -26,5 +26,5 @@ Sakura Touge, Strada                 88.13 / 0.0   88.90 / 0.4
 ```
 
    Then one plain sentence per table: what it means for how the car feels.
-5. **Flag** any target outside its range (slide 2–10°, turn-in 67–100 ms up to 80 km/h, surfaces equal, no
-   unrequested drifts, off-road ≤ 8 s) and any bot time that moved more than 3%.
+5. **Flag** any target outside its range (see "Measured targets" in `CLAUDE.md`:
+   slide per surface, swing-out, spin test, letting go, wind-on, Strada vs Kestrel, handbrake, bot off-road ≤ 8 s, no spins / rescues) and any bot time that moved more than 3%.

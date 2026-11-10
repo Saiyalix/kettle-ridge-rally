@@ -5,6 +5,143 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-10 · Tracks: stages checked and adjusted for the new driving
+**Request (owner):** "Make that live, make sure the stages are tested and adjusted for the driving if need be."
+**How checked:** the bot plus scripted drivers on all 4 stages, both cars: pushing 17% / 35% over the bot's corner speed, late braking,
+handbrake into every hairpin, lifting mid-corner, full-speed jumps. Logged every wall hit, off-road spot, drop and landing.
+**Found and fixed:**
+- Vulture Ledge hairpin (s 1075-1122): the rock wall on the inside turned into a drop wall half-way round, so a car cutting the inside hit a
+  wall and stopped (2 km/h). This was the whole Kestrel-is-6-s-slower problem (Kestrel 93.2 s, Strada 87.0 s). The change from wall to
+  drop now happens on the straight after the hairpin (`cliffSides` keys 1080/1125 -> 1122/1175). Kestrel now 87.5 s, 0 hits.
+- Pace notes: on tarmac "Easy" needs a 150 m radius (110 m elsewhere). A 110 m tarmac corner is only about 147 km/h in the new driving, so
+  Sakura's first sweeper (s 405) now reads "Medium right, downhill" and the r140 corner in town "Medium right".
+- Sakura Touge: tree trunks closer than 7 m to the road edge are looks only (a car sliding wide at 150 km/h runs onto open ground).
+**Checked and fine:** jumps at full speed on every stage (Kettle 54 m / 3.3 m high, Vulture 0.8 s, Thornwick 0.9 s) land flat, no slide,
+no spin. Handbrake into hairpins and lifting mid-corner: no wall hits except scrapes along the outside wall of Vulture's hairpin.
+Overspeed (+35%) runs off the road at the outside of corners with open ground, and are slowed by grass, as intended.
+**Clocks:** first-checkpoint margin of the bot now >= 8.9 s everywhere (Vulture timeStart 29 -> 30, Sakura 24 -> 26); finish margin >= 25 s.
+**refTime** (rivals about 15-20% slower than the bot): Vulture 107 -> 104 (was 22%); Kettle 109 (20%), Sakura 102 (15%), Thornwick 111 (17%) unchanged.
+**Bot times old -> new (recorded):** Kettle 91.51 -> 90.85 / 92.55 -> 90.77; Vulture 88.81 -> 87.46 / 88.34 -> 87.52;
+Sakura 87.95 -> 88.53 / 88.13 -> 88.63; Thornwick 94.73 -> 94.22 / 95.53 -> 95.13 (Kestrel / Strada).
+
+---
+
+### 2026-11-10 · QA: tests rewritten for the new driving (owner approved the driving and its targets)
+**Request (owner):** "Driving is fine for now. Make that live, make sure the stages are tested and adjusted for the driving."
+**Handling test** (`tests/handling.test.js`, `tests/lib/skidpad.js`, `expected.json` "handling") now checks the targets of the
+2026-11-07 entry, both cars. Worst measured value vs the limit:
+- Held-key slide: tarmac 0.1-4.3 deg (0-6); gravel 14.6-28.1, dirt 16.2-28.3, snow 18.8-26.9 (12-32); grass 26.2 / 35.8 (max 40).
+- First swing-out: worst Strada grass 47.7 deg, snow 46.9 (max 50).
+- Spin test 60/90/120 km/h, every surface: worst max 47 deg (Strada grass), never past 90; worst time past 45 deg 0.35 s (Strada snow 120), limit 0.5.
+- Letting go: back under 5 deg in 0.44-0.69 s on gravel/dirt/snow (limit 0.8), overshoot 0 deg (limit 3).
+- Steering wound on: 92 / 100 / 108 / 125 ms at 50 / 80 / 110 / 140 km/h, identical on every surface (67-100 up to 80 km/h).
+- Strada vs Kestrel average slide: gravel +8.7 deg, dirt +7.2 (needs 4).
+- Handbrake 55 km/h gravel: 90 deg turned at 1.02 s (Kestrel), 1.00 s (Strada); peaks 46 / 50 deg, no spin (limit 1.2 s).
+- Dropped: "slide 2-10 deg", "no drift from steering" (drifts start naturally now), "car response same on all surfaces" (differs on purpose).
+**Value I had to set myself (not in the proposal):** letting go on grass is slower: Kestrel 0.98 s, Strada 1.08 s to get under 5 deg,
+so grass gets its own limit of 1.5 s (`recoverS.grass`). Measured, not designed. Handling may tighten it if wanted.
+**Bot:** aims by the direction of travel (not the nose), the one-line change from the 2026-11-07 experiment. "Unrequested drifts"
+is gone; the clean-run check is now "no spins (past 90 deg), no rescues", plus a new check "clock holds at every checkpoint"
+(seconds left on arrival at each checkpoint and the finish must be > 0). Finish, clock and off-road <= 8 s checks unchanged.
+**Bot results (times not re-recorded yet; tracks may still change stages):** time s / off-road s / tightest clock margin s:
+Kettle Ridge 90.85 / 0.0 / 10.5 (Kestrel), 90.77 / 0.0 / 10.7 (Strada); Vulture Ledge 93.23 / 0.8 / 7.9, 87.03 / 0.0 / 8.2;
+Sakura Touge 88.53 / 0.0 / 7.0, 88.63 / 0.0 / 7.3; Thornwick Keep 94.22 / 0.0 / 12.2, 95.13 / 1.2 / 12.4. 0 spins, 0 rescues.
+Old time windows: only Vulture Ledge / Kestrel (93.23 vs 86.1-91.5) fails until times are re-recorded.
+
+---
+
+### 2026-11-07 · New driving model: 90s arcade rally slides, weight you can see (PROPOSAL, owner to try the preview)
+**Request (owner):** "The game feels static ... take the way the driving is in that video [a 1990s arcade rally game] as
+inspiration." What bothered them: (1) on rails, the car never slides or rotates by itself; (2) drifts feel fake (only from
+handbrake / brake tap, canned angle); (3) no weight (no lean, dive, squat, bounce). Drifts should start naturally from
+steering hard at speed, held by throttle and steering; handbrake for tight turns. Owner approved rewriting the four
+handling rules; they try a preview before it goes live. Owner, 2026-11-07: "First focus on the driving ... only after that
+worry about the current stages, timings etc." So bot times and stage clocks are reported here, not re-recorded.
+
+**The model (handling/car.js `arcadeForces`, all values in `CONFIG.arcade`):** a two-axle car with simple, forgiving tyres.
+- A held key asks the *front* tyres for grip towards that side, measured from where the front axle is going. No key = the
+  front wheels follow the slide (automatic countersteer), so letting go straightens the car.
+- Each axle has its own grip limit (surface × car × load from the suspension). On loose surfaces the *rear* has less grip
+  than the front (`surfaces.*.rear`), so at speed the tail swings out by itself. Throttle (`powerSlide`), a brake tap
+  (`brakeSlide`), lifting off (weight forward, `weightShift`) and the handbrake (`handbrakeGrip`) loosen it more.
+- As the slide grows, a held key asks for less front grip (`slideHold`, `slideCatch`), so the slide settles at an angle set
+  by the surface and the car. The spin guard (`guard`, from 42°) stops the rest; `catchDamp` / `settle` stop swing-back.
+- Sliding is the fast way round: the grip lost to the loose rear is handed back as a side force at the centre of mass
+  (`slideCarry`), and most of the speed a slide scrubs is kept (`slideKeep`). The engine pushes along the nose.
+- Handbrake pull or brake tap while steering = "drift memory" for that corner (`drift.looser`, `drift.holdExtra`): looser
+  rear, bigger angle, also on tarmac. Ends after `drift.release` (0.32 s) of neutral steering, on countersteer, or when the slide ends.
+- `car.drift` now means "sliding more than 12° at speed" (off below 7°), however it started. HUD / sound / dust / replays use it as before.
+- Weight: `car.vis` (roll, pitch, heave) is a spring-damper driven by the car's real accelerations (`arcade.body`), drawn on
+  the body mesh only (wheels stay on the road). One 3-line edit in `ui/visuals-hud.js` (ui-mobile's file) applies it to
+  `bodyRoot`; level in replays. Physics is unaffected.
+- Cars: Kestrel GT4 grip 1.06, rear 1.0, drift 0.85, rearDrive 0.85 (planted 4WD); Strada HF grip 0.97, rear 0.95, drift 1.05,
+  turn 1.12 (rotates quicker), rearDrive 1.15 (more power slide). New car stats `rear`, `rearDrive`.
+- Unchanged: steering wind-on rates (keys and tilt), top speed, acceleration, braking, jumps (`airFloat`), `maxG` / `top`
+  per surface (the bot and rivals read them), suspension, 120 Hz fixed step, determinism.
+
+**Measured (flat skid pad, the `tests/lib/skidpad.js` method plus scratch experiments; both cars):**
+| What | Kestrel GT4 | Strada HF |
+|---|---|---|
+| Held-key slide, tarmac 50–140 km/h | 0.1–3.6° | 2.8–4.3° |
+| Held-key slide, gravel / dirt / snow 50–140 km/h | 14.6–18.4 / 16.2–21.0 / 18.8–25.1° | 20.4–28.1 / 20.7–28.3 / 19.1–26.9° |
+| Held-key slide, grass 50 km/h | 26° | 36° |
+| First swing-out peak while holding a key (60–120 km/h, loose) | 21–35° | 38–47° |
+| Time to pass 10° (held key, loose, 60–120 km/h) | 0.47–0.60 s | 0.40–0.57 s |
+| Release the key from a held slide: back under 5° | 0.47–0.56 s, overshoot 0° | 0.45–0.68 s, overshoot 0° |
+| Catch: 0.2 / 0.35 s opposite key from a gravel slide at 90 | swings past straight 0 / 1° | 0 / 3° |
+| Spin test: full lock + full throttle 4 s, 60/90/120, every surface | max 34°, never past 45° | max 46°, 0.35 s past 45° (snow 120), never past 90° |
+| Cornering in a held slide (lat g, loose) / limit maxG × grip | 1.03–1.33 g (0.89–0.97 of the limit) | 0.88–1.14 g (0.84–0.92 of the limit) |
+| Speed kept: 2 s coasting from 90, held key vs straight | −5 km/h (gravel, 24° slide) | −5 km/h (gravel, 31° slide) |
+| Throttle in a gravel slide (half → full) / lift-off | 14 → 15°; lifting tucks the nose in (rotation +7% gravel, +25% tarmac) | 19 → 30°; lift: rotation +12% gravel, +24% tarmac |
+| Handbrake hairpin, gravel 55 km/h, HB 0.4 s: 90° turned in | 1.03 s (no HB: 1.99 s), peak 46°, no spin | 0.99 s (no HB: 2.18 s), peak 51° |
+| Brake tap mid-corner, tarmac 90 km/h: peak slide | 22° | 33° |
+| Steering wound on (key press → full) | 92 / 100 / 108 / 125 ms at 50 / 80 / 110 / 140 km/h, same on every surface (unchanged) | same |
+| Tilt steering, gravel 90: 20 / 40 / 70 / 100% tilt | 3 / 6 / 15 / 19° slide | 3 / 7 / 23 / 28° |
+| Body (drawn): full braking / full power / cornering on tarmac | nose dips 3.5–4.5°, squats ~2°, leans ~4° (on top of the springs' own movement); landings compress ~0.2 m and bounce once | same |
+
+**Bot (unchanged autopilot; never uses the handbrake), old → new time s / off-road s:**
+Kettle Ridge Kestrel 91.51 → 93.33 / 1.7, Strada 92.55 → 98.86 / 8.0; Vulture Ledge Kestrel 88.81 → 89.55 / 0.0, Strada
+88.34 → 95.12 / 3.7; Sakura Touge Kestrel 87.95 → 88.68 / 0.0, Strada 88.13 → 89.97 / 0.6; Thornwick Keep Kestrel 94.73 →
+96.73 / 0.1, Strada 95.53 → 121.52 / 35.3 (1 rescue). 0 spins everywhere. All beat their stage clock.
+The bot aims with the car's *nose*; in a 20–30° slide the nose points inside the corner, so it lets go of the key too early
+and runs wide (worst with the slidier Strada). The same bot aiming with the *direction of travel* (scratch experiment, one
+line changed) drives every stage clean: 90.76 / 90.77, 90.43 / 87.03, 88.50 / 88.63, 94.13 / 95.13 s, off-road ≤ 1.8 s,
+0 spins, 0 rescues. So the car can be driven clean and as fast as before; sliding is not slower. Suggestion for qa (their call):
+aim the bot with the direction of travel, then re-record times after the owner approves the feel.
+
+**Proposed replacement for CLAUDE.md "Handling rules" and "Measured targets"** (the main session edits CLAUDE.md after the owner says yes):
+
+> ## Handling rules (do not break without the owner's approval)
+>
+> 1. Steering asks the front tyres for grip towards the key, measured from where the car is going. With no key the front
+>    wheels follow the slide (automatic countersteer), so letting go always straightens the car.
+> 2. The rear can let go before the front. On loose surfaces at speed the tail swings out by itself; throttle, a brake tap,
+>    lifting off and the handbrake swing it out more. Holding a key settles the slide at an angle set by surface and car.
+> 3. Surfaces change grip and how easily the rear lets go, never how fast the steering winds on.
+> 4. The car never spins by itself: past 42° of slide it resists the slide growing, and a caught or released slide does
+>    not swing back the other way.
+> 5. A held slide is the fast way round a loose corner: it corners almost as hard as gripping and keeps its speed.
+> 6. The body shows weight (lean, dive, squat, bounce) from the car's real accelerations; it is drawn only and never changes the physics.
+>
+> Measured targets (flat skid pad per surface, both cars, 50–140 km/h; checked by `tests/handling.test.js` and `tests/bot.test.js`):
+> - Held-key slide: tarmac 0–6°; gravel, dirt and snow 12–32°; grass at most 40°.
+> - First swing-out while holding a key: at most 50°.
+> - Spin test (full lock + full throttle for 4 s from 60 / 90 / 120 km/h, every surface): never past 90°, at most 0.5 s past 45°.
+> - Letting go of the key from a held slide: back under 5° within 0.8 s, at most 3° past straight.
+> - Steering wound on (key press → full): 67–100 ms up to 80 km/h, the same on every surface at every speed.
+> - Strada vs Kestrel: the Strada's held-key slide on gravel and dirt is at least 4° bigger on average.
+> - Handbrake: at 55 km/h on gravel, 0.4 s of handbrake with full lock turns the car 90° within 1.2 s, without spinning.
+> - Bot: finishes every stage with both cars, 0 spins, 0 rescues, off-road at most 8 s per stage.
+
+**Test results on this branch (`node tests/run.js`, 52 pass / 35 fail):** build, load, mobile pass. Failing, all expected
+under the old rules: handling "held-key slide 2–10°" (all surfaces but Strada tarmac; Kestrel tarmac 50 km/h is 0.1°, under the
+old 2°), "no drift from steering alone" (loose surfaces and grass), "turn-in same on all surfaces" (the steering part is
+identical; the "car response" part now differs by surface on purpose, 117–333 ms). Bot: "unrequested drifts" (1–28 per run:
+drifts now start naturally), "time in window" for 3 Strada runs, and Thornwick Keep / Strada off-road 35.3 s and 1 rescue (see bot note above).
+**Next:** owner tries the preview (best on the new test stage that tracks is building). If yes: main session puts the rules
+above into CLAUDE.md, qa rewrites `tests/handling.test.js` to the new targets (spin test, recovery, car difference), retires
+"unrequested drifts", decides on the bot's aim, then re-records times and checks the stage clocks with tracks.
+
 ### 2026-11-05 · three.js upgrade: r128 -> 0.186.1, same look on purpose
 **Request (owner):** "Upgrade three.js to the newest version."
 **Decision:** 0.186.1, not 0.187.0 (released 6 days earlier; we picked the one that has had a little time to settle). Loaded as an ES module through an inline import map from cdn.jsdelivr.net with the exact version; the main script is `<script type="module">`. `tools/build.js` now validates module scripts. The test kit serves r128 and 0.186.1 from `node_modules` (`package.json`: three 0.186.1 + `three-r128` alias) and fails if the game asks for any other version.
@@ -235,3 +372,11 @@ The 14 rival crews use the player's two bodies (Kestrel, Strada), each with or w
 - **Look block** (`look` in `stages.js`): dawn. Sun el 12, az 232 (behind the player on the approach, so the castle front glows and shadows run long ahead), warm sun 0xffc486, cool blue ambient with a warm ground bounce, peach mist (fog 38 to 330), golden cloud sky, pale ridges, dew-bright meadows. Conifer colours in `sceneryCastle` are a little warmer (same three random draws).
 - **Moving parts (high only)**: banners and pennants wave in the vertex shader (one shared time uniform, `castleFx.ct`), moat water has a slow drifting ripple texture and a sun glint (Phong), forge and chimney smoke are 40 soft points moved on the CPU, windmill sails turn. Low: all still, plain Lambert water, no props, no studs and corbels, 12-sided towers, half-size textures. `updateCastleFx(dt)` is called from `renderFrame`; it returns at once on low and on other stages.
 - **Cost** (renderer.info, one frame incl. shadow pass, headless Chromium, same places as the blockout): triangles high at the gatehouse 352k -> 401k (+14 %), courtyard 316k -> 358k (+13 %), village 431k -> 428k, descent 373k -> 394k (+5 %); low gatehouse 299k -> 313k (+4 %), courtyard 290k -> 304k (+5 %), village 324k -> 321k, descent 295k -> 297k. Draw calls high +10 to +18 (gatehouse 82 -> 100, courtyard 64 -> 74), low +6 to +9 (gatehouse 51 -> 57, courtyard 37 -> 46). Static castle meshes: stone 17k triangles, trim 9k (no shadow), slate 1.4k, clay 0.8k, wood 0.4k, glass 0.8k, flags 1k; far set 1.6k. Textures on SS4: 92 high / 55 low in `renderer.info.memory` (blockout 84 / 49). The castle houses (smithy, gatekeeper) are their own `buildings()` call: merged into the village list they made one mesh that spans 1 km and is drawn everywhere (+83k triangles, found and fixed). Other stages are unchanged. ui-mobile: please look at the extra calls on low (castle meshes are culled when you are not near the castle).
+
+## 2026-11-07 · Tracks: practice stage "Test Track" (TEST) for judging the driving
+**Request (owner):** "When rebuilding the driving model, make a 'test' stage with all surfaces where you can more easily test the driving mechanics."
+- **Route** (`STAGES[4]`, `id: 'test'`, `practice: true`): 3.62 km, one open route (no crossings, nearest legs 48 m apart, which is the hairpin itself), 13 labelled sections written as `TEST_SECTIONS` in `stages.js` (surface changes, banners, bumps and the flat area follow the sections). Tarmac: sweeper (S-bend), 90 degree corner, hairpin, chicane. Gravel: two long sweepers, hairpin, slalom, 5 whoops (0.5 m, short) in a 280 m straight. Dirt: three medium corners, a crest jump (1.8 m) with 100 m flat landing. Drift area (gravel, flat, 14 m wide ring of radius 32 m, 188 m round, the grass island and the flat country around it are open, nothing solid). Snow: S-bend, hairpin. `roadHalfWidth` 7.0. Banner over the road at the start of each section (the SS1 gate arch, texts like "GRAVEL - SLALOM").
+- **Nothing solid**: no trees, rocks, walls, houses, crowds, tape or sponsor boards; the corner and chevron boards are there for the pace notes but are not solid on this stage. A few non-solid trees 70 m or more back. Obstacle list of the stage: 0 entries. Terrain gentle (+-2 m), flat around the drift area (`flatRoad`).
+- **Practice rules** (`practice: true`): no rivals (`setupRivals` clears them, `classify` returns only you), clock `timeStart` 99999 and the HUD shows `--` for clock and position, no checkpoints, start banner says "Test track: no clock, no rivals", results show the time and "Done" (no points table), best time saved under its own key `rallyBest_test`. Championship: `CHAMP_STAGES` (stages that are not practice) replaces `STAGES.length` in `ui/results.js`, so the championship ends at SS4; the TEST card is only reachable from the menu.
+- **Tests**: the bot skips practice stages (`stageCount` in `tests/lib/probe.js` counts stages that are not practice), so SS1 to SS4 expected times are untouched and no value is recorded for TEST. The bot drove the Test Track once by hand with the old driving model: finishes with both cars, 0 rescues, 0 off-road, 0 unrequested drifts (about 128 s).
+- **Other files touched** (small, for ui-mobile / core to review): `core/game-flow.js` (`startStage`: order and banner), `ui/results.js` (four `STAGES.length` -> `CHAMP_STAGES`, practice finish screen), `ui/visuals-hud.js` (`--` for clock and position), `tracks/track.js` (jump entries can be `[s, h, 'bump']`, "Full circle" pace note), `tracks/stage-load.js`, `themes.js`, `scenery.js`, `rivals.js`.

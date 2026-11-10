@@ -4,7 +4,9 @@
     // keys a player would (gas, brake, left, right; never the handbrake). Fixed on purpose: if its time
     // changes, the game changed, not the bot.
     function botKeys() {
-      const p = P[progIdx], th = Math.atan2(car.fwd.x, car.fwd.z), v = car.speed;
+      const p = P[progIdx], v = car.speed,
+        // aim by the direction the car is travelling (not the nose): in a slide the nose points inside the corner
+        th = v > 5 ? Math.atan2(car.vel.x, car.vel.z) : Math.atan2(car.fwd.x, car.fwd.z);
       const t = P[Math.min(P.length - 1, progIdx + Math.round((5 + v * 0.45) / track.step))];
       let err = Math.atan2(t.x - car.pos.x, t.z - car.pos.z) - th;
       err = Math.atan2(Math.sin(err), Math.cos(err));
@@ -25,20 +27,17 @@
       const sysRandom = Math.random;
       Math.random = mulberry32(1000 + stageIdx * 10 + carIndex);
       const prevCar = CONFIG.carIndex; CONFIG.carIndex = carIndex;
-      const out = { stage: stageIdx, stageName: ST.name, car: CONFIG.cars[carIndex].name, offRoadS: 0, driftS: 0, unrequestedDrifts: 0,
+      const out = { stage: stageIdx, stageName: ST.name, car: CONFIG.cars[carIndex].name, offRoadS: 0, driftS: 0,
         maxKmh: 0, maxHeldSlideDeg: 0, spins: 0, rescues: 0, timedOut: false };
       try {
         for (const r of rivals) r.dust = 0;                       // rival dust draws random numbers: same start every run
         champ = null; startStage(null); state = 'running'; countdown = -1; timeLeft = 1e9;
-        let goodS = startS, stuck = 0, spun = false, wasDrift = false;
+        let goodS = startS, stuck = 0, spun = false;
         while (state === 'running') {
           botKeys(); physicsStep();
           const lat = Math.abs(lateral()), sl = Math.abs(car.beta * 57.2958);
           if (lat > half + 0.5) out.offRoadS += H; else if (car.grounded > 0) goodS = P[progIdx].s;
           if (car.drift) out.driftS += H;
-          // a drift may only start from the handbrake or a brake tap while steering
-          if (car.drift && !wasDrift && !keys.hb && !keys.down) out.unrequestedDrifts++;
-          wasDrift = car.drift;
           if (!car.drift && car.grounded >= 0.5 && car.speed > 8) out.maxHeldSlideDeg = Math.max(out.maxHeldSlideDeg, sl);
           out.maxKmh = Math.max(out.maxKmh, car.speed * 3.6);
           if (sl > 90 && !spun) { out.spins++; spun = true; } else if (sl < 30) spun = false;
@@ -49,6 +48,11 @@
         out.time = raceTime;
         out.finished = !out.timedOut && P[progIdx].s >= track.finishS - 1;
         out.clock = ST.timeStart + ST.timeExt.reduce((a, b) => a + b, 0);
+        // seconds left on the stage clock when each checkpoint (and the finish) was reached, before its bonus time is added
+        let allowed = ST.timeStart; out.margins = [];
+        splits.forEach((t, i) => { out.margins.push(allowed - t); allowed += ST.timeExt[i]; });
+        out.margins.push(allowed - out.time);
+        out.minMarginS = Math.min(...out.margins);
       } finally {
         for (const k in keys) keys[k] = false;
         Math.random = sysRandom; CONFIG.carIndex = prevCar;
@@ -60,5 +64,5 @@
       await loadStage(i);
       while (loading || stageIdx !== i) await new Promise(r => setTimeout(r, 50));
     }
-    return { Car, CONFIG, driveStage, loadStage: loadStageAndWait, stageCount: STAGES.length, carCount: CONFIG.cars.length };
+    return { Car, CONFIG, driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
   })();

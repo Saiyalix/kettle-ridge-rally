@@ -4,14 +4,14 @@
     "windowPct": 3,
     "maxOffRoadS": 8,
     "times": {
-      "Kettle Ridge / Kestrel GT4": 91.51,
-      "Kettle Ridge / Strada HF": 92.55,
-      "Vulture Ledge / Kestrel GT4": 88.81,
-      "Vulture Ledge / Strada HF": 88.34,
-      "Sakura Touge / Kestrel GT4": 87.95,
-      "Sakura Touge / Strada HF": 88.13,
-      "Thornwick Keep / Kestrel GT4": 94.73,
-      "Thornwick Keep / Strada HF": 95.53
+      "Kettle Ridge / Kestrel GT4": 90.85,
+      "Kettle Ridge / Strada HF": 90.77,
+      "Vulture Ledge / Kestrel GT4": 87.46,
+      "Vulture Ledge / Strada HF": 87.52,
+      "Sakura Touge / Kestrel GT4": 88.53,
+      "Sakura Touge / Strada HF": 88.63,
+      "Thornwick Keep / Kestrel GT4": 94.22,
+      "Thornwick Keep / Strada HF": 95.13
     }
   },
   "handling": {
@@ -31,17 +31,52 @@
       140
     ],
     "offRoadKmh": 50,
-    "slideDeg": [
-      2,
-      10
+    "slideDeg": {
+      "tarmac": [
+        0,
+        6
+      ],
+      "gravel": [
+        12,
+        32
+      ],
+      "dirt": [
+        12,
+        32
+      ],
+      "snow": [
+        12,
+        32
+      ]
+    },
+    "grassMaxSlideDeg": 40,
+    "swingMaxDeg": 50,
+    "spinKmh": [
+      60,
+      90,
+      120
     ],
+    "spin": {
+      "maxDeg": 90,
+      "over45S": 0.5
+    },
+    "recoverS": {
+      "default": 0.8,
+      "grass": 1.5
+    },
+    "overshootMaxDeg": 3,
     "turnInMs": [
       67,
       100
     ],
     "turnInUpToKmh": 80,
     "maxWheelSpreadMs": 9,
-    "maxPathSpreadMs": 25
+    "stradaExtraDeg": 4,
+    "handbrake": {
+      "surface": "gravel",
+      "kmh": 55,
+      "maxS": 1.2
+    }
   },
   "mobile": {
     "viewport": {

@@ -249,6 +249,8 @@
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }
+    } else if (ST.id === 'test') {
+      // practice stage: no walls, fences or houses
     } else {
       const city = track.cityStart;
       for (const side of [-1, 1]) {

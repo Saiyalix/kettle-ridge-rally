@@ -547,13 +547,15 @@ const CONFIG = {
     selfAlign: 0.85,              // caster effect: with no input the wheels follow the slide this much, so throttle holds the drift angle
   },
 
-  // Arcade driving model, built on one rule set (see Car.arcadeForces):
-  //  1. Where you GO: steering bends your direction of travel, up to the tyres' grip limit and no further.
-  //     Holding a key = the tightest turn the surface allows. Too fast for a corner = a wider line, never a spin.
-  //  2. Where the car POINTS: a small slide angle at the limit (more on loose surfaces, for the rally look),
-  //     and a big angle only in a drift you start yourself (brake or handbrake while steering).
-  //  3. Surfaces change how much grip you have, never how quickly the car answers the keys.
-  // Suspension, jumps and body roll still come from the physics above.
+  // Arcade driving model, 90s arcade rally style (see Car.arcadeForces). Two axles, each with its own grip:
+  //  1. A held key asks the FRONT tyres for grip towards that side, measured from where the front axle is going.
+  //     With no key the front wheels follow the slide (automatic countersteer), so letting go straightens the car.
+  //  2. The REAR tyres can run out of grip before the fronts: then the tail swings out by itself and the car
+  //     rotates into a slide. How easily depends on the surface (rear grip, peak), the car, speed, throttle,
+  //     braking and weight transfer. The slide settles where front and rear balance, never in a spin.
+  //  3. The handbrake takes most of the rear grip away (tight turns, hairpins).
+  //  4. Spin guard: past guard.from degrees the car resists the slide growing, hard.
+  // Weight (body roll, dive, squat, bounce) is drawn from the real accelerations: see `body` below.
   arcade: {
     accel: 9.5,                   // m/s² from a standstill
     topSpeed: 54,                 // m/s (≈195 km/h) on tarmac
@@ -566,34 +568,68 @@ const CONFIG = {
     steerFastSpeed: 38,           // m/s
     steerReturn: 16,              // letting go: back to centre
     steerReverse: 22,             // switching from left to right
-    minRadius: 5.5,               // m: tightest turn at walking pace (wheel lock)
+    minRadius: 5.5,               // m: tightest turn at walking pace (wheel lock). Lower = tighter hairpins
     radiusGrow: 0.06,             // the lock limit eases a little with speed (m of radius per m/s)
-    gripUse: 0.97,                // a held key corners at this share of the tyre limit: steering alone never slides the car
-    cornerDrain: 0.65,            // engine pull lost while cornering right at the limit
-    yawResponse: 16,              // how tightly the car's rotation follows what it should be doing
-    yawAccelMax: 26,              // rad/s²: cap on how hard the car can be spun up
-    alignRate: 8,                 // how quickly the car's angle settles to its target (1/s)
+    steerFrom: 4,                 // m/s: below this a key is plain wheel angle (full lock for hairpins)...
+    steerFull: 12,                // m/s: ...above this a key asks the front tyres for grip (blend in between)
+    frontAim: 1.0,                // held key = front tyres at this × their peak slip angle. Higher = sharper turn-in, more rotation
+    slideHold: 1.15,              // × the surface's `slide` angle where a held key stops adding rotation (the slide settles there).
+                                  // Higher = bigger, longer slides from steering alone
+    slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
+                                  // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
+    slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
+    slideFull: 19,                // m/s (68 km/h): ...above this the surface's full rear looseness applies
+    slideCarry: 1.0,              // share of the rear grip lost to a loose surface that still bends your path (at the centre, so the
+                                  // tail still swings out). Higher = slides corner as hard as gripping: sliding is the fast way round
+    slideKeep: 0.6,               // share of the speed a slide scrubs that you keep. Higher = a held slide loses less speed (1 = none)
+    weightShift: 1.4,             // × the real load transfer between the axles. Higher = braking or lifting swings the tail more
+    powerSlide: 1.0,              // share of the rear drive force that eats rear grip. Higher = throttle pushes the tail out more
+    brakeRear: 0.35,              // share of braking done by the rear wheels
+    brakeSlide: 0.35,             // share of the rear braking force that eats rear grip. Higher = a brake tap mid-corner rotates more
+    rearDrive: 0.6,               // share of the engine force through the rear axle (× car rearDrive)
+    liftDecel: 0.7,               // m/s² engine braking off the throttle (also shifts weight forward: lift-off tuck-in)
+    handbrakeGrip: 0.28,          // rear grip left while the handbrake is held. Lower = the tail swings round faster
+    slideGrip: 0.78,              // share of grip a tyre keeps when sliding well past its peak. Higher = slides keep more bite (calmer)
+    falloff: { front: 0.45, rear: 0.9 }, // how fast grip drops past the tyre's peak (higher = snappier). Fronts hold on, rears let go
+    selfAlign: 1.0,               // with no key the front wheels point this much along the slide (1 = exactly: no force, the rear straightens the car)
+    catchDamp: 12,                // 1/s: as a slide swings back through straight, this brakes the swing. Higher = less swing-back after a catch
+    settle: 4,                    // 1/s: with no key, extra help bringing the car back in line (higher = quicker, less swing-back)
+    guard: { from: 42, range: 30, push: 9, damp: 7 }, // spin guard: from this angle (°), fully on `range` ° later; push = rad/s² back
+                                                       // towards the travel, damp = how hard it brakes the rotation. Higher = harder to spin
     drift: {
-      minSpeed: 9,                // m/s (≈32 km/h): slowest speed a drift can start
-      angle: 32,                  // degrees the car swings out in a drift (× surface slide × car drift)
-      grip: 1.12,                 // a drift steered hard into the corner turns this much tighter than gripping...
-      wideArc: 0.6,               // ...and this wide with the key released (you steer the arc, Mario Kart style)
-      release: 0.32,              // s with no steering before a drift straightens up
-      drag: 0.9,                  // speed scrubbed by the slide angle (m/s² per m/s at 90°)
+      minSpeed: 9,                // m/s (≈32 km/h): slower than this the car never counts as drifting
+      on: 12,                     // ° of slide that counts as a drift (HUD, sound, replays, dust)...
+      off: 7,                     // ...and the drift ends below this
       handbrakeDecel: 4,          // m/s² while the handbrake is held
+      // drift memory (handbrake pull or brake tap while steering): for that slide the rear is looser and the slide may grow bigger
+      looser: 0.3,                // share of rear grip taken away while it lasts. Higher = tarmac drifts hold longer on the throttle
+      holdExtra: 14,              // ° added to where a held key settles the slide (× car drift). Higher = bigger deliberate drifts
+      release: 0.32,              // s of neutral steering (or countersteer) that ends it
     },
-    airFloat: 0.22,               // share of gravity cancelled in the air: floaty Sega jumps
+    airFloat: 0.22,               // share of gravity cancelled in the air: floaty jumps
     airLevel: 6,                  // how strongly the car levels itself in the air
     airAlign: 2,                  // in the air the nose eases back towards the direction of travel, for clean landings
     gears: [0, 45, 80, 115, 150, 182], // km/h where each gear starts (6-speed automatic)
-    // per surface: cornering limit in g, top speed share, rolling drag,
-    // look: slide angle at the cornering limit (degrees), slide: drift angle scale
+    // Visual weight: the body leans on its wheels from the real accelerations (drawn only; physics unaffected).
+    body: {
+      roll: 0.005,                // rad per m/s² sideways: leaning out in corners and slides. Higher = more lean
+      pitch: 0.004,               // rad per m/s² along: nose dips under braking, squats under power
+      heave: 0.004,               // m per m/s² up/down: squashes on landings and compressions
+      maxRoll: 0.11, maxPitch: 0.08, maxHeave: 0.09,   // rad, rad, m: caps
+      freq: 1.7,                  // Hz: how quickly the body follows. Lower = softer, lazier body
+      damping: 0.42,              // 1 = no bounce; lower = it settles with a visible bounce or two
+    },
+    // per surface: maxG = front grip in g (the cornering limit; the test bot and rivals pick speeds from it),
+    // top = top speed share, drag = rolling drag,
+    // rear = rear grip vs front (lower = the tail lets go more easily; below 1 a held key slides the car),
+    // peak = slip angle of most grip (°; higher = softer, more progressive),
+    // slide = angle (° × slideHold × car drift) where a held key stops adding rotation; a held slide settles at about 0.6× that
     surfaces: {
-      tarmac: { maxG: 1.6,  top: 1.0,  drag: 0.02, look: 2.5, slide: 0.82 },
-      gravel: { maxG: 1.3,  top: 0.96, drag: 0.04, look: 8,   slide: 1.0 },
-      dirt:   { maxG: 1.24, top: 0.95, drag: 0.05, look: 9,   slide: 1.05 },
-      snow:   { maxG: 1.08, top: 0.92, drag: 0.05, look: 10,  slide: 1.12 },
-      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  look: 6,   slide: 1.1 },
+      tarmac: { maxG: 1.6,  top: 1.0,  drag: 0.02, rear: 1.04, peak: 6.5, slide: 16 },
+      gravel: { maxG: 1.3,  top: 0.96, drag: 0.04, rear: 0.6,  peak: 9,   slide: 30 },
+      dirt:   { maxG: 1.24, top: 0.95, drag: 0.05, rear: 0.58, peak: 10,  slide: 32 },
+      snow:   { maxG: 1.08, top: 0.92, drag: 0.05, rear: 0.56, peak: 10,  slide: 34 },
+      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28 },
     },
   },
   // Car colours (art owns paint / stripe / skirt / number and `liveries`): paint/stripe/skirt/number = the default
@@ -601,7 +637,7 @@ const CONFIG = {
   //   base = body, a / b = accents, c = dark trim, wheel = rim colour, numBg / numFg = number panel, plate = invented plate text,
   //   design = which painter function, pod = rally light bar on the nose, wing = wing / roof spoiler colour.
   cars: [
-    { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.92, turn: 1.0,
+    { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.85, turn: 1.0, rear: 1.0, rearDrive: 0.85,
       paint: 0xf4f6f8, stripe: 0xffc928, skirt: 0x1f4fa3, number: '7',
       liveries: [
         { id: 'ridgeline', name: 'Ridgeline',   design: 'ridgeline', base: 0xf4f6f8, a: 0xffc928, b: 0x1f4fa3, c: 0x14213f, wheel: 0xd9dde2, numBg: 0xffc928, numFg: 0x101820, plate: 'KR 07-GT', wing: 0x14213f, spons: ['ROTOR OIL', 'NORTHGATE', 'BRINDLE'] },
@@ -609,7 +645,7 @@ const CONFIG = {
         { id: 'magma',     name: 'Magma',       design: 'magma',     base: 0x17181c, a: 0xff4a12, b: 0xffb81c, c: 0x2a1208, wheel: 0xff4a12, numBg: 0xffb81c, numFg: 0x17181c, plate: 'MG 66-HT', pod: true, wing: 0xff4a12, spons: ['TAMARACK', 'NORTHGATE', 'ROTOR OIL'], number: '66' },
         { id: 'mint',      name: 'Alpine Mint', design: 'mint',      base: 0x35d6a4, a: 0x3a1a6b, b: 0xf4f6f8, c: 0x1a0d36, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x3a1a6b, plate: 'AM 12-IN', wing: 0x3a1a6b, spons: ['BRINDLE BANK', 'HALCYON', 'PIKE RACING'], number: '12' },
       ] },
-    { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.12, turn: 1.08,
+    { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.05, turn: 1.12, rear: 0.95, rearDrive: 1.15,
       paint: 0xd8342c, stripe: 0xf4f6f8, skirt: 0x1b1d20, number: '4',
       liveries: [
         { id: 'signal',  name: 'Signal Red',   design: 'signal', base: 0xd8342c, a: 0xf4f6f8, b: 0x1b1d20, c: 0x1b1d20, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x1b1d20, plate: 'SR 04-HF', wing: 0x1b1d20, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'BRINDLE'] },
@@ -860,6 +896,32 @@ const THORN_POST = [
 ];
 const THORN_G1 = THORN_PRE.reduce((a, g) => a + segLen(g), 0), THORN_G2 = THORN_G1 + THORN_CASTLE.slice(0, 3).reduce((a, g) => a + segLen(g), 0);
 
+// TEST track (practice stage, not part of the championship): wide, open, nearly flat country for trying the driving on every surface.
+function testHeight(x, z) {
+  return 1.6 * Math.sin(x * 0.0045 + 0.7) * Math.cos(z * 0.004 - 0.4) + 0.5 * Math.sin(x * 0.012 + z * 0.009 + 1.3);
+}
+// The route is written as labelled sections: [label, surface, segments]. Section starts (s) are worked out from the segments, so surfaceChanges,
+// the section banners over the road, the bumps and the flat drift area all follow if a section is made longer or shorter.
+const TEST_SECTIONS = [
+  ['TARMAC - SWEEPER', 'tarmac', [['S', 70], ['L', 40, 260], ['R', 40, 260], ['S', 30]]],
+  ['TARMAC - 90 DEGREE CORNER', 'tarmac', [['S', 40], ['L', 90, 28], ['S', 70]]],
+  ['TARMAC - HAIRPIN', 'tarmac', [['S', 40], ['R', 180, 24], ['S', 70]]],
+  ['TARMAC - CHICANE', 'tarmac', [['S', 40], ['L', 35, 50], ['R', 70, 50], ['L', 35, 50], ['S', 60]]],
+  ['GRAVEL - SWEEPERS', 'gravel', [['S', 40], ['L', 50, 220], ['R', 50, 220], ['S', 40]]],
+  ['GRAVEL - HAIRPIN', 'gravel', [['S', 40], ['L', 180, 26], ['S', 60]]],
+  ['GRAVEL - SLALOM', 'gravel', [['S', 40], ['R', 35, 60], ['L', 70, 60], ['R', 70, 60], ['L', 35, 60], ['S', 40]]],
+  ['GRAVEL - WHOOPS', 'gravel', [['S', 280]]],
+  ['DIRT - CORNERS', 'dirt', [['S', 40], ['L', 60, 70], ['R', 50, 90], ['L', 75, 50], ['S', 40]]],
+  ['DIRT - CREST JUMP', 'dirt', [['S', 230]]],
+  ['DRIFT AREA', 'gravel', [['S', 50], ['L', 360, 32], ['S', 60]]],
+  ['SNOW - SWEEPER', 'snow', [['S', 40], ['L', 60, 150], ['R', 40, 180], ['S', 40]]],
+  ['SNOW - HAIRPIN', 'snow', [['S', 40], ['L', 170, 24], ['S', 60], ['S', 120]]],
+];
+const TEST_LEN = TEST_SECTIONS.map(g => g[2].reduce((a, s) => a + segLen(s), 0));
+const TEST_AT = TEST_LEN.map((_, i) => TEST_LEN.slice(0, i).reduce((a, b) => a + b, 0));     // s where each section starts
+const testIdx = name => TEST_SECTIONS.findIndex(g => g[0] === name);
+const TEST_SIGN_COL = { tarmac: ['#4a5058', '#ffffff'], gravel: ['#b0813f', '#ffffff'], dirt: ['#7d4f2c', '#ffffff'], snow: ['#2f6fb0', '#ffffff'] };
+
 const STAGES = [
   {
     id: 'kettle', code: 'SS1', name: 'Kettle Ridge', place: 'Forest hills',
@@ -901,13 +963,13 @@ const STAGES = [
     surfaceChanges: [[0, 'gravel'], [640, 'dirt'], [1360, 'gravel'], [1900, 'dirt']],
     snowLine: 95,
     checkpoints: [560, 1150, 1700, 2150],
-    timeStart: 29, timeExt: [31, 23, 21, 11], refTime: 107,
+    timeStart: 30, timeExt: [31, 23, 21, 11], refTime: 104,
     jumps: [[1320, 1.7]],
     // grade profile (fraction): the road climbs and dips along the mountainside
     elevation: s => 0.075 * Math.sin(s / 150 + 0.4) * 150 + 0.035 * Math.sin(s / 52) * 52 + s * 0.02,
     // which side rises into a rock wall (1) or falls away (0): [s, left, right], blended between keys
     // left wall → narrow ridge (drops both sides) → right wall → hairpin flips it → left wall → ridge → right wall
-    cliffSides: [[0, 1, 0], [600, 1, 0], [650, 0, 0], [740, 0, 0], [790, 0, 1], [1080, 0, 1], [1125, 1, 0], [1860, 1, 0], [1900, 0, 0], [1960, 0, 0], [2000, 0, 1]],
+    cliffSides: [[0, 1, 0], [600, 1, 0], [650, 0, 0], [740, 0, 0], [790, 0, 1], [1122, 0, 1], [1175, 1, 0], [1860, 1, 0], [1900, 0, 0], [1960, 0, 0], [2000, 0, 1]],
     segments: [
       ['S', 110], ['R', 30, 140], ['S', 80], ['L', 55, 70], ['S', 60], ['R', 80, 45], ['S', 90],
       ['L', 35, 160], ['S', 120], ['L', 95, 38], ['S', 70], ['R', 45, 90], ['S', 110],
@@ -939,7 +1001,7 @@ const STAGES = [
     roadHalfWidth: 4.4, runoff: 150,
     surfaceChanges: [[0, 'tarmac'], [1250, 'gravel'], [1620, 'tarmac']],
     checkpoints: [600, 1150, 1700, 2150],
-    timeStart: 24, timeExt: [29, 27, 21, 11], refTime: 102,
+    timeStart: 26, timeExt: [29, 27, 21, 11], refTime: 102,
     jumps: [],
     cityLength: 640,                 // the last part of the run is in town
     toriiTunnel: [580, 672],
@@ -995,18 +1057,37 @@ const STAGES = [
       grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
     },
   },
+  {
+    id: 'test', code: 'TEST', name: 'Test Track', place: 'Driving playground', practice: true,
+    blurb: 'Practice only: no clock, no rivals, not in the championship. Tarmac, gravel, dirt and snow in labelled sections, with a hairpin, a slalom, bumps, a jump and an open drift area. Restart as often as you like.',
+    bestKey: 'rallyBest_test', seed: 61, theme: 'test', terrain: 'blend', height: testHeight,
+    roadHalfWidth: 7.0, runoff: 120,
+    surfaceChanges: TEST_SECTIONS.map((g, i) => [TEST_AT[i], g[1]]).filter((c, i, a) => !i || c[1] !== a[i - 1][1]),
+    snowFrom: TEST_AT[testIdx('SNOW - SWEEPER')],
+    checkpoints: [],
+    timeStart: 99999, timeExt: [], refTime: 150,
+    jumps: [...[0, 1, 2, 3, 4].map(k => [TEST_AT[testIdx('GRAVEL - WHOOPS')] + 60 + k * 45, 0.5, 'bump']), [TEST_AT[testIdx('DIRT - CREST JUMP')] + 120, 1.8]],
+    flatRoad: [{ from: TEST_AT[testIdx('DRIFT AREA')] - 40, to: TEST_AT[testIdx('DRIFT AREA')] + TEST_LEN[testIdx('DRIFT AREA')] + 40, ramp: 150 }],
+    signs: TEST_SECTIONS.map((g, i) => ({ s: i ? TEST_AT[i] + 24 : 70, text: g[0], bg: TEST_SIGN_COL[g[1]][0], fg: TEST_SIGN_COL[g[1]][1] })),
+    segments: TEST_SECTIONS.flatMap(g => g[2]),
+    look: null,   // set below: the SS1 daytime look, with the fog pushed back so the whole playground can be seen
+  },
 ];
+STAGES[STAGES.length - 1].look = Object.assign({}, STAGES[0].look, { fogNear: 260, fogFar: 1100 });
+const CHAMP_STAGES = STAGES.filter(s => !s.practice).length;      // the championship runs the stages that are not practice stages (they come first in the list)
 CONFIG.stage = STAGES[0];
 
 /* =====================================================================
    TRACK: a spline built from the stage's segments
    ===================================================================== */
 // Co-driver calls in the Sega Rally manner: Easy / Medium / Sharp, Long, Square, Hairpin, "maybe", "don't cut"
-function paceNote(seg) {
+// surf: the surface the corner is on. On tarmac the car can only hold about 150 km/h round a 110 m radius, so "Easy" (= keep your foot down) needs 150 m there
+function paceNote(seg, surf) {
   const dir = seg[0] === 'R' ? 'right' : 'left', ang = seg[1], r = seg[2];
+  if (ang >= 300) return 'Full circle ' + dir + ', drift area';
   if (ang >= 140) return 'Hairpin ' + dir;
   if (ang >= 75 && r < 32) return 'Square ' + dir;
-  const sev = r >= 110 ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
+  const sev = r >= (surf === 'tarmac' ? 150 : 110) ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
   let t = (ang >= 70 ? 'Long ' + sev.toLowerCase() : sev) + ' ' + dir;
   if (sev === 'Easy' && r >= 170) t += ', maybe';
   else if (sev !== 'Easy' && ang >= 60 && r < 60) t += ", don't cut";
@@ -1018,6 +1099,7 @@ function buildTrack(ST = CONFIG.stage) {
   let x = 0, z = 0, th = 0, s = 0;
   const pts = [{ x, z, th, s }];
   const notes = [], turns = [];
+  const surfaceAtS = s0 => { let sf = ST.surfaceChanges[0][1]; for (const [d, sname] of ST.surfaceChanges) if (s0 >= d) sf = sname; return sf; };
   for (const seg of ST.segments) {
     if (seg[0] === 'S') {
       const n = Math.max(1, Math.round(seg[1] / step)), ds = seg[1] / n;
@@ -1025,7 +1107,7 @@ function buildTrack(ST = CONFIG.stage) {
     } else {
       // Right turn = heading decreases (car's right is -x when facing +z)
       const dir = seg[0] === 'R' ? -1 : 1, ang = seg[1] * D2R, r = seg[2], len = ang * r;
-      notes.push({ s, s1: s + len, r, text: paceNote(seg), kind: seg[1] >= 140 ? 'hairpin' : 'turn', dir: seg[0] });
+      notes.push({ s, s1: s + len, r, text: paceNote(seg, surfaceAtS(s)), kind: seg[1] >= 140 ? 'hairpin' : 'turn', dir: seg[0] });
       turns.push({ s0: s, s1: s + len, dir: seg[0], r });
       const n = Math.max(2, Math.round(len / step)), ds = len / n, dth = dir * ang / n;
       for (let i = 0; i < n; i++) {
@@ -1071,12 +1153,14 @@ function buildTrack(ST = CONFIG.stage) {
     h = out;
   }
   // Crests: quick rise, then the road falls away so the car takes off
-  for (const [js, jh] of ST.jumps) {
-    notes.push({ s: js - 22, text: 'Crest, jump!', kind: 'jump', dir: '' });
+  // (a jump entry [s, height, 'bump'] is a short whoop: half as long, no call)
+  for (const [js, jh, kind] of ST.jumps) {
+    const bump = kind === 'bump', up = bump ? 14 : 28, down = bump ? 11 : 22;
+    if (!bump) notes.push({ s: js - 22, text: 'Crest, jump!', kind: 'jump', dir: '' });
     for (let i = 0; i < n; i++) {
       const u = pts[i].s - js;
-      if (u > -28 && u <= 0) h[i] += jh * smoothstep((u + 28) / 28);
-      else if (u > 0 && u < 22) h[i] += jh * (1 - smoothstep(u / 22));
+      if (u > -up && u <= 0) h[i] += jh * smoothstep((u + up) / up);
+      else if (u > 0 && u < down) h[i] += jh * (1 - smoothstep(u / down));
     }
   }
   // Cliff sides: 1 = rock wall rising on that side, 0 = drop
@@ -1255,7 +1339,7 @@ const _M = new THREE.Vector3(), _P = new THREE.Vector3(), _r = new THREE.Vector3
   _fw = new THREE.Vector3(), _rw = new THREE.Vector3(), _F = new THREE.Vector3(), _t = new THREE.Vector3(),
   _qInv = new THREE.Quaternion(), _dq = new THREE.Quaternion(), _g = { h: 0, n: new THREE.Vector3() };
 const _ag = new THREE.Vector3(), _af = new THREE.Vector3(), _ar = new THREE.Vector3(), _aF = new THREE.Vector3(), _aP = new THREE.Vector3(), _Yup = new THREE.Vector3(0, 1, 0);
-const _aT = new THREE.Vector3(), _aL = new THREE.Vector3(), _aD = new THREE.Vector3();
+const _aT = new THREE.Vector3(), _aL = new THREE.Vector3(), _aD = new THREE.Vector3(), _aV = new THREE.Vector3();
 
 const BODY_POINTS = [];
 for (const x of [-0.86, 0.86]) for (const y of [-0.32, 0.62]) for (const z of [-2.0, 2.0]) BODY_POINTS.push(new THREE.Vector3(x, y, z));
@@ -1285,7 +1369,8 @@ class Car {
     this.speed = 0; this.vForward = 0; this.throttleOut = 0; this.frontPeak = 8 * D2R;
     this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null;
+    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0;
+    this.lastVel = new THREE.Vector3(); this.vis = { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false };   // visual body attitude
     this.dbg = { gripUse: 0, traction: 1, yawT: 0, yawNow: 0, drift: false };
     this.prevPos = new THREE.Vector3(); this.prevQ = new THREE.Quaternion();      // for smooth rendering between physics steps
   }
@@ -1297,7 +1382,8 @@ class Car {
     for (const w of this.wheels) { w.omega = 0; w.comp = w.prevComp = w.compVel = 0; }
     this.gear = 1; this.steer = 0; this.shiftTimer = 0; this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null;
+    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0;
+    this.lastVel.set(0, 0, 0); Object.assign(this.vis, { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false });
   }
 
   addForceAt(F, P) {
@@ -1557,7 +1643,7 @@ class Car {
     _qInv.copy(this.q).invert();
     const wb = _t.copy(this.angVel).applyQuaternion(_qInv);
     const tb = this.torque.applyQuaternion(_qInv);
-    const Ix = I.pitch, Iy = I.yaw, Iz = I.roll;
+    const Ix = I.pitch, Iy = arcade ? I.yaw / ((C.cars[C.carIndex] || C.cars[0]).turn || 1) : I.yaw, Iz = I.roll;
     const gx = wb.y * (Iz * wb.z) - wb.z * (Iy * wb.y);      // gyroscopic term ω × Iω
     const gy = wb.z * (Ix * wb.x) - wb.x * (Iz * wb.z);
     const gz = wb.x * (Iy * wb.y) - wb.y * (Ix * wb.x);
@@ -1569,33 +1655,38 @@ class Car {
     this.q.x += _dq.x; this.q.y += _dq.y; this.q.z += _dq.z; this.q.w += _dq.w; this.q.normalize();
 
     for (const w of this.wheels) w.spin += w.omega * dt;
+    if (arcade) this.updateBodyPose(dt);
   }
 
-  /* ARCADE DRIVING (Sega Rally style)
-     - Steering sets a target rotation speed; the car turns towards it directly.
-     - Sideways speed is bled off at a rate set by the surface: tarmac grips, gravel and snow slide.
-     - Drift: a flick of the steering, a dab of brake while turning, the handbrake, or simply a big slide
-       puts the car into a drift. Grip drops, rotation increases, and throttle holds the slide. Lifting tidies it up.
-     - Sideways speed that the tyres kill is partly handed back as forward speed, so slides carry momentum.
-     - Past maxSlideAngle the car swings back, so a slide very rarely turns into a spin. */
+  /* ARCADE DRIVING (90s arcade rally style): a two-axle car with simple, forgiving tyres.
+     - Steering: at speed a held key asks the front tyres for grip towards that side, measured from where the
+       front axle is travelling. No key = the wheels follow the slide (automatic countersteer).
+     - Each axle has a grip limit from the surface, the car and the load on it (weight transfer comes from the
+       suspension). When the rear runs out first the tail swings out by itself: loose surfaces, speed,
+       throttle (power slide), a brake tap or lifting off (weight forward) and the handbrake all make that happen.
+     - As the slide grows, a held key asks for less front grip (`slideHold`), so the slide settles at an angle
+       set by surface and car instead of spinning. The spin guard stops the rest.
+     - The engine pushes along the car's nose, so in a slide throttle drives the car round the corner and keeps
+       its speed. Brakes and drag act along the direction of travel. */
   arcadeForces(dt, inp, throttle, brake, fwd, up) {
     const A = CONFIG.arcade, D = A.drift, CAR = CONFIG.cars[CONFIG.carIndex] || CONFIG.cars[0], m = CONFIG.car.mass, g = CONFIG.gravity, R = CONFIG.wheels.radius;
+    const a = CONFIG.wheels.frontZ, b = -CONFIG.wheels.rearZ, L = a + b, Iy = CONFIG.car.inertia.yaw / (CAR.turn || 1);
+    const w0 = this.wheels;
 
-    // --- Ground contact and surface. Both are smoothed so a bump or a wheel on the verge doesn't make
-    //     the grip flicker: the car always knows roughly how much grip it has.
-    let nC = 0, maxG = 0, top = 0, drag = 0, look = 0, slide = 0;
+    // --- Ground contact and surface. Smoothed so a bump or a wheel on the verge doesn't make the grip flicker.
+    let nC = 0, maxG = 0, top = 0, drag = 0, rear = 0, peak = 0, slide = 0;
     _ag.set(0, 0, 0);
-    for (const w of this.wheels) if (w.contact) {
+    for (const w of w0) if (w.contact) {
       nC++; _ag.add(w.normal);
       const sp = A.surfaces[w.surface] || A.surfaces.gravel;
-      maxG += sp.maxG; top += sp.top; drag += sp.drag; look += sp.look; slide += sp.slide;
+      maxG += sp.maxG; top += sp.top; drag += sp.drag; rear += sp.rear; peak += sp.peak; slide += sp.slide;
     }
-    if (!this.surfS) this.surfS = { maxG: 1.3, top: 1, drag: 0.04, look: 7, slide: 1 };
+    if (!this.surfS) { const s0 = A.surfaces.gravel; this.surfS = { maxG: s0.maxG, top: s0.top, drag: s0.drag, rear: s0.rear, peak: s0.peak, slide: s0.slide }; }
     const SS = this.surfS;
     if (nC) {
       const k = Math.min(1, dt * 10);
       SS.maxG += (maxG / nC - SS.maxG) * k; SS.top += (top / nC - SS.top) * k; SS.drag += (drag / nC - SS.drag) * k;
-      SS.look += (look / nC - SS.look) * k; SS.slide += (slide / nC - SS.slide) * k;
+      SS.rear += (rear / nC - SS.rear) * k; SS.peak += (peak / nC - SS.peak) * k; SS.slide += (slide / nC - SS.slide) * k;
       _ag.normalize();
     } else _ag.copy(up);
     const contact = nC >= 2 ? 1 : nC === 1 ? 0.5 : 0;
@@ -1604,101 +1695,168 @@ class Car {
     this.airTime = nC ? 0 : this.airTime + dt;
     const n = _ag;
 
+    // --- Load on each axle, from the springs (smoothed): braking loads the front, a crest makes the car light
+    const Nf0 = m * g * b / L, Nr0 = m * g * a / L;
+    const kL = Math.min(1, dt * 20);
+    this.loadF += ((w0[0].load + w0[1].load) / Nf0 - this.loadF) * kL;
+    this.loadR += ((w0[2].load + w0[3].load) / Nr0 - this.loadR) * kL;
+    // weight transfer between the axles, scaled by weightShift (total load unchanged)
+    const tot = (this.loadF * Nf0 + this.loadR * Nr0) / (Nf0 + Nr0);
+    const lf = clamp(tot + (this.loadF - tot) * A.weightShift, 0, 1.7), lr = clamp(tot + (this.loadR - tot) * A.weightShift, 0, 1.7);
+
     // Ground-plane frame: forward, right and left of the car; speed along and across
     const fG = _af.copy(fwd).addScaledVector(n, -fwd.dot(n)).normalize();
     const rG = _ar.crossVectors(fG, n);
+    const lG = _aL.copy(rG).negate();
     const vF = this.vel.dot(fG), vL = this.vel.dot(rG), speed = Math.hypot(vF, vL);
     // slide angle: + = the car is moving to its right, i.e. its nose points left of where it is going
     const beta = speed > 0.5 ? Math.atan2(vL, Math.max(Math.abs(vF), 1.5)) * (vF >= 0 ? 1 : -1) : 0;
     this.beta = beta;
+    const r = this.angVel.dot(n);                                       // rotation, + = turning left
 
-    // --- Steering input, smoothed so a key press feels like turning a wheel
+    // --- Steering input, smoothed so a key press feels like turning a wheel (same on every surface)
     const sTarget = inp.steer;
     let sRate;
     if (sTarget !== 0 && this.steerIn !== 0 && Math.sign(sTarget) !== Math.sign(this.steerIn)) sRate = A.steerReverse;
     else if (Math.abs(sTarget) < Math.abs(this.steerIn)) sRate = A.steerReturn;
     else sRate = A.steerAttackSlow + (A.steerAttackFast - A.steerAttackSlow) * clamp(speed / A.steerFastSpeed, 0, 1);
     this.steerIn += clamp(sTarget - this.steerIn, -sRate * dt, sRate * dt);
-    const steer = this.steerIn;                                   // + = right
+    const sc = -this.steerIn;                                           // + = left (same sign as rotation)
 
-    // --- Drift: only when you ask for it. Brake or handbrake while steering above ~32 km/h starts one in
-    //     the direction you're steering. Steering into it tightens the arc, letting go of the key widens
-    //     it and then straightens the car, steering the other way ends it.
-    const yawDirOfSteer = -Math.sign(steer);                      // + = turning left
-    // the brake only starts a drift when you press it while already steering (a tap mid-corner), so braking
-    // in a straight line and then turning in stays a clean, gripping corner
-    const brakeTap = inp.brake > 0.3 && !(this.prevBrakeKey > 0.3) && Math.abs(steer) > 0.5 && vF > D.minSpeed + 5;
-    this.prevBrakeKey = inp.brake;
-    if (!this.drift && nC >= 2 && vF > D.minSpeed && Math.abs(steer) > 0.35 && (inp.handbrake || brakeTap)) {
-      this.drift = true; this.driftDir = yawDirOfSteer; this.driftNeutral = 0; this.driftCounter = 0;
-      this.driftKick = inp.handbrake ? 0.3 : 0.18;               // swing out briskly on entry
-    }
-    let into = 0;
-    if (this.drift) {
-      into = -steer * this.driftDir;                              // + = steering into the drift
-      this.driftCounter = into < -0.3 ? this.driftCounter + dt : 0;
-      this.driftNeutral = Math.abs(steer) < 0.15 ? this.driftNeutral + dt : 0;
-      if (this.driftCounter > 0.1 || this.driftNeutral > D.release || speed < 6 || vF < 3 || this.airTime > 0.6) this.drift = false;
-    }
-    this.driftBlend = clamp(this.driftBlend + (this.drift ? 7 : -5) * dt, 0, 1);
-    this.driftKick = Math.max(0, this.driftKick - dt);
-    const db = this.driftBlend, dirD = this.driftDir || 1;
-    const drifting = db > 0.5;
-
-    // --- 1. Where you go: how fast the direction of travel turns (+ = left)
-    const aG = SS.maxG * CAR.grip * g;                            // the tyres' cornering limit here
+    // --- Axle velocities and grip limits
     const v = Math.max(speed, 0.5);
-    const kGeo = 1 / ((A.minRadius + A.radiusGrow * v) / CAR.turn);   // wheel-lock limit (low speed)
-    const kGrip = aG * A.gripUse / (v * v);                       // tyre limit
-    const rateGrip = -steer * Math.min(kGeo, kGrip) * v;
-    let arc = into >= 0 ? D.wideArc + (D.grip - D.wideArc) * into : D.wideArc * (1 + 0.7 * into);
-    const rateDrift = dirD * Math.min(aG * arc / v, kGeo * v);
-    const rateCmd = rateGrip + (rateDrift - rateGrip) * db;
-    // The tyres provide whatever sideways push is needed on top of everything else acting sideways (gravity on
-    // a camber, the springs as the body rolls), so the path follows the steering exactly, up to their limit.
-    const travel = speed > 0.5 ? _aT.copy(this.vel).addScaledVector(n, -this.vel.dot(n)).normalize() : _aT.copy(fG);
-    const left = _aL.crossVectors(n, travel);
-    const aOther = this.force.dot(left) / m - g * left.y;         // springs so far + gravity (added after this)
-    const aCap = aG * (1 + (D.grip - 1) * db) * 1.04;
-    const wv = vF > 0 ? clamp((speed - 1.5) / 3, 0, 1) : 0;       // 0 = walking pace / reversing: plain wheel steering
-    const aTyre = clamp(v * rateCmd - aOther, -aCap, aCap) * wv;
-    const gripUse = Math.abs(aTyre) / aG;
-    this.dbg.gripUse = gripUse;
+    const vx = Math.max(Math.abs(vF), 3);
+    const vy = -vL;                                                     // + = moving to the car's left
+    const travF = Math.atan2(vy + r * a, vx), travR = Math.atan2(vy - r * b, vx);
+    const muF = SS.maxG * CAR.grip;
+    // the rear's looseness fades in with speed: at a crawl both axles grip the same
+    const loose = smoothstep(clamp((speed - A.slideFrom) / (A.slideFull - A.slideFrom), 0, 1));
+    // drift memory: a handbrake pull or a brake tap while steering (at speed) loosens the rear and lets the slide
+    // grow bigger for this corner. It fades after drift.release s of neutral steering, on countersteer, or when the slide ends.
+    const brakeTap = inp.brake > 0.3 && !(this.prevBrakeKey > 0.3) && Math.abs(this.steerIn) > 0.5;
+    this.prevBrakeKey = inp.brake;
+    if (nC >= 2 && speed > D.minSpeed && Math.abs(this.steerIn) > 0.35 && (inp.handbrake || brakeTap)) { this.driftBoost = 1; this.driftNeutral = 0; this.driftSide = Math.sign(sc); }
+    if (this.driftBoost > 0) {
+      this.driftNeutral = Math.abs(this.steerIn) < 0.15 || sc * this.driftSide < -0.3 ? this.driftNeutral + dt : 0;
+      if (this.driftNeutral > D.release || speed < D.minSpeed - 3 || (!inp.handbrake && Math.abs(beta) < D.off * D2R && this.betaRate * beta <= 0)) this.driftBoost = Math.max(0, this.driftBoost - dt * 4);
+    }
+    const boost = this.driftBoost;
+    const rearRatio = (1 + (SS.rear * (CAR.rear || 1) - 1) * loose) * (1 - D.looser * boost);
+    const muR = muF * rearRatio;
+    let capF = muF * Nf0 * lf, capR = muR * Nr0 * lr, capRfull = muF * Math.max(1, rearRatio) * Nr0 * lr;
+    // engine force (along the nose), split between the axles; part of the rear's share uses up rear grip
+    const topV = A.topSpeed * SS.top * CAR.top;
+    let aDrive = 0;
+    if (this.gear > 0) aDrive = throttle * A.accel * CAR.accel * Math.max(0, 1 - Math.pow(Math.max(0, vF) / topV, 1.8));
+    else aDrive = -throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
+    const rearShare = clamp(A.rearDrive * (CAR.rearDrive || 1), 0, 1);
+    const aLift = this.gear > 0 && throttle === 0 && vF > 3 ? A.liftDecel : 0;
+    const holdA = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    // throttle eats rear grip (power slide) up to about the hold angle; past it, it just drives the car forwards
+    const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
+    const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * A.brakeRear * m + aLift * m * 0.5;   // engine braking: half of it at the rear
+    const circle = Math.sqrt(Math.max(0.04, 1 - (used / Math.max(capR, 1)) ** 2));
+    capR *= circle; capRfull *= circle;
+    if (inp.handbrake) capR *= A.handbrakeGrip;
+    const peakF = SS.peak * D2R, peakR = SS.peak * D2R * 1.1;           // the rears peak a little later: they let go progressively
 
-    // --- 2. Where the car points: its angle to the direction of travel
-    const lookA = SS.look * D2R * clamp(v * rateGrip / aG, -1, 1);                    // small slide at the limit
-    const driftA = dirD * D.angle * D2R * SS.slide * CAR.drift * (into >= 0 ? 0.75 + 0.25 * into : 0.75 * (1 + into));
-    const betaT = lookA + (driftA - lookA) * db;
-    const rateNow = wv > 0 ? (aTyre / Math.max(wv, 1e-3) + aOther) / v : 0;           // how fast the path is actually turning
-    const align = A.alignRate * (this.driftKick > 0 ? 1.6 : 1);
-    let yawT = rateNow + (betaT - beta) * align;
-    const yawLow = -steer * kGeo * vF;                                                 // walking pace / reverse: wheels steer the car
-    yawT = yawLow + (yawT - yawLow) * wv;
-    const yawNow = this.angVel.dot(n);
-    let yawK = ground > 0.2 ? A.yawResponse : 0;
-    if (!nC && speed > 5) { yawT = -beta * A.airAlign; yawK = 3; }                     // in the air: line the nose up with the travel
-    this.dbg.yawT = yawT; this.dbg.yawNow = yawNow; this.dbg.drift = drifting;
-    this.torque.addScaledVector(n, CONFIG.car.inertia.yaw * clamp((yawT - yawNow) * yawK, -A.yawAccelMax, A.yawAccelMax));
+    // --- Front wheel angle. Low speed: plain lock. At speed: the key asks for front slip; as the car rotates
+    //     towards the key the request shrinks to nothing at holdA (slideHold × surface slide × car drift), so the slide settles below it
+    const kGeo = 1 / ((A.minRadius + A.radiusGrow * v) / (CAR.turn || 1));
+    const lockLow = Math.atan(L * kGeo);
+    const sf = clamp((vF - A.steerFrom) / (A.steerFull - A.steerFrom), 0, 1);
+    this.betaRate += ((beta - this.prevBeta) / dt - this.betaRate) * Math.min(1, dt * 30); this.prevBeta = beta;
+    // + = already rotated towards the key (looking slideCatch s ahead, so a fast swing is caught early)
+    const into = (beta + clamp(this.betaRate, -3, 3) * A.slideCatch) * Math.sign(sc);
+    const aim = into > 0 ? clamp(1 - into / holdA, -0.6, 1) : 1;      // past the hold angle the key even countersteers a little
+    const deltaHigh = travF * A.selfAlign + sc * peakF * A.frontAim * aim;
+    const maxLock = 0.62;                                              // rad (35°): the wheels' real lock
+    const delta = clamp(sc * lockLow * (1 - sf) + deltaHigh * sf, -maxLock, maxLock);
+
+    // --- Tyre forces (left = +): rise to the peak, then ease down to a sliding grip
+    const tyre = (alpha, pk, fall) => {
+      const x = Math.abs(alpha) / pk;
+      const f = x < 1 ? x * (2 - x) : A.slideGrip + (1 - A.slideGrip) * Math.exp(-(x - 1) * fall);
+      return -Math.sign(alpha) * f;
+    };
+    const alphaF = travF - delta, alphaR = travR;
+    let Ff = capF * tyre(alphaF, peakF, A.falloff.front), Fr = capR * tyre(alphaR, peakR, A.falloff.rear);
+    // slide carry: the grip the rear lost to the surface's looseness is handed back as a side force at the centre
+    // of mass. The tail still swings out (no turning push from it), but the car keeps cornering in a slide.
+    let Fc = A.slideCarry * (capRfull * tyre(alphaR, peakR, 0) - Fr * (inp.handbrake ? 1 / A.handbrakeGrip : 1));
+    if (Fc * Fr < 0) Fc = 0;
+    // ...and so is the front grip a held key gives up to hold the slide (aim < 1), so a held slide corners like gripping
+    if (aim < 1 && sc !== 0) { const full = capF * tyre(-sc * peakF * A.frontAim, peakF, A.falloff.front); if (full * Ff >= 0 && Math.abs(full) > Math.abs(Ff)) Fc += A.slideCarry * (full - Ff); }
+    // never push harder than would cancel the axle's sideways slip in a couple of steps (stable at low speed)
+    const mEf = 1 / (1 / m + a * a / Iy), mEr = 1 / (1 / m + b * b / Iy);
+    Ff = clamp(Ff, -mEf * vx * Math.abs(Math.tan(alphaF)) / dt * 0.5, mEf * vx * Math.abs(Math.tan(alphaF)) / dt * 0.5);
+    Fr = clamp(Fr, -mEr * vx * Math.abs(Math.tan(alphaR)) / dt * 0.5, mEr * vx * Math.abs(Math.tan(alphaR)) / dt * 0.5);
+    const wv = vF > 0 ? clamp((speed - 1.5) / 3, 0, 1) : 0;            // 0 = walking pace / reversing: plain wheel steering
+    Ff *= wv; Fr *= wv; Fc *= wv;
+    this.dbg.gripUse = Math.max(Math.abs(Ff) / Math.max(capF, 1), Math.abs(Fr) / Math.max(capR, 1));
+    this.dbg.traction = capR / Math.max(1, muR * Nr0 * lr);
+
+    // --- Rotation helpers: settle (no key: bring the car back in line), spin guard, air, walking pace
+    const travel = speed > 0.5 ? _aT.copy(this.vel).addScaledVector(n, -this.vel.dot(n)).normalize() : _aT.copy(fG);
+    const left = _aD.crossVectors(n, travel);
+    const pathRate = speed > 2 ? (this.force.dot(left) / m - g * left.y + (Ff + Fr + Fc) * Math.cos(beta) / m) / v : 0;
+    const rel = r - pathRate;                                          // how fast the slide angle is changing (+ = nose going left)
+    let yawAcc = 0;
+    if (wv > 0 && nC) {
+      const neutral = 1 - clamp(Math.abs(this.steerIn) / 0.3, 0, 1);
+      yawAcc += -A.settle * neutral * (rel + beta * 3) * wv;
+      // catch: as a slide swings back through straight, brake the swing (strongest near 0°) so it doesn't pendulum
+      if (rel * beta < 0 || Math.abs(beta) < 3 * D2R) yawAcc += -A.catchDamp * rel * (1 - clamp(Math.abs(beta) / (20 * D2R), 0, 1)) * wv;
+      const over = clamp((Math.abs(beta) - A.guard.from * D2R) / (A.guard.range * D2R), 0, 1);
+      if (over > 0) {
+        yawAcc += -Math.sign(beta) * A.guard.push * over;
+        if (rel * beta > 0) yawAcc += -A.guard.damp * over * rel;
+      }
+    }
+    const yawLow = sc * kGeo * vF;                                     // walking pace / reverse: wheels steer the car
+    if (nC) yawAcc += clamp((yawLow - r) * 16, -26, 26) * (1 - wv);
+    if (!nC && speed > 5) yawAcc += clamp((-beta * A.airAlign - r) * 3, -26, 26);    // in the air: line the nose up with the travel
+    this.dbg.yawT = pathRate; this.dbg.yawNow = r;
+    this.torque.addScaledVector(n, Iy * yawAcc);
+
+    // --- Drift state (for HUD, sound, dust, replays): a big enough slide at speed
+    const absB = Math.abs(beta) * 57.2958;
+    if (!this.drift && nC >= 2 && speed > D.minSpeed && absB > D.on) { this.drift = true; this.driftDir = Math.sign(beta); }
+    else if (this.drift && (absB < D.off || speed < D.minSpeed - 3)) this.drift = false;
+    this.dbg.drift = this.drift;
+    const drifting = this.drift;
 
     if (ground > 0.05) {
-      // --- Pace: engine, brakes, drag, all along the direction of travel so they never bend your line
-      const topV = A.topSpeed * SS.top * CAR.top;
-      const traction = (1 - A.cornerDrain * Math.min(1, gripUse) ** 2) * (drifting ? Math.max(0.75, Math.cos(beta)) : 1);
-      this.dbg.traction = traction;
-      let a = 0;
-      if (this.gear > 0) a += throttle * A.accel * CAR.accel * Math.max(0, 1 - Math.pow(Math.max(0, vF) / topV, 1.8)) * traction;
-      else a -= throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
+      // tyre side forces at each axle, at road level: they turn the car, bend its path and roll the body
+      _aP.copy(this.pos).addScaledVector(fwd, a).addScaledVector(up, -0.35);
+      _aF.copy(lG).multiplyScalar(Ff * ground); this.addForceAt(_aF, _aP);
+      _aP.copy(this.pos).addScaledVector(fwd, -b).addScaledVector(up, -0.35);
+      _aF.copy(lG).multiplyScalar(Fr * ground); this.addForceAt(_aF, _aP);
+      // the carried grip pushes square to the direction of travel, so it bends the path without scrubbing speed;
+      // slideKeep hands back part of the speed the sliding tyres scrub (their side force leaning against the travel)
+      const scrub = (Ff + Fr) * lG.dot(travel);                       // < 0 while sliding: pulls against the travel
+      _aP.copy(this.pos).addScaledVector(up, -0.35);
+      _aF.copy(left).multiplyScalar(Fc * Math.sign(lG.dot(left) || 1) * ground);
+      if (scrub < 0) _aF.addScaledVector(travel, -scrub * A.slideKeep * ground);
+      this.addForceAt(_aF, _aP);
+      // engine along the nose (front and rear axle), so in a slide throttle drives the car round
+      _aF.copy(fG).multiplyScalar(m * aDrive * (1 - rearShare) * ground * wv);
+      _aP.copy(this.pos).addScaledVector(fwd, a).addScaledVector(up, -0.35); this.addForceAt(_aF, _aP);
+      _aF.copy(fG).multiplyScalar(m * aDrive * rearShare * ground * wv);
+      _aP.copy(this.pos).addScaledVector(fwd, -b).addScaledVector(up, -0.35); this.addForceAt(_aF, _aP);
+      // brakes, engine braking, drag: along the direction of travel
+      let ac = 0;
       const vAlong = this.vel.dot(travel);
-      if (Math.abs(vAlong) > 0.4) a -= Math.sign(vAlong) * brake * A.brakeDecel;
-      if (inp.handbrake && speed > 1) a -= Math.sign(vAlong) * D.handbrakeDecel;
-      a -= vAlong * SS.drag + (vF > topV ? (vF - topV) * 0.5 : 0);
-      a -= vAlong * Math.abs(Math.sin(beta)) * D.drag * 0.1;
+      if (Math.abs(vAlong) > 0.4) ac -= Math.sign(vAlong) * (brake * A.brakeDecel + aLift);
+      if (inp.handbrake && speed > 1) ac -= Math.sign(vAlong) * D.handbrakeDecel;
+      ac -= vAlong * SS.drag + (vF > topV ? (vF - topV) * 0.5 : 0);
       // walking pace and reverse: the car rolls where it points
-      const dir = _aD.copy(fG).multiplyScalar(1 - wv).addScaledVector(travel, wv);
+      const dir = _aV.copy(fG).multiplyScalar(1 - wv).addScaledVector(travel, wv);
       if (dir.lengthSq() > 1e-6) dir.normalize(); else dir.copy(fG);
+      ac += aDrive * (1 - wv);
       let dvLow = -vL * (1 - Math.exp(-10 * dt)) * (1 - wv);
-      if (speed < 0.6 && throttle === 0) { dvLow = -vL; a = -vF / dt * 0.5; }           // parked: don't creep
-      _aF.copy(dir).multiplyScalar(m * a * ground).addScaledVector(left, m * aTyre * ground).addScaledVector(rG, m * dvLow / dt * ground);
+      if (speed < 0.6 && throttle === 0) { dvLow = -vL; ac = -vF / dt * 0.5; }           // parked: don't creep
+      _aF.copy(dir).multiplyScalar(m * ac * ground).addScaledVector(rG, m * dvLow / dt * ground);
       _aP.copy(this.pos).addScaledVector(up, -0.35);                                     // below the centre of mass: body pitches and rolls
       this.addForceAt(_aF, _aP);
     } else {
@@ -1722,12 +1880,31 @@ class Car {
       this.rpm += (Math.min(rpm, CONFIG.engine.redlineRpm) - this.rpm) * Math.min(1, dt * 14);
     } else this.rpm += (1800 + kmh * 120 - this.rpm) * Math.min(1, dt * 10);
     if (this.shiftTimer > 0) this.shiftTimer -= dt;
-    const lock = (28 - 18 * clamp(speed / 40, 0, 1)) * D2R;
-    this.steer = clamp(this.steerIn * lock + (drifting ? beta * 0.9 : 0), -0.6, 0.6);          // wheels countersteer visually in a slide
-    for (const w of this.wheels) {
-      w.omega = vF / R * (!w.front && drifting && throttle > 0.2 ? 1.35 : 1);
+    this.steer = clamp(delta, -0.6, 0.6) * -1;                        // + = right, as the wheel meshes expect
+    const spinR = !inp.handbrake && drifting && throttle > 0.2;
+    for (const w of w0) {
+      w.omega = inp.handbrake && !w.front ? 0 : vF / R * (!w.front && spinR ? 1.35 : 1);
       w.vLong = vF;
-      w.slipSpeed = w.contact ? Math.abs(vL) * (w.front ? 0.5 : 1) + (!w.front && drifting && throttle > 0.2 ? 4 : 0) : 0;
+      w.slipSpeed = w.contact ? (w.front ? vx * Math.abs(Math.sin(alphaF)) : vx * Math.abs(Math.sin(alphaR)) + (spinR ? 4 : 0) + (inp.handbrake ? Math.abs(vF) * 0.5 : 0)) : 0;
+    }
+  }
+
+  // Visual weight: body roll / pitch / heave from the accelerations the car really feels (drawn only).
+  updateBodyPose(dt) {
+    const B = CONFIG.arcade.body, V = this.vis;
+    _aV.subVectors(this.vel, this.lastVel).divideScalar(dt);
+    this.lastVel.copy(this.vel);
+    if (!V.init) { V.init = true; return; }
+    const aLeft = clamp(-_aV.dot(this.right), -25, 25), aFwd = clamp(_aV.dot(this.fwd), -25, 25), aUp = clamp(_aV.dot(this.up), -40, 40);
+    const air = this.grounded === 0;
+    const tR = air ? 0 : clamp(aLeft * B.roll, -B.maxRoll, B.maxRoll);
+    const tP = air ? 0 : clamp(-aFwd * B.pitch, -B.maxPitch, B.maxPitch);
+    const tH = air ? 0.02 : clamp(-aUp * B.heave, -B.maxHeave, B.maxHeave);
+    const w = 2 * Math.PI * B.freq, z = B.damping;
+    for (const [k, t] of [['roll', tR], ['pitch', tP], ['heave', tH]]) {
+      const kv = k + 'V';
+      V[kv] += (w * w * (t - V[k]) - 2 * z * w * V[kv]) * dt;
+      V[k] += V[kv] * dt;
     }
   }
 
@@ -2957,6 +3134,8 @@ function boot() {
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }
+    } else if (ST.id === 'test') {
+      // practice stage: no walls, fences or houses
     } else {
       const city = track.cityStart;
       for (const side of [-1, 1]) {
@@ -4964,6 +5143,12 @@ function boot() {
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 
+  /* ---------- theme: test (Test Track): open country, a few trees far back for orientation, nothing solid anywhere near the road ---------- */
+  function sceneryTest(rng) {
+    const trees = scatter(rng, 90, 6000, (x, z, d, y, s0) => d > 70 && rng() < 0.5 ? { col: false } : false);
+    conifers(trees, (c) => c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
+  }
+
   /* ---------- theme: castle (Thornwick Keep) ---------- */
   function sceneryCastle(rng) {
     const C = ST.castle, g1 = C.gate1, g2 = C.gate2, fin = track.finishS, L = castleL;
@@ -5024,7 +5209,8 @@ function boot() {
       rows: [{ o0: 5, o1: 8, step: 6.5, p: 0.75, s0: 0.9, s1: 1.3, sep: 4.5 }, { o0: 10, o1: 15, step: 9, p: 0.4, s0: 0.9, s1: 1.4, sep: 5 }] });
     const sakuraAll = sakura.concat(lining);
     treeStand(sakuraAll, () => SPECIES.sakura);
-    for (const t of sakuraAll) if (t.col !== undefined ? t.col : t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    // trunks you can hit stay 7 m or more from the road edge (a car that slides wide at 150 km/h runs out onto open ground, not into a tree); nearer ones are for looks only
+    for (const t of sakuraAll) if ((t.col !== undefined ? t.col : t.d < 30) && Math.sqrt(world.nearest(t.x, t.z).d2) - half >= 7) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
       if (d < half + 5 || s0 < 690 || s0 > city0 - 60 || inTunnel(s0)) return false;
@@ -5196,6 +5382,7 @@ function boot() {
     return sponsorMats;
   }
   function trackside(rng) {
+    if (ST.practice) { readabilityBoards(); return; }       // practice stage: no sponsor boards, crowds or tape, nothing beside the road but the corner boards
     const boards = [], crowds = [], tapes = [];
     const groundOk = (x, z, p) => Math.abs(terrain.heightAt(x, z) - p.y) < 2.5 && terrain.distAt(x, z) > half + 2.2;
     const city = isFinite(track.cityStart) ? track.cityStart : Infinity;
@@ -5239,7 +5426,7 @@ function boot() {
       if (y - ground > 6) return;
       list.push({ x, z, y, rot: Math.atan2(q.x - x, q.z - z) });
       posts.push({ x, z, y0: ground, h: y - ground + 1.9 });
-      obstacles.push({ x, z, r: 0.12 });
+      if (!ST.practice) obstacles.push({ x, z, r: 0.12 });      // (practice stage: the corner boards are not solid)
     };
     for (const t of track.turns) {
       const side = t.dir === 'R' ? -1 : 1;                                 // boards stand on the outside
@@ -6209,12 +6396,13 @@ function boot() {
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
-    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else sceneryForest(rng);
+    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else if (ST.theme === 'test') sceneryTest(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
+    for (const g of ST.signs || []) makeGate(g.s, g.text, g.bg, g.fg, false, { kind: 'arch', lights: 'cp' });      // practice stage: a big banner over the road at the start of each section
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
     ST.checkpoints.forEach((s, k) => makeGate(s, 'CHECKPOINT ' + (k + 1), '#ffc928', '#0d1216', false, { kind: 'truss', lights: 'cp' }));
     makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
-    eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
+    if (!ST.practice) eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
     crowdBuild();
     hashObstacles();
     buildMinimap();
@@ -7489,6 +7677,7 @@ function boot() {
   let startOrder = [];
   function setupRivals(order) {
     startOrder = order || defaultOrder();
+    if (ST.practice) { for (const r of rivals) { r.tab = null; r.stageTime = null; r.g.visible = false; } return; }     // practice stage: nobody else on the road
     const slotOf = name => startOrder.indexOf(name);
     const me = slotOf('You');
     for (const r of rivals) {
@@ -7569,7 +7758,7 @@ function boot() {
   }
   function splitGap(d, t) { let best = Infinity; for (const r of rivals) if (r.tab) best = Math.min(best, timeAtDist(r.tab, d)); return t - best; }
   function classify(myTime) {          // stage classification: everyone's time, you included (null = did not finish)
-    const rows = rivals.map(r => ({ name: r.name, time: r.stageTime }));
+    const rows = ST.practice ? [] : rivals.map(r => ({ name: r.name, time: r.stageTime }));
     rows.push({ name: 'You', time: myTime, you: true });
     rows.sort((a, b) => (a.time == null) - (b.time == null) || a.time - b.time);
     rows.forEach((r, k) => { r.pos = r.time == null ? null : k + 1; r.pts = r.time == null ? 0 : (POINTS[k] || 0); });
@@ -7958,7 +8147,7 @@ function boot() {
   }
   function startStage(order) {
     if (loading || !track) return;
-    raceOrder = order || defaultOrder();
+    raceOrder = ST.practice ? ['You'] : order || defaultOrder();       // practice stage: no other crews
     initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
     $('menu').hidden = true; $('finishScreen').hidden = true; document.body.classList.remove('menu-mode');
     placeAt(startS); raceTime = 0; nextCp = 0; splits = []; lastCpS = 0; countdown = 3.6; lastBeep = 9;
@@ -7967,8 +8156,8 @@ function boot() {
     setupRivals(raceOrder);
     state = 'countdown'; renderSplits();
     const slot = raceOrder.indexOf('You') + 1;
-    showMsg('', false); banner(`START  #${slot}`, 'ext', 3.2);
-    elBannerSub(`${slot - 1} crews ahead of you on the road, one every ${START_GAP} s`);
+    showMsg('', false); banner(ST.practice ? 'START' : `START  #${slot}`, 'ext', 3.2);
+    elBannerSub(ST.practice ? 'Test track: no clock, no rivals' : `${slot - 1} crews ahead of you on the road, one every ${START_GAP} s`);
     canvas.focus();
   }
   function goMenu() {
@@ -8112,7 +8301,7 @@ function boot() {
     return html;
   }
   function showResults(rows, myRow) {
-    const champDone = champ && champ.idx >= STAGES.length - 1;
+    const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
     if (champ) { rows.forEach(r => { champ.points[r.name] = (champ.points[r.name] || 0) + r.pts; }); champ.results.push({ stage: ST.name, pos: myRow.pos }); }
     let html = '<div class="tbl-title">Stage result</div><div class="classif">' + rowsHtml(rows, 'stage') + '</div>';
     if (champ) {
@@ -8122,7 +8311,7 @@ function boot() {
       if (champDone) $('bestLine').textContent = myRank === 1 ? `Champion! You won the rally with ${champ.points.You || 0} points.` : `You finished the rally ${ordinal(myRank)} with ${champ.points.You || 0} points. ${st[0].name} won with ${st[0].pts}.`;
       else $('bestLine').textContent += ` You're ${ordinal(myRank)} in the championship and start the next stage ${ordinal(champOrder().indexOf('You') + 1)}.`;
     }
-    $('resultTable').innerHTML = html;
+    $('resultTable').innerHTML = ST.practice ? '' : html;
     $('nextBtn').hidden = !(champ && !champDone);
     $('againBtn').hidden = !!(champ && !champDone);
   }
@@ -8131,20 +8320,21 @@ function boot() {
     lastClass = classify(raceTime);
     const me = lastClass.find(r => r.you);
     finishPos = me.pos;
-    banner('GOAL!', 'goal', 2.4); elBannerSub(`${ordinal(finishPos)} on time  ·  ${fmtTime(raceTime)}`);
+    banner('GOAL!', 'goal', 2.4); elBannerSub(ST.practice ? fmtTime(raceTime) : `${ordinal(finishPos)} on time  ·  ${fmtTime(raceTime)}`);
     cue.goal(); say(finishPos === 1 ? 'Goal! Fastest time!' : 'Goal!', true);
     const isBest = !best || raceTime < best.time;
     const prev = best;
     if (isBest) { best = { time: raceTime, splits: splits.slice() }; try { localStorage.setItem(ST.bestKey, JSON.stringify(best)); } catch (e) { /* storage unavailable */ } }
-    const champDone = champ && champ.idx >= STAGES.length - 1;
-    $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${STAGES.length} · ${ST.name}`) : ST.code + ' · ' + ST.name;
+    const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
+    $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${CHAMP_STAGES} · ${ST.name}`) : ST.code + ' · ' + ST.name;
     $('resPos').textContent = ordinal(finishPos);
     $('resPos').className = 'big pos' + (finishPos === 1 ? ' p1' : '');
     const lead = lastClass[0];
     $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
     $('bestLine').textContent = prev ? (isBest ? `Your best time on this stage, ${(prev.time - raceTime).toFixed(2)} s quicker.` : `Your best here is ${fmtTime(best.time)}.`) : 'First time recorded on this stage.';
+    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
     showResults(lastClass, me);
-    $('againBtn').textContent = 'Race again';
+    $('againBtn').textContent = ST.practice ? 'Drive again' : 'Race again';
     setTimeout(() => { if (state === 'finished') { $('finishScreen').hidden = false; ($('nextBtn').hidden ? $('againBtn') : $('nextBtn')).focus(); } }, 2400);
   }
   function gameOver() {
@@ -8159,7 +8349,7 @@ function boot() {
       $('finalTime').innerHTML = `${(Math.min(P[progIdx].s, track.finishS) / 1000).toFixed(2)} km<span class="left">of ${(track.finishS / 1000).toFixed(2)} km · no points</span>`;
       $('bestLine').textContent = 'The clock ran out. Every checkpoint adds time, so carry speed through the corners and keep it on the road.';
       showResults(lastClass, me);
-      if (champ) { $('nextBtn').hidden = champ.idx >= STAGES.length - 1; $('againBtn').hidden = !$('nextBtn').hidden; }
+      if (champ) { $('nextBtn').hidden = champ.idx >= CHAMP_STAGES - 1; $('againBtn').hidden = !$('nextBtn').hidden; }
       $('againBtn').textContent = 'Try again';
       $('finishScreen').hidden = false; (!$('nextBtn').hidden ? $('nextBtn') : $('againBtn')).focus();
     }, 2600);
@@ -8455,6 +8645,9 @@ function boot() {
 
   function updateVisuals(dt) {
     carGroup.position.copy(vPos); carGroup.quaternion.copy(vQ);
+    // visual weight (handling): the body leans, dips and squats on its wheels (car.vis, from the physics); level in replays
+    const vb = state === 'replay' ? null : car.vis;
+    bodyRoot.rotation.set(vb ? vb.pitch : 0, 0, vb ? vb.roll : 0); bodyRoot.position.y = vb ? vb.heave : 0;
     car.wheels.forEach((w, i) => {
       const wm = wheelMeshes[i];
       wm.steerG.position.set(w.local.x, w.local.y - w.susp, w.local.z);
@@ -8503,9 +8696,9 @@ function boot() {
     if (state !== 'menu') {
       const onStage = state === 'running' && P[progIdx].s > startS + 15;
       const pos = state === 'finished' ? finishPos : onStage || state === 'gameover' ? racePosition() : (raceOrder ? raceOrder.indexOf('You') + 1 : 8);
-      setText(elPos, 'pos', String(pos));
+      setText(elPos, 'pos', ST.practice ? '-' : String(pos));
       const tl = Math.max(0, timeLeft);
-      setText(elClock, 'clk', state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
+      setText(elClock, 'clk', ST.practice ? '--' : state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
       elClockBox.classList.toggle('low', state === 'running' && tl < 10);
       if (state === 'running' && tl < 10 && Math.ceil(tl) !== lastWarn) { lastWarn = Math.ceil(tl); cue.warn(); }
     }

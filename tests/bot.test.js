@@ -1,5 +1,5 @@
 // (b) A scripted bot drives every stage with both cars. Finish time must sit inside the expected window,
-// and the run must stay clean: no spins, no rescues, no unrequested drifts, limited time off the road.
+// and the run must stay clean: no spins (past 90°), no rescues, the clock never runs out between checkpoints, limited time off the road.
 'use strict';
 const { openGame } = require('./lib/game');
 
@@ -22,8 +22,9 @@ module.exports = async function botTest({ browser, base, expected, record }) {
       detail: ref ? `${t} s, expected ${lo.toFixed(1)}–${hi.toFixed(1)} s (${ref} ±${E.windowPct}%)` : 'no expected time recorded' });
     checks.push({ name: `${key}: beats the stage clock`, pass: r.time < r.clock, detail: `${t} s of ${r.clock} s` });
     checks.push({ name: `${key}: off road ≤ ${E.maxOffRoadS} s`, pass: r.offRoadS <= E.maxOffRoadS, detail: `${r.offRoadS.toFixed(1)} s` });
-    checks.push({ name: `${key}: clean run`, pass: r.spins === 0 && r.rescues === 0 && r.unrequestedDrifts === 0,
-      detail: `spins ${r.spins}, rescues ${r.rescues}, unrequested drifts ${r.unrequestedDrifts}` });
+    checks.push({ name: `${key}: clock holds at every checkpoint`, pass: r.minMarginS > 0,
+      detail: `tightest ${r.minMarginS.toFixed(1)} s left (${r.margins.map(m => m.toFixed(0)).join(' / ')} s at checkpoints and finish)` });
+    checks.push({ name: `${key}: no spins, no rescues`, pass: r.spins === 0 && r.rescues === 0, detail: `spins ${r.spins}, rescues ${r.rescues}` });
   }
   return { checks, data: runs };
 };

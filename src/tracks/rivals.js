@@ -59,6 +59,7 @@
   let startOrder = [];
   function setupRivals(order) {
     startOrder = order || defaultOrder();
+    if (ST.practice) { for (const r of rivals) { r.tab = null; r.stageTime = null; r.g.visible = false; } return; }     // practice stage: nobody else on the road
     const slotOf = name => startOrder.indexOf(name);
     const me = slotOf('You');
     for (const r of rivals) {
@@ -139,7 +140,7 @@
   }
   function splitGap(d, t) { let best = Infinity; for (const r of rivals) if (r.tab) best = Math.min(best, timeAtDist(r.tab, d)); return t - best; }
   function classify(myTime) {          // stage classification: everyone's time, you included (null = did not finish)
-    const rows = rivals.map(r => ({ name: r.name, time: r.stageTime }));
+    const rows = ST.practice ? [] : rivals.map(r => ({ name: r.name, time: r.stageTime }));
     rows.push({ name: 'You', time: myTime, you: true });
     rows.sort((a, b) => (a.time == null) - (b.time == null) || a.time - b.time);
     rows.forEach((r, k) => { r.pos = r.time == null ? null : k + 1; r.pts = r.time == null ? 0 : (POINTS[k] || 0); });

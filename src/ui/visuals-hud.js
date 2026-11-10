@@ -4,6 +4,9 @@
 
   function updateVisuals(dt) {
     carGroup.position.copy(vPos); carGroup.quaternion.copy(vQ);
+    // visual weight (handling): the body leans, dips and squats on its wheels (car.vis, from the physics); level in replays
+    const vb = state === 'replay' ? null : car.vis;
+    bodyRoot.rotation.set(vb ? vb.pitch : 0, 0, vb ? vb.roll : 0); bodyRoot.position.y = vb ? vb.heave : 0;
     car.wheels.forEach((w, i) => {
       const wm = wheelMeshes[i];
       wm.steerG.position.set(w.local.x, w.local.y - w.susp, w.local.z);
@@ -52,9 +55,9 @@
     if (state !== 'menu') {
       const onStage = state === 'running' && P[progIdx].s > startS + 15;
       const pos = state === 'finished' ? finishPos : onStage || state === 'gameover' ? racePosition() : (raceOrder ? raceOrder.indexOf('You') + 1 : 8);
-      setText(elPos, 'pos', String(pos));
+      setText(elPos, 'pos', ST.practice ? '-' : String(pos));
       const tl = Math.max(0, timeLeft);
-      setText(elClock, 'clk', state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
+      setText(elClock, 'clk', ST.practice ? '--' : state === 'countdown' ? String(ST.timeStart) : String(Math.ceil(tl - 1e-6)));
       elClockBox.classList.toggle('low', state === 'running' && tl < 10);
       if (state === 'running' && tl < 10 && Math.ceil(tl) !== lastWarn) { lastWarn = Math.ceil(tl); cue.warn(); }
     }

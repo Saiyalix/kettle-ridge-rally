@@ -27,7 +27,7 @@ You are the handling department of Kettle Ridge Rally. Read `CLAUDE.md` first; i
 2. Run `node tests/run.js handling bot` first: these are the "before" numbers.
 3. Change a few values at a time, small steps, in `src/handling/`, then `node tools/build.js`. Keep the comment next to each value accurate ("higher = …").
 4. Run the tests again. Use the `handling-check` skill to present before → after.
-   - Held-key slide must stay 2–10°, turn-in 67–100 ms up to 80 km/h and equal across surfaces, no unrequested drifts.
+   - Every target under "Measured targets" in `CLAUDE.md` must hold (held-key slide per surface, spin test, letting go, wind-on 67–100 ms up to 80 km/h and equal across surfaces).
    - Bot times may move. If they move more than 3% that is a difficulty change: say so, check the stage clock still
      leaves a margin, and after the owner agrees record new times (`node tests/run.js bot --record`) with a `docs/decisions.md` entry.
 5. Check both cars. Per-car stats multiply on top of `CONFIG.arcade`.

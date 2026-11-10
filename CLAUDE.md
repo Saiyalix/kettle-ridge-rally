@@ -8,7 +8,7 @@ Every department (subagent) follows this file. If a department file and this fil
   Since Round 2 that file is **built** from the parts in `src/` by `tools/build.js` (plain gluing, no tools to install).
 - Live on GitHub Pages from the `main` branch root: https://saiyalix.github.io/kettle-ridge-rally/
   **Whatever lands on `main` is live for players.**
-- 3 stages (SS1 Kettle Ridge, SS2 Vulture Ledge, SS3 Sakura Touge), 2 cars (Kestrel GT4, Strada HF),
+- 4 stages (SS1 Kettle Ridge, SS2 Vulture Ledge, SS3 Sakura Touge, SS4 Thornwick Keep) plus a practice Test Track with every surface, 2 cars (Kestrel GT4, Strada HF),
   surfaces tarmac / gravel / dirt / snow / grass, co-driver pace notes, replays, rescue/respawn,
   touch controls for Android (auto gas, tilt steering, on-screen buttons).
 - Physics at a fixed 120 Hz with render interpolation. Driving uses the arcade model (`CONFIG.arcade`, `Car.arcadeForces`).
@@ -23,17 +23,27 @@ Every department (subagent) follows this file. If a department file and this fil
 
 ## Handling rules (do not break without the owner's approval)
 
-1. Steering bends the direction of travel, capped at 97% of the surface grip limit (`CONFIG.arcade.gripUse = 0.97`).
-2. The car's angle is controlled separately: a small "look" slide on loose surfaces, a big angle only in a deliberate drift.
-3. Surfaces change grip only, never how responsive the steering is.
-4. Drifts start only on purpose: handbrake while steering, or a brake tap while already steering.
-   They end after 0.32 s of neutral steering (`drift.release`) or by countersteering.
+Approved by the owner 2026-11-10 ("Driving is fine for now. Make that live"). Details: `docs/decisions.md`, 2026-11-07.
 
-Measured targets (checked by `tests/handling.test.js` and `tests/bot.test.js`):
-- Slide from holding a steering key: 2–10° on every surface.
-- Turn-in (key press → steering fully wound on): 67–100 ms up to 80 km/h, and the same on every surface at every speed.
-- No unrequested drifts.
-- Bot off-road time per stage: at most 8 s (see `docs/decisions.md` for why this differs from the old "about 5 s").
+1. Steering asks the front tyres for grip towards the key, measured from where the car is going. With no key the front
+   wheels follow the slide (automatic countersteer), so letting go always straightens the car.
+2. The rear can let go before the front. On loose surfaces at speed the tail swings out by itself; throttle, a brake tap,
+   lifting off and the handbrake swing it out more. Holding a key settles the slide at an angle set by surface and car.
+3. Surfaces change grip and how easily the rear lets go, never how fast the steering winds on.
+4. The car never spins by itself: past 42° of slide it resists the slide growing, and a caught or released slide does
+   not swing back the other way.
+5. A held slide is the fast way round a loose corner: it corners almost as hard as gripping and keeps its speed.
+6. The body shows weight (lean, dive, squat, bounce) from the car's real accelerations; it is drawn only and never changes the physics.
+
+Measured targets (flat skid pad per surface, both cars, 50–140 km/h; checked by `tests/handling.test.js` and `tests/bot.test.js`):
+- Held-key slide: tarmac 0–6°; gravel, dirt and snow 12–32°; grass at most 40°.
+- First swing-out while holding a key: at most 50°.
+- Spin test (full lock + full throttle for 4 s from 60 / 90 / 120 km/h, every surface): never past 90°, at most 0.5 s past 45°.
+- Letting go of the key from a held slide: back under 5° within 0.8 s (grass 1.5 s), at most 3° past straight.
+- Steering wound on (key press → full): 67–100 ms up to 80 km/h, the same on every surface at every speed.
+- Strada vs Kestrel: the Strada's held-key slide on gravel and dirt is at least 4° bigger on average.
+- Handbrake: at 55 km/h on gravel, 0.4 s of handbrake with full lock turns the car 90° within 1.2 s, without spinning.
+- Bot: finishes every stage with both cars, 0 spins, 0 rescues, off-road at most 8 s per stage, the clock holds at every checkpoint.
 
 ## File layout
 
@@ -96,8 +106,8 @@ Prints PASS / FAIL per check and writes `tests/results/report.md` plus screensho
 |---|---|
 | `build` | `index.html` is exactly what `src/` builds (nobody edited it by hand or forgot to build) |
 | `load` | Menu loads, a stage starts and drives, no console errors, the test probe still attaches |
-| `bot` | Autopilot drives each stage with each car: finishes, time inside ±3% of the recorded time, beats the clock, off-road ≤ 8 s, no spins / rescues / unrequested drifts |
-| `handling` | Flat skid pad per surface, both cars, 50–140 km/h: held-key slide, turn-in time, turn-in equal across surfaces, no drift from steering |
+| `bot` | Autopilot (aims by the direction of travel) drives each race stage with each car: finishes, time inside ±3% of the recorded time, clock holds at every checkpoint, off-road ≤ 8 s, no spins, no rescues. The practice Test Track is not bot-tested |
+| `handling` | Flat skid pad per surface, both cars, 50–140 km/h: held-key slide, first swing-out, spin test, letting go, steering wind-on (equal across surfaces), Strada vs Kestrel, handbrake turn |
 | `mobile` | 800×360 touch screen: menu items don't overlap and Start is reachable; touch controls present, on screen, ≥ 40 px, not overlapping each other or the HUD |
 
 The tests never change `index.html`: `tests/lib/game.js` adds a probe to a temporary copy just before the line
