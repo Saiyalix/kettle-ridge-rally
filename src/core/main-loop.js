@@ -9,6 +9,7 @@
   let raceOn = null;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (SHOW_FPS) fpsTick(now);
     const on = state === 'running' || state === 'countdown';                 // on-screen controls only while racing
     if (on !== raceOn) { raceOn = on; document.body.classList.toggle('race-on', on); }
     if (state === 'countdown') {

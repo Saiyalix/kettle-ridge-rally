@@ -318,3 +318,7 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 }
 @media (max-height: 800px) { .menu-panel { gap: 10px; } }
 @media (max-height: 520px) { .menu-panel { gap: 8px; } .carblurb { display: none; } }
+
+/* FPS counter (?gfx=pc or ?fps=1): small, bottom centre, clear of the thumb buttons */
+#fpsBox { position: fixed; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 30; pointer-events: none;
+  font: 600 11px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #bff7c8; background: rgba(0, 0, 0, .55); padding: 2px 7px; border-radius: 4px; text-align: center; white-space: nowrap; }

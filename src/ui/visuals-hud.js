@@ -2,6 +2,24 @@
   let lastHud = {}, callAhead = 120, mmTick = 0;
   function setText(el, key, v) { if (lastHud[key] !== v) { lastHud[key] = v; el.textContent = v; } }
 
+  /* FPS counter: smoothed fps and the 1 % low (the slowest 1 % of frames) over the last ~10 s; text refreshed 2x a second */
+  const fpsBox = $('fpsBox'), fpsDt = [], fpsT = [];
+  let fpsPrev = 0, fpsSm = 0, fpsTxt = 0;
+  if (SHOW_FPS) fpsBox.hidden = false;
+  function fpsTick(now) {
+    if (fpsPrev) {
+      const d = now - fpsPrev; fpsDt.push(d); fpsT.push(now);
+      while (fpsT.length && now - fpsT[0] > 10000) { fpsT.shift(); fpsDt.shift(); }
+      fpsSm = fpsSm ? fpsSm * 0.95 + (1000 / d) * 0.05 : 1000 / d;
+    }
+    fpsPrev = now;
+    if (now - fpsTxt < 500 || fpsDt.length < 5) return;
+    fpsTxt = now;
+    const s = fpsDt.slice().sort((a, b) => b - a), low = 1000 / s[Math.floor(s.length * 0.01)];
+    const dpr = window.devicePixelRatio || 1, rw = rtColor.width, rh = rtColor.height;
+    fpsBox.textContent = (GFX_PC ? 'PC graphics (' + quality + ')  ' : 'gfx ' + quality + '  ') + fpsSm.toFixed(0) + ' fps  1% low ' + low.toFixed(0) +
+      '  |  DPR ' + dpr.toFixed(2) + '  render ' + rw + 'x' + rh + '  screen ' + innerWidth + 'x' + innerHeight;
+  }
   function updateVisuals(dt) {
     carGroup.position.copy(vPos); carGroup.quaternion.copy(vQ);
     // visual weight (handling): the body leans, dips and squats on its wheels (car.vis, from the physics); level in replays
