@@ -78,5 +78,15 @@
       }
       return out;
     }
-    return { Car, ghostInfo, CONFIG, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
+    // Phone tests (tests/phone.test.js): read the controls' state and run the real physics step synchronously.
+    const phone = {
+      read: () => ({ state, keys: { ...keys }, tiltMode, tiltDeg, tiltZero, steer: inp.steer, throttle: inp.throttle, brake: inp.brake, handbrake: inp.handbrake,
+        beta: car.beta / D2R, heading: Math.atan2(car.fwd.x, car.fwd.z) / D2R, kmh: car.speed * 3.6, autoGas, isTouch, pedalLift: pedals.lift }),
+      start: () => { champ = null; startStage(null); },                       // the same call the Start button makes: state 'countdown'
+      go: () => { state = 'running'; countdown = -1; timeLeft = 1e9; },       // skip the 3-2-1 (the real countdown is wall-clock time)
+      step: n => { for (let i = 0; i < n; i++) physicsStep(); },
+      setKeys: o => { for (const k in o) keys[k] = o[k]; },
+      resetCar: kmh => { car.vel.set(car.fwd.x * kmh / 3.6, car.vel.y, car.fwd.z * kmh / 3.6); },
+    };
+    return { Car, ghostInfo, CONFIG, phone, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
   })();
