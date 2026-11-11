@@ -8594,6 +8594,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   }
   function startStage(order) {
     if (loading || !track) return;
+    best = loadBest(ST);                                  // the selected car's best (the car can change in the menu after the stage loaded)
     raceOrder = ST.practice ? ['You'] : order || defaultOrder();       // practice stage: no other crews
     initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
     $('menu').hidden = true; $('finishScreen').hidden = true; document.body.classList.remove('menu-mode');
