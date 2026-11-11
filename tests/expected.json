@@ -110,5 +110,30 @@
       "msg": 10
     }
   },
-  "knownIssues": {}
+  "knownIssues": {},
+  "phone": {
+    "recentreMaxDeg": 1.5,
+    "smallTiltDeg": 10,
+    "smallSteerMin": 0.05,
+    "smallSteerMax": 0.4,
+    "fullTiltDeg": 40,
+    "fullSteerMin": 0.98,
+    "deadZoneTiltDeg": 2.5,
+    "jitterDeg": 1.5,
+    "jitterMaxSteer": 0.02,
+    "jitterMaxHeadingDeg": 1,
+    "jitterPartTiltDeg": 8,
+    "jitterKmh": 60,
+    "jitterMaxSteerRange": 0.12,
+    "jitterMaxSlideRangeDeg": 5,
+    "autoGas": {
+      "kmh": 80,
+      "noLiftMinGas": 0.95,
+      "liftMaxGas": 0.3,
+      "tapExtraTurnDeg": 3,
+      "hbExtraTurnDeg": 3,
+      "backMinGas": 0.9,
+      "maxSlideDeg": 90
+    }
+  }
 }
