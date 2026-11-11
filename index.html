@@ -348,6 +348,10 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
   .menu-actions { gap: 10px; }
   .toggle { font-size: 13px; }
 }
+
+/* FPS counter (?gfx=pc or ?fps=1): small, bottom centre, clear of the thumb buttons */
+#fpsBox { position: fixed; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 30; pointer-events: none;
+  font: 600 11px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #bff7c8; background: rgba(0, 0, 0, .55); padding: 2px 7px; border-radius: 4px; text-align: center; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -400,6 +404,7 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 </div>
 <div id="rotate"><div><span>📱</span>Turn your phone sideways to race</div></div>
 <div id="fade"></div>
+<div id="fpsBox" hidden></div>
 <div id="debug" hidden><canvas id="dbgGraph" width="360" height="60"></canvas><pre id="dbgText"></pre></div>
 <div class="overlay" id="pauseMenu" hidden>
   <div class="card pause">
@@ -725,8 +730,8 @@ const CONFIG = {
   camera: { chaseDistance: 6.6, chaseHeight: 2.3, chaseLag: 7.0, rallyDistance: 15, rallyHeight: 10.5, rallyLookAhead: 7,
     // extra camera mode 4 (low far view, shows the sky): same follow as the far rally camera, lower and looking further ahead
     lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15,
-    // mode 5: low, close chase. Sits near the road so it rushes past; pulls back, rises a little and widens the view with speed (0 to 45 m/s)
-    closeDistance: 4.6, closePull: 1.8, closeHeight: 1.25, closeRise: 0.25, closeLookAhead: 7, closeFov: 66, closeFovGain: 16 },
+    // mode 1: low, close chase. Sits near the road so it rushes past; pulls back, rises a little and widens the view with speed (0 to 45 m/s)
+    closeDistance: 5.6, closePull: 1.8, closeHeight: 2.2, closeRise: 0.3, closeLookAhead: 12, closeFov: 66, closeFovGain: 16 },
 };
 
 /* ---------- small helpers ---------- */
@@ -8833,8 +8838,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   function updateDebug(dtReal, steps) {
     frameTimes[ftIdx] = dtReal * 1000; ftIdx = (ftIdx + 1) % frameTimes.length;
     fpsAvg += (1 / Math.max(dtReal, 1e-3) - fpsAvg) * 0.05;
-    // gentle nudge when the frame rate is too low to drive well
-    if (state === 'running' && quality === 'high' && fpsAvg < 40) { lowFpsTime += dtReal; if (lowFpsTime > 5 && !lowFpsWarned) { lowFpsWarned = true; banner('LOW FRAME RATE', 'ext', 3); elBannerSub('Press Esc and switch graphics to Low'); } } else lowFpsTime = 0;
+    autoQualityTick(dtReal, window.__fakeFrameMs); if (SHOW_FPS) fpsTick(performance.now());   // ui/pause.js: auto-drop to Low, FPS counter
     if (!debugOn) return;
     const W = dbgCv.width, Hh = dbgCv.height;
     dbgG.clearRect(0, 0, W, Hh);
@@ -8914,7 +8918,12 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
 
   /* ---------- pause menu, quick restart, graphics quality ---------- */
   let pausedFrom = null;
-  try { const q = localStorage.getItem('rallyQuality'); quality = q ? (q === 'low' ? 'low' : 'high') : (isTouch ? 'low' : 'high'); } catch (e) { /* ignore */ }
+  // ?gfx=pc (or ?gfx=high) = high graphics for this visit only, never saved, no auto-drop. ?fps=1 = FPS counter only.
+  const URLQ = new URLSearchParams(location.search), GFX_PC = /^(pc|high)$/i.test(URLQ.get('gfx') || ''), SHOW_FPS = GFX_PC || URLQ.get('fps') === '1';
+  // Default: high everywhere (phones too). A saved choice wins ('rallyQualityV2': what the player picked, or what the auto-drop saved).
+  // The old key 'rallyQuality' is only read on non-touch devices: the old code saved 'low' on every phone by itself, so it says nothing about a choice.
+  try { const q = localStorage.getItem('rallyQualityV2') || (isTouch ? null : localStorage.getItem('rallyQuality')); quality = q === 'low' ? 'low' : 'high'; } catch (e) { /* ignore */ }
+  if (GFX_PC) quality = 'high';
   function togglePause() {
     if (state === 'paused') { state = pausedFrom; pausedFrom = null; $('pauseMenu').hidden = true; canvas.focus(); return; }
     pausedFrom = state; state = 'paused'; for (const kk in keys) keys[kk] = false;
@@ -8925,8 +8934,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     $('qualityBtn').textContent = 'Graphics: ' + (quality === 'high' ? 'High' : 'Low');
     $('debugBtn').textContent = 'Debug overlay: ' + (debugOn ? 'On' : 'Off');
   }
-  function setQuality(q) {
-    quality = q; try { localStorage.setItem('rallyQuality', q); } catch (e) { /* ignore */ }
+  function setQuality(q, save = true) {
+    quality = q; if (save && !GFX_PC) try { localStorage.setItem('rallyQualityV2', q); } catch (e) { /* ignore */ }
     renderer.shadowMap.enabled = q === 'high'; sun.castShadow = q === 'high';
     scene.traverse(o => { if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) m.needsUpdate = true; });
     resize(); updatePauseLabels();
@@ -8943,6 +8952,42 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   $('replayBtn').addEventListener('click', startReplay);
   [['rpPlay', 'Space'], ['rpSlow', 'ArrowDown'], ['rpFast', 'ArrowUp'], ['rpCam', 'KeyC'], ['rpBack', 'Escape']].forEach(([id, code]) => $(id).addEventListener('click', () => { if (state === 'replay') replayKey(code); }));
 
+
+  /* ---------- automatic fallback: high -> low once if the frame rate stays too low, and the FPS counter ---------- */
+  // Thresholds: smoothed frame time over AUTO_GFX.ms (under 25 fps) for AUTO_GFX.holdS seconds in a row, only while driving
+  // and after AUTO_GFX.warmS seconds of driving (loading, countdown, shader compile hitches never count).
+  // Never switches back up by itself. Off with ?gfx=pc or ?autogfx=0.
+  const AUTO_GFX = { ms: 40, holdS: 3, warmS: 4, on: !GFX_PC && URLQ.get('autogfx') !== '0' };
+  let agSmooth = 16.7, agSlowS = 0, agRunS = 0, agPrev = 0;
+  function autoQualityTick(dtCapped, fakeMs) {
+    const nowMs = performance.now(), wall = agPrev ? Math.min(1, (nowMs - agPrev) / 1000) : dtCapped; agPrev = nowMs;   // wall-clock: the game's own dt is capped at 0.1 s, which would stretch the timers when frames are very slow
+    const dtReal = wall, ms = fakeMs || wall * 1000;
+    if (state !== 'running' || countdown > -0.6) { agSlowS = 0; agRunS = 0; return; }   // not driving (menu, loading, countdown, pause, replay)
+    agRunS += dtReal;
+    agSmooth += (ms - agSmooth) * 0.05;
+    if (!AUTO_GFX.on || quality !== 'high' || agRunS < AUTO_GFX.warmS) { agSlowS = 0; return; }
+    agSlowS = agSmooth > AUTO_GFX.ms ? agSlowS + dtReal : 0;
+    if (agSlowS >= AUTO_GFX.holdS) {
+      setQuality('low'); agSlowS = 0;
+      banner('Graphics set to Low', '', 4.5); elBannerSub('for smoother play. Change it in Pause');
+    }
+  }
+  const fpsBox = $('fpsBox'), fpsDt = [], fpsT = [];
+  let fpsPrev = 0, fpsSm = 0, fpsTxt = 0;
+  if (SHOW_FPS) fpsBox.hidden = false;
+  function fpsTick(now) {
+    if (fpsPrev) {
+      const d = now - fpsPrev; fpsDt.push(d); fpsT.push(now);
+      while (fpsT.length && now - fpsT[0] > 10000) { fpsT.shift(); fpsDt.shift(); }
+      fpsSm = fpsSm ? fpsSm * 0.95 + (1000 / d) * 0.05 : 1000 / d;
+    }
+    fpsPrev = now;
+    if (now - fpsTxt < 500 || fpsDt.length < 5) return;
+    fpsTxt = now;
+    const s = fpsDt.slice().sort((a, b) => b - a), low = 1000 / s[Math.floor(s.length * 0.01)];
+    fpsBox.textContent = (GFX_PC ? 'PC graphics (' + quality + ')  ' : 'gfx ' + quality + '  ') + fpsSm.toFixed(0) + ' fps  1% low ' + low.toFixed(0) +
+      '  |  DPR ' + (window.devicePixelRatio || 1).toFixed(2) + '  render ' + rtColor.width + 'x' + rtColor.height + '  screen ' + innerWidth + 'x' + innerHeight;
+  }
   /* ---------- fixed-step physics ---------- */
   const H = 1 / CONFIG.physicsHz;
   // pedal state: smoothed gas (0–1), smoothed tilt (°), auto-gas lift left (s), how long the brake has been held (s)
@@ -9329,7 +9374,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   renderMenu();
   let last = performance.now(), acc = 0;
   dbgEl.hidden = !debugOn;
-  if (quality === 'low') setQuality('low');
+  if (quality === 'low') setQuality('low', false);
   let raceOn = null;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
