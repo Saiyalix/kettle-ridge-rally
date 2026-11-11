@@ -7,8 +7,7 @@
   function updateDebug(dtReal, steps) {
     frameTimes[ftIdx] = dtReal * 1000; ftIdx = (ftIdx + 1) % frameTimes.length;
     fpsAvg += (1 / Math.max(dtReal, 1e-3) - fpsAvg) * 0.05;
-    // gentle nudge when the frame rate is too low to drive well
-    if (state === 'running' && quality === 'high' && fpsAvg < 40) { lowFpsTime += dtReal; if (lowFpsTime > 5 && !lowFpsWarned) { lowFpsWarned = true; banner('LOW FRAME RATE', 'ext', 3); elBannerSub('Press Esc and switch graphics to Low'); } } else lowFpsTime = 0;
+    autoQualityTick(dtReal, window.__fakeFrameMs); if (SHOW_FPS) fpsTick(performance.now());   // ui/pause.js: auto-drop to Low, FPS counter
     if (!debugOn) return;
     const W = dbgCv.width, Hh = dbgCv.height;
     dbgG.clearRect(0, 0, W, Hh);
