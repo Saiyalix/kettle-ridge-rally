@@ -118,6 +118,8 @@ const CONFIG = {
     frontAim: 1.0,                // held key = front tyres at this × their peak slip angle. Higher = sharper turn-in, more rotation
     slideHold: 1.15,              // × the surface's `slide` angle where a held key stops adding rotation (the slide settles there).
                                   // Higher = bigger, longer slides from steering alone
+    partHold: 1.0,                // part steering (phone tilt): a held part key settles the slide at (share ^ partHold) × the full
+                                  // key's hold angle. 1 = in proportion; higher = small tilts slide even less. Keys are always full
     slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
     slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
@@ -139,6 +141,16 @@ const CONFIG = {
     settle: 4,                    // 1/s: with no key, extra help bringing the car back in line (higher = quicker, less swing-back)
     guard: { from: 42, range: 30, push: 9, damp: 7 }, // spin guard: from this angle (°), fully on `range` ° later; push = rad/s² back
                                                        // towards the travel, damp = how hard it brakes the rotation. Higher = harder to spin
+    // Phones (src/handling/physics-step.js): tilt steering and auto gas. Keys never use these.
+    phone: {
+      tiltDead: 3,                // ° of tilt that does nothing (hand shake). Higher = calmer on straights, less fine control
+      tiltFull: 28,               // ° of tilt for full lock. Higher = less twitchy, but you turn the phone further for hairpins
+      tiltCurve: 0.25,            // 0 = straight line; higher = gentler around the centre, same full lock
+      tiltSmooth: 0.05,           // s: smoothing of the tilt sensor. Higher = steadier but laggier
+      tapS: 0.35,                 // s: a brake press shorter than this counts as a tap...
+      brakeLift: 0.2,             // ...and keeps auto gas off this long after it (s). Higher = a tap rotates the car more
+      handbrakeLift: 0.25,        // s auto gas stays off after the handbrake (it is always off while held). Higher = more rotation
+    },
     drift: {
       minSpeed: 9,                // m/s (≈32 km/h): slower than this the car never counts as drifting
       on: 12,                     // ° of slide that counts as a drift (HUD, sound, replays, dust)...

@@ -78,7 +78,11 @@ const expected = JSON.parse(fs.readFileSync(EXPECTED_FILE, 'utf8'));
     L.push('## Skid pad: held key', '', '| Car | Surface | km/h | Slide ° | First swing-out ° | Wound on ms | Back under 5° s | Overshoot ° |', '|---|---|---|---|---|---|---|---|');
     for (const r of data.handling.filter(r => r.mode === 'held')) L.push(`| ${r.car} | ${r.surface} | ${r.kmh} | ${f(r.slideDeg)} | ${f(r.swingDeg)} | ${f(r.wheelMs, 0)} | ${f(r.recoverS, 2)} | ${f(r.overshootDeg)} |`);
     L.push('', '## Skid pad: spin test and handbrake', '', '| Car | Test | Surface | km/h | Max slide ° | Seconds past 45° | 90° turned at s |', '|---|---|---|---|---|---|---|');
-    for (const r of data.handling.filter(r => r.mode !== 'held')) L.push(`| ${r.car} | ${r.mode} | ${r.surface} | ${r.kmh} | ${f(r.maxDeg, 0)} | ${f(r.over45S, 2)} | ${f(r.t90, 2)} |`);
+    for (const r of data.handling.filter(r => r.mode === 'spin' || r.mode === 'handbrake')) L.push(`| ${r.car} | ${r.mode}${r.autoGas ? ' (auto gas)' : ''} | ${r.surface} | ${r.kmh} | ${f(r.maxDeg, 0)} | ${f(r.over45S, 2)} | ${f(r.t90, 2)} |`);
+    L.push('', '## Skid pad: phone tilt', '', '| Car | Surface | km/h | Tilt % | Steering | Slide ° | Wobble ° | First swing-out ° | Back under 5° s |', '|---|---|---|---|---|---|---|---|---|');
+    for (const r of data.handling.filter(r => r.mode === 'tilt')) L.push(`| ${r.car} | ${r.surface} | ${r.kmh} | ${r.pct} | ${f(r.steer, 2)} | ${f(r.slideDeg)} | ${f(r.wobbleDeg)} | ${f(r.swingDeg)} | ${f(r.recoverS, 2)} |`);
+    L.push('', '## Skid pad: phone auto gas, right button held', '', '| Car | Surface | km/h | Brake tap | Slide before ° | Peak after ° | Turned in 1.5 s ° | Seconds past 45° |', '|---|---|---|---|---|---|---|---|');
+    for (const r of data.handling.filter(r => r.mode === 'autogas')) L.push(`| ${r.car} | ${r.surface} | ${r.kmh} | ${r.tap ? 'yes' : 'no'} | ${f(r.slideDeg)} | ${f(r.tapPeakDeg)} | ${f(r.turnDeg)} | ${f(r.over45S, 2)} |`);
     L.push('');
   }
   L.push('Screenshots: tests/results/*.png');
