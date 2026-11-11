@@ -64,5 +64,19 @@
       await loadStage(i);
       while (loading || stageIdx !== i) await new Promise(r => setTimeout(r, 50));
     }
-    return { Car, CONFIG, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
+    // ghost (src/tracks/ghost.js): what is saved, what is loaded, and where the ghost car is drawn at 30 s into a run
+    function ghostInfo() {
+      const key = ghostKey(), str = localStorage.getItem(key); gPlayKey = null; ghostLoadPlay();
+      const out = { key, savedChars: str ? str.length : 0, loaded: !!gPlay };
+      if (gPlay) {
+        const sv = [state, raceTime, ghostMesh.visible, gOn]; state = 'running'; raceTime = 30; gOn = true; ghostFrame();
+        const f = 300; out.t = gPlay.t; out.n = gPlay.n; out.visible = ghostMesh.visible;
+        out.posErr = Math.hypot(ghostMesh.position.x - gPlay.x[f], ghostMesh.position.z - gPlay.z[f]);
+        gOn = false; ghostFrame(); out.hiddenWhenOff = !ghostMesh.visible;
+        const e = gPlay.n - 1; out.endToFinish = Math.hypot(gPlay.x[e] - P[P.length - 1].x, gPlay.z[e] - P[P.length - 1].z); out.endS = gPlay.s[e];
+        [state, raceTime, , gOn] = sv; ghostMesh.visible = false; out.finishS = track.finishS;
+      }
+      return out;
+    }
+    return { Car, ghostInfo, CONFIG, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
   })();
