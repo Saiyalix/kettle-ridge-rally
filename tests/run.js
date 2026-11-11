@@ -3,7 +3,7 @@
   Kettle Ridge Rally QA test kit. Runs headless (Playwright + Chromium) and prints PASS / FAIL per check.
 
     node tests/run.js                 all tests
-    node tests/run.js handling bot    only these (build, load, bot, handling, mobile, gfx)
+    node tests/run.js handling bot    only these (build, load, bot, handling, mobile, phone, gfx)
     node tests/run.js bot --record    store the bot's current times as the expected times (intended changes only)
 
   Results: tests/results/report.md (also printed), results.json, screenshots.
@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { startServer, launch } = require('./lib/game');
 
-const ALL = ['build', 'load', 'bot', 'handling', 'mobile', 'gfx'];
+const ALL = ['build', 'load', 'bot', 'handling', 'mobile', 'phone', 'gfx', 'ghost'];
 const args = process.argv.slice(2);
 const RECORD = args.includes('--record');
 const picked = args.filter(a => ALL.includes(a));

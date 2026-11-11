@@ -7,6 +7,7 @@
     if (bestD < 35 * 35) progIdx = bi;
     const s = P[progIdx].s;
     if (state === 'running') {
+      ghostRecord();
       if (nextCp < ST.checkpoints.length && s >= ST.checkpoints[nextCp]) {
         const ext = ST.timeExt[nextCp];
         timeLeft += ext;
@@ -14,7 +15,7 @@
         const cpd = ST.checkpoints[nextCp - 1], sp = racePosition(cpd, raceTime), gap = splitGap(cpd, raceTime);
         banner('EXTENDED TIME  +' + ext, 'ext', 2.4); elBannerSub(`Split P${sp}  ${gap <= 0 ? 'fastest' : '+' + gap.toFixed(1) + ' s'}`);
         cue.checkpoint(); say('Extended time');
-      } else if (nextCp === ST.checkpoints.length && s >= track.finishS) finishStage();
+      } else if (nextCp === ST.checkpoints.length && s >= track.finishS) { ghostFinish(raceTime); finishStage(); }
     }
     return s;
   }

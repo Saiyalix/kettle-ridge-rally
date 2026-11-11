@@ -61,6 +61,7 @@
       elClockBox.classList.toggle('low', state === 'running' && tl < 10);
       if (state === 'running' && tl < 10 && Math.ceil(tl) !== lastWarn) { lastWarn = Math.ceil(tl); cue.warn(); }
     }
+    ghostFrame();   // tracks/ghost.js: ghost car + gap line
     if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0 && state !== 'gameover') elBanner.hidden = true; }
     setText(elSpeed, 'v', String(Math.round(Math.abs(car.vForward) * 3.6)));
     setText(elGear, 'g', car.gear < 0 ? 'R' : String(car.gear));
