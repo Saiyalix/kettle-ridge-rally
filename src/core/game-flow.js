@@ -13,17 +13,18 @@
   try { voiceOn = localStorage.getItem('rallyVoice') !== 'off'; } catch (e) { /* storage unavailable */ }
   function pickVoice() {
     if (!synth) return;
-    const vs = synth.getVoices();
-    voice = vs.find(v => /en-GB/i.test(v.lang) && /daniel|george|arthur|male/i.test(v.name)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+    // clearest first: a local (offline) British male voice, then any British voice, then any English one
+    const vs = synth.getVoices(), score = v => (/^en-GB/i.test(v.lang) ? 4 : /^en/i.test(v.lang) ? 1 : -9) + (/daniel|george|arthur|male|ryan/i.test(v.name) ? 2 : 0) + (v.localService ? 1.5 : 0) + (/natural|neural/i.test(v.name) ? -0.5 : 0);
+    voice = vs.filter(v => /^en/i.test(v.lang)).sort((a, b) => score(b) - score(a))[0] || null;
   }
   if (synth) { pickVoice(); try { synth.addEventListener('voiceschanged', pickVoice); } catch (e) { /* older browsers */ } }
   function say(text, urgent) {
     if (!synth || !voiceOn || muted) return;
     try {
-      if (urgent) synth.cancel();
+      if (urgent || (synth.speaking && synth.pending)) synth.cancel();       // a call that is already late is dropped: the road has moved on
       const u = new SpeechSynthesisUtterance(text);
-      if (voice) u.voice = voice;
-      u.rate = 1.12; u.pitch = 0.92; u.volume = 1;
+      if (voice) { u.voice = voice; u.lang = voice.lang; }
+      u.rate = 1.1; u.pitch = 0.9; u.volume = clamp(AUDIO_PREFS.vol.voice, 0, 1);   // the engine ducks and radio clicks play while this speaks (audio.js)
       synth.speak(u);
     } catch (e) { /* speech not available */ }
   }

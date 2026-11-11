@@ -37,7 +37,9 @@ The build checks that the glued script is valid JavaScript and says which file a
 | `art/car-geo.js`, `art/car-livery.js` | art | Geometry helpers (lofts, parts, livery atlas layout); livery choice API (`liveryList`, `liveryIndex`, `setLivery`) and the livery painter. Livery data: `CONFIG.cars[i].liveries` |
 | `art/rival-liveries.js`, `art/rival-model.js` | art | The 14 rival liveries (designs + palettes + sponsors) and the shared rival models with three levels of detail (`updateRivalLOD`, called from `renderFrame`) |
 | `art/*` | art | Lights, sky, fog, effects, cameras, post-processing (high quality) |
-| `audio/audio.js` | audio | All synthesized sound |
+| `audio/audio.js` | audio | All sound: graph, rally effects, surfaces, crowd, echo, UI beeps, `updateAudio`, pause-menu sound wiring |
+| `audio/engine-dsp.js` | audio | Engine A: the modelled engine class `EngineDSP` (also sent to the AudioWorklet as text: it must not use any outside variable) |
+| `audio/engine-samples.js` | audio | Engine B: two recorded CC0 engine loops as base64 text (credit in `docs/credits.md`) |
 | `core/game-flow.js` | shared | Co-driver voice (`say`, `pickVoice`, `setVoice`) → audio. Game flow (start, rescue, championship) → producer assigns, qa reviews closely |
 | `ui/*`, `page/*` | ui-mobile | Menus, HUD, touch, CSS, HTML, `setQuality`; plus every `quality === 'low'` path and the low render scale in `art/post-process.js` |
 | `core/helpers.js`, `boot.js`, `debug-replay.js`, `main-loop.js` | shared | Rarely changed. Producer assigns, qa reviews closely |
