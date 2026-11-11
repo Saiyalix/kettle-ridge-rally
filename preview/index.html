@@ -329,6 +329,26 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 @media (max-height: 800px) { .menu-panel { gap: 10px; } }
 @media (max-height: 520px) { .menu-panel { gap: 8px; } .carblurb { display: none; } }
 
+/* Short landscape phones (about 360 px tall): compact stage cards in two columns so all 5 stages, the car/paint rows
+   and Race fit without scrolling. Skipped for portrait (that has its own bottom sheet layout above). */
+@media (max-height: 420px) and (orientation: landscape) {
+  .menu-panel { width: min(640px, 100%); gap: 6px; padding-block: calc(8px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+  .logo { flex-direction: row; align-items: baseline; gap: 8px; margin: 0 0 0 6px; }
+  .logo .l1 { font-size: 18px; } .logo .l2 { font-size: 26px; }
+  .logo span { -webkit-text-stroke: 1px #0d1216; filter: drop-shadow(2px 2px 0 #0d1216); }
+  .stage-list { grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+  .stage-card { grid-template-columns: auto 1fr; align-items: center; min-height: 40px; padding: 4px 10px; row-gap: 0; }
+  .sc-code { grid-row: 1 / span 2; font-size: 17px; padding-top: 0; align-self: center; }
+  .sc-name { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sc-best { grid-column: 2; grid-row: 2; font-size: 11px; text-align: left; }
+  .sc-meta, .sc-surf, .blurb, .carblurb, .tip { display: none; }
+  .pick-row { gap: 8px; flex-wrap: nowrap; }
+  .car-chip { padding: 4px 10px; font-size: 15px; min-height: 40px; box-sizing: border-box; }
+  .menu-actions { gap: 10px; }
+  .toggle { font-size: 13px; }
+}
+
 /* FPS counter (?gfx=pc or ?fps=1): small, bottom centre, clear of the thumb buttons */
 #fpsBox { position: fixed; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 30; pointer-events: none;
   font: 600 11px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #bff7c8; background: rgba(0, 0, 0, .55); padding: 2px 7px; border-radius: 4px; text-align: center; white-space: nowrap; }
@@ -340,8 +360,6 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 <canvas id="scene" tabindex="0"></canvas>
 
 <div class="hud" id="progress" aria-hidden="true"><span class="pl">START</span><div class="bar"><i id="progFill"></i></div><span class="pr">GOAL</span></div>
-
-<div id="fpsBox" hidden></div>
 
 <div class="hud" id="timing">
   <div id="stageLbl">SS1 · Kettle Ridge</div>
@@ -386,6 +404,7 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 </div>
 <div id="rotate"><div><span>📱</span>Turn your phone sideways to race</div></div>
 <div id="fade"></div>
+<div id="fpsBox" hidden></div>
 <div id="debug" hidden><canvas id="dbgGraph" width="360" height="60"></canvas><pre id="dbgText"></pre></div>
 <div class="overlay" id="pauseMenu" hidden>
   <div class="card pause">
@@ -591,6 +610,8 @@ const CONFIG = {
     frontAim: 1.0,                // held key = front tyres at this × their peak slip angle. Higher = sharper turn-in, more rotation
     slideHold: 1.15,              // × the surface's `slide` angle where a held key stops adding rotation (the slide settles there).
                                   // Higher = bigger, longer slides from steering alone
+    partHold: 1.0,                // part steering (phone tilt): a held part key settles the slide at (share ^ partHold) × the full
+                                  // key's hold angle. 1 = in proportion; higher = small tilts slide even less. Keys are always full
     slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
     slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
@@ -612,6 +633,18 @@ const CONFIG = {
     settle: 4,                    // 1/s: with no key, extra help bringing the car back in line (higher = quicker, less swing-back)
     guard: { from: 42, range: 30, push: 9, damp: 7 }, // spin guard: from this angle (°), fully on `range` ° later; push = rad/s² back
                                                        // towards the travel, damp = how hard it brakes the rotation. Higher = harder to spin
+    // Phones (src/handling/physics-step.js): tilt steering and auto gas. Keys never use these.
+    phone: {
+      tiltDead: 3,                // ° of tilt that does nothing (hand shake). Higher = calmer on straights, less fine control
+      tiltFull: 28,               // ° of tilt for full lock. Higher = less twitchy, but you turn the phone further for hairpins
+      tiltCurve: 0.25,            // 0 = straight line; higher = gentler around the centre, same full lock
+      tiltSmooth: 0.05,           // s: smoothing of the tilt sensor. Higher = steadier but laggier
+      tapS: 0.35,                 // s: a brake press shorter than this counts as a tap...
+      brakeLift: 0.2,             // ...and keeps auto gas off this long after it (s). Higher = a tap rotates the car more
+      keepGasSlide: 36,           // ° of slide: past this when the brake goes on, auto gas stays down through the brake (no lift),
+                                  // like holding gas on keys. Lower = calmer big slides, less rotation from a tap mid-drift
+      handbrakeLift: 0.25,        // s auto gas stays off after the handbrake (it is always off while held). Higher = more rotation
+    },
     drift: {
       minSpeed: 9,                // m/s (≈32 km/h): slower than this the car never counts as drifting
       on: 12,                     // ° of slide that counts as a drift (HUD, sound, replays, dust)...
@@ -696,7 +729,9 @@ const CONFIG = {
 
   camera: { chaseDistance: 6.6, chaseHeight: 2.3, chaseLag: 7.0, rallyDistance: 15, rallyHeight: 10.5, rallyLookAhead: 7,
     // extra camera mode 4 (low far view, shows the sky): same follow as the far rally camera, lower and looking further ahead
-    lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15 },
+    lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15,
+    // mode 1: low, close chase. Sits near the road so it rushes past; pulls back, rises a little and widens the view with speed (0 to 45 m/s)
+    closeDistance: 5.6, closePull: 1.8, closeHeight: 2.2, closeRise: 0.3, closeLookAhead: 12, closeFov: 66, closeFovGain: 16 },
 };
 
 /* ---------- small helpers ---------- */
@@ -730,7 +765,7 @@ function fmtTime(t) { if (t == null || !isFinite(t)) return '–'; const m = Mat
      towers     [{ x, z, r, h, kind }]                          kind: 'corner' | 'mid' | 'gate'
      gatehouses [{ x, z, th, s, depth, half, passageH, h, blockW, towerAt, which }]
                   x, z, th = middle of the passage on the road; depth along the road; half = clear half width of the
-                  passage (4.4: the road is 4.0); passageH = clear height of the arch (7.0); h = height of the blocks and
+                  passage (5.6: the road is 4.0); passageH = clear height of the arch (7.0); h = height of the blocks and
                   the lintel; blockW = width of each block beside the passage; towerAt = lateral offset of the two gate towers
      buildings  [{ kind, x, z, yaw, w, d, h, style, roof, builder }]
                   yaw = rotation.y; the FRONT faces local +z (as in art/buildings.js); w along the front, d deep, h wall height.
@@ -779,7 +814,7 @@ function castleFrame(C, segments) {
 const castleRectDist = (R, u, v) => Math.hypot(Math.max(R.u0 - u, 0, u - R.u1), Math.max(R.v0 - v, 0, v - R.v1));
 const castleRectDepth = (R, u, v) => Math.max(0, Math.min(u - R.u0, R.u1 - u, v - R.v0, R.v1 - v));
 
-const GATE = { depth: 12, half: 4.4, passageH: 7.0, h: 12.5, blockW: 7.6, towerAt: 12.4 };
+const GATE = { depth: 12, half: 5.6, passageH: 7.0, h: 12.5, blockW: 6.4, towerAt: 12.4 };      // passage 11.2 m wide (the road is 8): a car at the road edge clears the blocks with 0.65 m to spare; the blocks still end at 12 m
 
 function castleLayout(track, ST = CONFIG.stage) {
   const C = ST.castle, F = castleFrame(C, ST.segments), R = F.rect;
@@ -905,7 +940,7 @@ const THORN_PRE = [
   ['R', 60, 70], ['S', 40], ['L', 85, 38], ['S', 70], ['R', 30, 150], ['S', 80], ['L', 55, 60], ['S', 40], ['R', 100, 34], ['S', 40],   // forest (bridge hump on the 80 m straight)
   ['R', 70, 50], ['S', 30], ['L', 140, 24], ['S', 30], ['R', 60, 80], ['S', 20], ['L', 40, 100], ['S', 53],                  // the climb to the castle
 ];
-const THORN_CASTLE = [['S', 40], ['R', 90, 18], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
+const THORN_CASTLE = [['S', 40], ['R', 90, 22], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
 const THORN_POST = [
   ['S', 25], ['R', 100, 40], ['S', 40], ['L', 55, 60], ['S', 40], ['R', 75, 45], ['S', 40], ['L', 60, 55], ['S', 50],             // winding descent past the wall and moat
   ['R', 40, 100], ['S', 60], ['L', 70, 50], ['S', 50], ['R', 50, 70], ['S', 80], ['S', 150],                                      // down to the meadow
@@ -979,13 +1014,13 @@ const STAGES = [
     surfaceChanges: [[0, 'gravel'], [640, 'dirt'], [1360, 'gravel'], [1900, 'dirt']],
     snowLine: 95,
     checkpoints: [560, 1150, 1700, 2150],
-    timeStart: 29, timeExt: [31, 23, 21, 11], refTime: 107,
+    timeStart: 30, timeExt: [31, 23, 21, 11], refTime: 104,
     jumps: [[1320, 1.7]],
     // grade profile (fraction): the road climbs and dips along the mountainside
     elevation: s => 0.075 * Math.sin(s / 150 + 0.4) * 150 + 0.035 * Math.sin(s / 52) * 52 + s * 0.02,
     // which side rises into a rock wall (1) or falls away (0): [s, left, right], blended between keys
     // left wall → narrow ridge (drops both sides) → right wall → hairpin flips it → left wall → ridge → right wall
-    cliffSides: [[0, 1, 0], [600, 1, 0], [650, 0, 0], [740, 0, 0], [790, 0, 1], [1080, 0, 1], [1125, 1, 0], [1860, 1, 0], [1900, 0, 0], [1960, 0, 0], [2000, 0, 1]],
+    cliffSides: [[0, 1, 0], [600, 1, 0], [650, 0, 0], [740, 0, 0], [790, 0, 1], [1122, 0, 1], [1175, 1, 0], [1860, 1, 0], [1900, 0, 0], [1960, 0, 0], [2000, 0, 1]],
     segments: [
       ['S', 110], ['R', 30, 140], ['S', 80], ['L', 55, 70], ['S', 60], ['R', 80, 45], ['S', 90],
       ['L', 35, 160], ['S', 120], ['L', 95, 38], ['S', 70], ['R', 45, 90], ['S', 110],
@@ -1017,7 +1052,7 @@ const STAGES = [
     roadHalfWidth: 4.4, runoff: 150,
     surfaceChanges: [[0, 'tarmac'], [1250, 'gravel'], [1620, 'tarmac']],
     checkpoints: [600, 1150, 1700, 2150],
-    timeStart: 24, timeExt: [29, 27, 21, 11], refTime: 102,
+    timeStart: 26, timeExt: [29, 27, 21, 11], refTime: 102,
     jumps: [],
     cityLength: 640,                 // the last part of the run is in town
     toriiTunnel: [580, 672],
@@ -1055,7 +1090,7 @@ const STAGES = [
     checkpoints: [560, 1100, 1700, 2120],
     timeStart: 31, timeExt: [26, 31, 22, 16], refTime: 111,
     jumps: [[850, 1.9]],
-    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 18] },
+    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 22] },
     segments: [...THORN_PRE, ...THORN_CASTLE, ...THORN_POST],
     // look (art): a misty morning at dawn. Low warm sun behind the player on the approach (long shadows, the castle front glows), pale golden sky,
     // soft peach mist in the valleys (fog starts close, so far hills and the keep melt into it), cool blue shade, dew-bright meadows.
@@ -1097,12 +1132,13 @@ CONFIG.stage = STAGES[0];
    TRACK: a spline built from the stage's segments
    ===================================================================== */
 // Co-driver calls in the Sega Rally manner: Easy / Medium / Sharp, Long, Square, Hairpin, "maybe", "don't cut"
-function paceNote(seg) {
+// surf: the surface the corner is on. On tarmac the car can only hold about 150 km/h round a 110 m radius, so "Easy" (= keep your foot down) needs 150 m there
+function paceNote(seg, surf) {
   const dir = seg[0] === 'R' ? 'right' : 'left', ang = seg[1], r = seg[2];
   if (ang >= 300) return 'Full circle ' + dir + ', drift area';
   if (ang >= 140) return 'Hairpin ' + dir;
   if (ang >= 75 && r < 32) return 'Square ' + dir;
-  const sev = r >= 110 ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
+  const sev = r >= (surf === 'tarmac' ? 150 : 110) ? 'Easy' : r >= 45 ? 'Medium' : 'Sharp';
   let t = (ang >= 70 ? 'Long ' + sev.toLowerCase() : sev) + ' ' + dir;
   if (sev === 'Easy' && r >= 170) t += ', maybe';
   else if (sev !== 'Easy' && ang >= 60 && r < 60) t += ", don't cut";
@@ -1114,6 +1150,7 @@ function buildTrack(ST = CONFIG.stage) {
   let x = 0, z = 0, th = 0, s = 0;
   const pts = [{ x, z, th, s }];
   const notes = [], turns = [];
+  const surfaceAtS = s0 => { let sf = ST.surfaceChanges[0][1]; for (const [d, sname] of ST.surfaceChanges) if (s0 >= d) sf = sname; return sf; };
   for (const seg of ST.segments) {
     if (seg[0] === 'S') {
       const n = Math.max(1, Math.round(seg[1] / step)), ds = seg[1] / n;
@@ -1121,7 +1158,7 @@ function buildTrack(ST = CONFIG.stage) {
     } else {
       // Right turn = heading decreases (car's right is -x when facing +z)
       const dir = seg[0] === 'R' ? -1 : 1, ang = seg[1] * D2R, r = seg[2], len = ang * r;
-      notes.push({ s, s1: s + len, r, text: paceNote(seg), kind: seg[1] >= 140 ? 'hairpin' : 'turn', dir: seg[0] });
+      notes.push({ s, s1: s + len, r, text: paceNote(seg, surfaceAtS(s)), kind: seg[1] >= 140 ? 'hairpin' : 'turn', dir: seg[0] });
       turns.push({ s0: s, s1: s + len, dir: seg[0], r });
       const n = Math.max(2, Math.round(len / step)), ds = len / n, dth = dir * ang / n;
       for (let i = 0; i < n; i++) {
@@ -1217,7 +1254,7 @@ function buildTrack(ST = CONFIG.stage) {
   // SS4: the co-driver knows the castle. The corner before gate 1 says "gate", the courtyard corner says "around the well"
   if (ST.castle) {
     const before = notes.filter(nt => nt.kind !== 'jump' && nt.s1 <= ST.castle.gate1).pop();
-    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate';
+    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate, brake for the well';      // early warning: the courtyard corner comes 40 m after the gate
     for (const nt of notes) if (nt.kind !== 'jump' && nt.s >= ST.castle.gate1 && nt.s1 <= ST.castle.gate2) nt.text = nt.text.replace(", don't cut", '') + ', around the well';
   }
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
@@ -1765,7 +1802,11 @@ class Car {
     else aDrive = -throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
     const rearShare = clamp(A.rearDrive * (CAR.rearDrive || 1), 0, 1);
     const aLift = this.gear > 0 && throttle === 0 && vF > 3 ? A.liftDecel : 0;
-    const holdA = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    const holdFull = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    // part steering (phone tilt): the slide settles at that share of the full hold angle, so a small tilt is a small slide.
+    // Keys are always 0 or full, so this never changes keyboard driving.
+    const part = Math.abs(inp.steer) > 0 && Math.abs(inp.steer) < 1 ? Math.abs(inp.steer) : 1;
+    const holdA = part < 1 ? Math.max(4 * D2R, holdFull * Math.pow(part, A.partHold)) : holdFull;
     // throttle eats rear grip (power slide) up to about the hold angle; past it, it just drives the car forwards
     const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
     const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * A.brakeRear * m + aLift * m * 0.5;   // engine braking: half of it at the rear
@@ -2003,7 +2044,7 @@ function collideCar(car, cands, groundH, fx) {
 // Low stone walls on the outside of every corner that has a drop beyond it (cliff stage), as wall segments
 function cliffBarriers(track, half) {
   const P = track.samples, at = s => P[clamp(Math.round(s / track.step), 0, P.length - 1)];
-  const step = 2.4, n = Math.ceil(track.length / step), off = half + 1.3;
+  const step = 2.4, n = Math.ceil(track.length / step), off = half + 1.8;       // face 1.3 m out: a car that is on the road (body radius 0.95 from its centre line) never touches it
   const want = { [-1]: new Uint8Array(n), [1]: new Uint8Array(n) };
   for (const t of track.turns) {
     const side = t.dir === 'R' ? -1 : 1;                                   // outside of a right turn is the left side
@@ -2011,6 +2052,12 @@ function cliffBarriers(track, half) {
       const i = Math.round(s / step), p = at(s);
       if (i >= 0 && i < n && (side > 0 ? p.upR : p.upL) < 0.4) want[side][i] = 1;
     }
+  }
+  // the start, checkpoint and finish gates interrupt the drawn wall: keep the invisible one going 8 m either side, so no gap opens at a drop
+  const gates = [16, ...(CONFIG.stage && CONFIG.stage.checkpoints || []), track.finishS];
+  for (const g of gates) for (let s = g - 8; s <= g + 8; s += step) {
+    const i = Math.round(s / step), p = at(s);
+    if (i >= 0 && i < n) { if (p.upR < 0.4) want[1][i] = 1; if (p.upL < 0.4) want[-1][i] = 1; }
   }
   const blocks = [], segs = [];
   for (const side of [-1, 1]) {
@@ -3134,7 +3181,7 @@ function boot() {
         }
       }
     } else if (ST.id === 'vulture') {
-      // drop side: a continuous low stone wall hugging the road (same line as the old corner walls). Rock side: a layered rock face.
+      // drop side: a continuous low stone wall 1.8 m outside the road edge (same line as the old corner walls; its face is 1.3 m out, so a car on the road never touches it). Rock side: a layered rock face.
       for (const side of [-1, 1]) {
         const up = p => side > 0 ? p.upR : p.upL;
         let runs = [], cur = null;
@@ -3144,7 +3191,7 @@ function boot() {
         }
         runs.forEach(r => {
           if (r.b - r.a < 9) return;
-          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.3, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
+          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.8, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }
@@ -5223,7 +5270,8 @@ function boot() {
       rows: [{ o0: 5, o1: 8, step: 6.5, p: 0.75, s0: 0.9, s1: 1.3, sep: 4.5 }, { o0: 10, o1: 15, step: 9, p: 0.4, s0: 0.9, s1: 1.4, sep: 5 }] });
     const sakuraAll = sakura.concat(lining);
     treeStand(sakuraAll, () => SPECIES.sakura);
-    for (const t of sakuraAll) if (t.col !== undefined ? t.col : t.d < 30) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
+    // trunks you can hit stay 7 m or more from the road edge (a car that slides wide at 150 km/h runs out onto open ground, not into a tree); nearer ones are for looks only
+    for (const t of sakuraAll) if ((t.col !== undefined ? t.col : t.d < 30) && Math.sqrt(world.nearest(t.x, t.z).d2) - half >= 7) obstacles.push({ x: t.x, z: t.z, r: 0.3 * t.s });
     // cedar forest on the mountain pass
     const cedars = scatter(rng, 1800, 12000, (x, z, d, y, s0) => {
       if (d < half + 5 || s0 < 690 || s0 > city0 - 60 || inTunnel(s0)) return false;
@@ -6205,8 +6253,8 @@ function boot() {
   /* ---------- event detail (tracks): where the rally-event props stand ----------
      Uses art's builders from art/details.js. Where and how many is decided here; how things look is art's.
      Own generator (ST.seed * 131 + 7): the stage's rng is never touched, so the older scenery stays where it was.
-     Rules (forgiving): nothing within 5 m of the road edge; nothing solid except hay rows that are 8 m or more from the edge (none
-     are placed that close in at the moment: hay stands 3.2 m from the edge and is visual only); tents, cars, loos and towers 10 m or
+     Rules (forgiving): nothing within 5 m of the road edge; nothing solid except hay rows (3.2 m from the edge,
+     low and soft, see where they are placed); tents, cars, loos and towers 10 m or
      more from the edge; only on the outside of corners; nothing on a drop side (ground lower than the road beside it), steep ground,
      near trees / walls / houses (obstacles), near people already placed, or in a gate zone. */
   function eventDetail() {
@@ -6321,6 +6369,10 @@ function boot() {
       haySpecs.push(runs.sort((a, b) => b.length - a.length).map(r => { const k = Math.min(r.length, room); room -= k; return r.slice(0, k); }).filter(r => r.length > 3)); haySpread.push(t.s0);
     }
     for (const runs of haySpecs) for (const run of runs) for (const b of hayRow(run, { rows: quality === 'low' ? 1 : 2 })) L.hay.push(b);
+    // the bales are solid but soft: a wall of short segments along each row. Low (1.2 m) so a jump clears it, a good bounce (e 0.45, the
+    // default is 0.18) and little scraping: a car that runs wide is slowed, thrown gently back and turned along the row, never stopped dead
+    for (const runs of haySpecs) for (const run of runs) for (let i = 0; i + 1 < run.length; i++)
+      obstacles.push({ ax: run[i].x, az: run[i].z, bx: run[i + 1].x, bz: run[i + 1].z, r: 0.28, h: 1.2, e: 0.45, mu: 0.12, hay: true });
 
     // extra small spectator groups: outside of a few medium corners and at the jump (their own tape is not drawn: the groups stand 6 to 7 m back)
     const small = track.turns.filter(t => t.r > 40 && t.r <= 100 && t.s0 > 150 && t.s1 < F - 100).slice(0, 4);
@@ -8163,6 +8215,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   (function unlockAudio() {
     const go = () => { try { initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume(); } catch (e) { /* no audio on this device */ } };
     for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, go, { passive: true });
+    // tab comes back (phone unlocked, app switched back): wake the context again
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && audio) { try { audio.ctx.resume(); } catch (e) { /* needs a tap */ } } });
   })();
   // pause-menu controls (the buttons live in page/body.html)
   function syncAudioUi() {
@@ -8386,7 +8440,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
      down unless you brake, so one thumb steers and the other is free for brake and handbrake drifts.
      Tilt steering is optional: the phone's gravity sensor gives analogue steering. */
   const isTouch = !!((window.matchMedia && matchMedia('(pointer: coarse)').matches) || (('ontouchstart' in window) && navigator.maxTouchPoints > 0));
-  let autoGas = true, tiltMode = 0, tiltSteer = 0, tiltZero = null;     // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+  let autoGas = true, tiltMode = 0, tiltDeg = 0, tiltZero = null;       // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+                                                                          // tiltDeg: phone turned like a wheel, ° from centre (+ = right); physicsStep makes it steering
   try { autoGas = localStorage.getItem('rallyAutoGas') !== 'off'; tiltMode = +(localStorage.getItem('rallyTilt') || 0) || 0; } catch (e) { /* ignore */ }
   function touchLabels() {
     document.body.classList.toggle('autogas', isTouch && autoGas);
@@ -8433,15 +8488,19 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     $('tcPause').addEventListener('click', () => { if (state === 'running' || state === 'countdown' || state === 'paused') togglePause(); });
     $('tcCam').addEventListener('click', () => { camMode = (camMode + 1) % CAM_MODES; });
     $('tcReset').addEventListener('click', () => { if (state === 'running') rescue(2, false); });
-    // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen
+    // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen.
+    // Measured against the screen's up-down axis too, so it reads the same whether the phone is held upright or
+    // leaned back (until it is nearly flat). Dead zone, range and smoothing: CONFIG.arcade.phone, in physicsStep.
     window.addEventListener('devicemotion', e => {
       const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
       const ang = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
       const sx = ang === 90 ? -a.y : (ang === 270 || ang === -90) ? a.y : ang === 180 ? -a.x : a.x;   // gravity along the screen's left-right axis
-      const deg = Math.asin(clamp(-sx / 9.81, -1, 1)) / D2R;
+      const sy = ang === 90 ? a.x : (ang === 270 || ang === -90) ? -a.x : ang === 180 ? -a.y : a.y;   // ...and along its up-down axis
+      const deg = Math.atan2(-sx, Math.max(Math.abs(sy), 4.9)) / D2R;
+      // re-centre: during the countdown the centre follows how the phone is held (up to 12° off level)
       if (tiltZero === null) tiltZero = 0;
-      const t = deg - tiltZero, dead = 2.5;
-      tiltSteer = clamp((Math.abs(t) - dead) / 20, 0, 1) * Math.sign(t) * (tiltMode === 2 ? -1 : 1);
+      if (state === 'countdown') tiltZero += (clamp(deg, -12, 12) - tiltZero) * 0.05;
+      tiltDeg = (deg - tiltZero) * (tiltMode === 2 ? -1 : 1);
     });
   }
   for (const id of ['autoGasBtn', 'autoGasBtn2']) $(id).addEventListener('click', toggleAutoGas);
@@ -8779,8 +8838,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   function updateDebug(dtReal, steps) {
     frameTimes[ftIdx] = dtReal * 1000; ftIdx = (ftIdx + 1) % frameTimes.length;
     fpsAvg += (1 / Math.max(dtReal, 1e-3) - fpsAvg) * 0.05;
-    // gentle nudge when the frame rate is too low to drive well
-    if (state === 'running' && quality === 'high' && fpsAvg < 40) { lowFpsTime += dtReal; if (lowFpsTime > 5 && !lowFpsWarned) { lowFpsWarned = true; banner('LOW FRAME RATE', 'ext', 3); elBannerSub('Press Esc and switch graphics to Low'); } } else lowFpsTime = 0;
+    autoQualityTick(dtReal, window.__fakeFrameMs); if (SHOW_FPS) fpsTick(performance.now());   // ui/pause.js: auto-drop to Low, FPS counter
     if (!debugOn) return;
     const W = dbgCv.width, Hh = dbgCv.height;
     dbgG.clearRect(0, 0, W, Hh);
@@ -8860,9 +8918,11 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
 
   /* ---------- pause menu, quick restart, graphics quality ---------- */
   let pausedFrom = null;
-  // test switch: ?gfx=pc (or ?gfx=high) = desktop graphics on a phone; never saved. ?fps=1 = FPS counter only.
+  // ?gfx=pc (or ?gfx=high) = high graphics for this visit only, never saved, no auto-drop. ?fps=1 = FPS counter only.
   const URLQ = new URLSearchParams(location.search), GFX_PC = /^(pc|high)$/i.test(URLQ.get('gfx') || ''), SHOW_FPS = GFX_PC || URLQ.get('fps') === '1';
-  try { const q = localStorage.getItem('rallyQuality'); quality = q ? (q === 'low' ? 'low' : 'high') : (isTouch ? 'low' : 'high'); } catch (e) { /* ignore */ }
+  // Default: high everywhere (phones too). A saved choice wins ('rallyQualityV2': what the player picked, or what the auto-drop saved).
+  // The old key 'rallyQuality' is only read on non-touch devices: the old code saved 'low' on every phone by itself, so it says nothing about a choice.
+  try { const q = localStorage.getItem('rallyQualityV2') || (isTouch ? null : localStorage.getItem('rallyQuality')); quality = q === 'low' ? 'low' : 'high'; } catch (e) { /* ignore */ }
   if (GFX_PC) quality = 'high';
   function togglePause() {
     if (state === 'paused') { state = pausedFrom; pausedFrom = null; $('pauseMenu').hidden = true; canvas.focus(); return; }
@@ -8874,8 +8934,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     $('qualityBtn').textContent = 'Graphics: ' + (quality === 'high' ? 'High' : 'Low');
     $('debugBtn').textContent = 'Debug overlay: ' + (debugOn ? 'On' : 'Off');
   }
-  function setQuality(q) {
-    quality = q; if (!GFX_PC) try { localStorage.setItem('rallyQuality', q); } catch (e) { /* ignore */ }
+  function setQuality(q, save = true) {
+    quality = q; if (save && !GFX_PC) try { localStorage.setItem('rallyQualityV2', q); } catch (e) { /* ignore */ }
     renderer.shadowMap.enabled = q === 'high'; sun.castShadow = q === 'high';
     scene.traverse(o => { if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) m.needsUpdate = true; });
     resize(); updatePauseLabels();
@@ -8892,18 +8952,80 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   $('replayBtn').addEventListener('click', startReplay);
   [['rpPlay', 'Space'], ['rpSlow', 'ArrowDown'], ['rpFast', 'ArrowUp'], ['rpCam', 'KeyC'], ['rpBack', 'Escape']].forEach(([id, code]) => $(id).addEventListener('click', () => { if (state === 'replay') replayKey(code); }));
 
+
+  /* ---------- automatic fallback: high -> low once if the frame rate stays too low, and the FPS counter ---------- */
+  // Thresholds: smoothed frame time over AUTO_GFX.ms (under 25 fps) for AUTO_GFX.holdS seconds in a row, only while driving
+  // and after AUTO_GFX.warmS seconds of driving (loading, countdown, shader compile hitches never count).
+  // Never switches back up by itself. Off with ?gfx=pc or ?autogfx=0.
+  const AUTO_GFX = { ms: 40, holdS: 3, warmS: 4, on: !GFX_PC && URLQ.get('autogfx') !== '0' };
+  let agSmooth = 16.7, agSlowS = 0, agRunS = 0, agPrev = 0;
+  function autoQualityTick(dtCapped, fakeMs) {
+    const nowMs = performance.now(), wall = agPrev ? Math.min(1, (nowMs - agPrev) / 1000) : dtCapped; agPrev = nowMs;   // wall-clock: the game's own dt is capped at 0.1 s, which would stretch the timers when frames are very slow
+    const dtReal = wall, ms = fakeMs || wall * 1000;
+    if (state !== 'running' || countdown > -0.6) { agSlowS = 0; agRunS = 0; return; }   // not driving (menu, loading, countdown, pause, replay)
+    agRunS += dtReal;
+    agSmooth += (ms - agSmooth) * 0.05;
+    if (!AUTO_GFX.on || quality !== 'high' || agRunS < AUTO_GFX.warmS) { agSlowS = 0; return; }
+    agSlowS = agSmooth > AUTO_GFX.ms ? agSlowS + dtReal : 0;
+    if (agSlowS >= AUTO_GFX.holdS) {
+      setQuality('low'); agSlowS = 0;
+      banner('Graphics set to Low', '', 4.5); elBannerSub('for smoother play. Change it in Pause');
+    }
+  }
+  const fpsBox = $('fpsBox'), fpsDt = [], fpsT = [];
+  let fpsPrev = 0, fpsSm = 0, fpsTxt = 0;
+  if (SHOW_FPS) fpsBox.hidden = false;
+  function fpsTick(now) {
+    if (fpsPrev) {
+      const d = now - fpsPrev; fpsDt.push(d); fpsT.push(now);
+      while (fpsT.length && now - fpsT[0] > 10000) { fpsT.shift(); fpsDt.shift(); }
+      fpsSm = fpsSm ? fpsSm * 0.95 + (1000 / d) * 0.05 : 1000 / d;
+    }
+    fpsPrev = now;
+    if (now - fpsTxt < 500 || fpsDt.length < 5) return;
+    fpsTxt = now;
+    const s = fpsDt.slice().sort((a, b) => b - a), low = 1000 / s[Math.floor(s.length * 0.01)];
+    fpsBox.textContent = (GFX_PC ? 'PC graphics (' + quality + ')  ' : 'gfx ' + quality + '  ') + fpsSm.toFixed(0) + ' fps  1% low ' + low.toFixed(0) +
+      '  |  DPR ' + (window.devicePixelRatio || 1).toFixed(2) + '  render ' + rtColor.width + 'x' + rtColor.height + '  screen ' + innerWidth + 'x' + innerHeight;
+  }
   /* ---------- fixed-step physics ---------- */
   const H = 1 / CONFIG.physicsHz;
-  let smoothGas = 0;
+  // pedal state: smoothed gas (0–1), smoothed tilt (°), auto-gas lift left (s), how long the brake has been held (s)
+  const pedals = { gas: 0, tilt: 0, lift: 0, brakeS: 0, keep: false };   // keep: gas stays down through this brake press
+  // gas pedal: a key or auto gas eases the throttle in and out instead of slamming it
+  function gasStep(target, dt, pp = pedals) {
+    pp.gas += clamp(target - pp.gas, -dt * 14, dt * 12);
+    return pp.gas < 0.02 ? 0 : pp.gas;
+  }
+  // Phone tilt -> steering (CONFIG.arcade.phone): smoothed, a dead zone, gentle around the centre, full lock at tiltFull °.
+  // Any part steering goes to the car as it is; keys are always 0 or full.
+  function tiltToSteer(deg, dt, pp = pedals) {
+    const P = CONFIG.arcade.phone;
+    pp.tilt += (deg - pp.tilt) * Math.min(1, dt / P.tiltSmooth);
+    const x = clamp((Math.abs(pp.tilt) - P.tiltDead) / (P.tiltFull - P.tiltDead), 0, 1);
+    return Math.sign(pp.tilt) * x * (1 - P.tiltCurve + P.tiltCurve * x);
+  }
+  // Auto gas: the gas stays down unless you brake. A quick brake tap or the handbrake also lifts it for a moment,
+  // like a driver on keys would, so the weight goes forward and the tail swings (rule 2). But if the car is already
+  // sliding past keepGasSlide ° when the brake goes on, the gas stays down through it (like holding gas on keys),
+  // so a tap can't push a big slide towards a spin. slideDeg = the car's slide now. true = gas down.
+  function autoGasOn(brakeKey, hbKey, dt, pp = pedals, slideDeg = 0) {
+    const P = CONFIG.arcade.phone;
+    if (brakeKey) { if (pp.brakeS === 0) pp.keep = slideDeg > P.keepGasSlide; pp.brakeS += dt; }
+    else if (pp.brakeS > 0) { if (pp.brakeS <= P.tapS && !pp.keep) pp.lift = Math.max(pp.lift, P.brakeLift); pp.brakeS = 0; pp.keep = false; }
+    if (hbKey) pp.lift = Math.max(pp.lift, P.handbrakeLift); else pp.lift = Math.max(0, pp.lift - dt);
+    return (!brakeKey || pp.keep) && !hbKey && pp.lift <= 0;
+  }
   function physicsStep() {
     const driving = state === 'running';
     const k = n => keys[n] || tapped[n];
-    const tGas = driving && (k('up') || (isTouch && autoGas && !k('down'))) ? 1 : 0;
-    smoothGas += clamp(tGas - smoothGas, -H * 14, H * 12);
-    inp.throttle = smoothGas < 0.02 ? 0 : smoothGas;
+    const phoneGas = isTouch && autoGas && autoGasOn(k('down'), k('hb'), H, pedals, Math.abs(car.beta) / D2R);
+    const tGas = driving && (k('up') || phoneGas) ? 1 : 0;
+    inp.throttle = gasStep(tGas, H);
     inp.brake = driving && k('down') ? 1 : 0;
     const keySteer = (k('right') ? 1 : 0) - (k('left') ? 1 : 0);
-    inp.steer = driving ? (keySteer || (isTouch && tiltMode ? tiltSteer : 0)) : 0;
+    const tiltSteer = isTouch && tiltMode ? tiltToSteer(tiltDeg, H) : 0;
+    inp.steer = driving ? (keySteer || tiltSteer) : 0;
     inp.handbrake = driving && !!k('hb');
     for (const t in tapped) tapped[t] = false;
     car.prevPos.copy(car.pos); car.prevQ.copy(car.q);
@@ -8925,7 +9047,9 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   let camInit = false, camTurn = 0, camSlide = 0, camY = 0, camLookY = 0, shakeT = 0;
   const RUMBLE = { tarmac: 0.004, gravel: 0.016, dirt: 0.02, snow: 0.012, grass: 0.03 };
   const rallyDir = new THREE.Vector3(0, 0, 1), prevVel = new THREE.Vector3(), headOff = new THREE.Vector3(), headTarget = new THREE.Vector3(), worldUp = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion();
-  const CAM_MODES = 5;                 // 0 rally far, 1 chase, 2 bonnet, 3 cockpit, 4 low far view (new modes go at the end)
+  const CAM_MODES = 6;                 // 0 rally far (default), 1 low close chase with speed feel (first press of C), 2 bonnet, 3 cockpit, 4 low far view, 5 original chase (new modes go at the end)
+  const REDUCED_MOTION = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let camSpd = 0;
   let orbitA = 0.6;
   // interpolated pose: physics runs at 120 Hz, the screen at whatever rate it has; drawing the car between
   // its last two physics states removes the stutter you get when the two rates don't line up
@@ -8953,20 +9077,23 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     let hardest = 0; for (const w of car.wheels) hardest = Math.max(hardest, w.compVel || 0);
     if (hardest > 2.2 && landShakeCool <= 0 && state !== 'menu' && state !== 'replay') { addShake(Math.min(1, (hardest - 1.6) / 4)); landShakeCool = 0.3; }
     let surf = 'gravel', nC = 0; for (const w of car.wheels) if (w.contact) { nC++; surf = w.surface; }
-    const rumble = (RUMBLE[surf] || 0.01) * clamp(car.speed / 40, 0, 1.3) * nC / 4 * (state === 'replay' ? 0.5 : 1);
+    const low2 = camMode === 1;                                                // the low close chase: no rumble on tarmac, calmer on loose ground
+    const rumble = (low2 ? (surf === 'tarmac' ? 0 : (RUMBLE[surf] || 0.01) * 0.7) : (RUMBLE[surf] || 0.01)) * clamp(car.speed / 40, 0, 1.3) * nC / 4 * (state === 'replay' ? (low2 ? 0 : 0.5) : 1) * (low2 && REDUCED_MOTION ? 0 : 1);
     const amp = shake * shake * 0.5 + rumble;
     const shX = (Math.sin(shakeT * 41) * 0.6 + Math.sin(shakeT * 67 + 1.3) * 0.4) * amp;
     const shY = (Math.sin(shakeT * 53 + 0.7) * 0.6 + Math.sin(shakeT * 83 + 2.1) * 0.4) * amp;
-    if (camMode <= 1 || camMode === 4) {
+    if (camMode === 0 || camMode === 1 || camMode === 4 || camMode === 5) {
       // chase views: follow a blend of heading and travel so slides read clearly, look into the corner
       // you are turning through, sit a little to the inside of a slide, and ease over crests
-      const far = camMode === 0 || camMode === 4, low = camMode === 4;
+      const far = camMode === 0 || camMode === 4, low = camMode === 4, close = camMode === 1;
+      camSpd += (clamp(car.speed / 45, 0, 1) - camSpd) * (1 - Math.exp(-dt * 2));   // 0..1 speed feel, smoothed (pull back, widen)
       tmpD.set(vFwd.x, 0, vFwd.z).normalize();
       const hv = Math.hypot(car.vel.x, car.vel.z);
-      if (hv > 3 && car.vForward > 0) { tmpV.set(car.vel.x / hv, 0, car.vel.z / hv); tmpD.multiplyScalar(far ? 0.4 : 0.55).addScaledVector(tmpV, far ? 0.6 : 0.45).normalize(); }
+      if (hv > 3 && car.vForward > 0) { tmpV.set(car.vel.x / hv, 0, car.vel.z / hv); tmpD.multiplyScalar(far ? 0.4 : close ? 0.35 : 0.55).addScaledVector(tmpV, far ? 0.6 : close ? 0.65 : 0.45).normalize(); }
       if (far) { rallyDir.lerp(tmpD, 1 - Math.exp(-dt * 2.2)).normalize(); tmpD.copy(rallyDir); }
       const lx = tmpD.z, lz = -tmpD.x;                                         // left of the camera's direction
-      const dist = low ? CC.lowDistance : far ? CC.rallyDistance : CC.chaseDistance, height = low ? CC.lowHeight : far ? CC.rallyHeight : CC.chaseHeight;
+      let dist = low ? CC.lowDistance : far ? CC.rallyDistance : CC.chaseDistance, height = low ? CC.lowHeight : far ? CC.rallyHeight : CC.chaseHeight;
+      if (close) { dist = CC.closeDistance + CC.closePull * camSpd; height = CC.closeHeight + CC.closeRise * camSpd; }
       const inside = -camSlide * (far ? 2.2 : 1.1);                            // towards the inside of the slide
       const want = tmpV.copy(vPos).addScaledVector(tmpD, -dist);
       want.x += lx * inside; want.z += lz * inside;
@@ -8980,12 +9107,12 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       const gMin = terrain.heightAt(camPos.x, camPos.z) + 1.5; if (camY < gMin) camY = gMin;
       camPos.y = camY;
       camLookY += (vPos.y - camLookY) * (1 - Math.exp(-dt * 5));
-      const look = clamp(camTurn * (far ? 3.2 : 2.2), -3.5, 3.5);               // positive turn = left
-      const ahead = low ? CC.lowLookAhead : far ? CC.rallyLookAhead : 2.5;
-      camLook.set(vPos.x + tmpD.x * ahead + lx * look, camLookY + (far ? 0 : 0.9), vPos.z + tmpD.z * ahead + lz * look);
+      const look = clamp(camTurn * (far ? 3.2 : close ? 3.4 : 2.2), -3.5, close ? 4.5 : 3.5);               // positive turn = left
+      const ahead = low ? CC.lowLookAhead : far ? CC.rallyLookAhead : close ? CC.closeLookAhead : 2.5;
+      camLook.set(vPos.x + tmpD.x * ahead + lx * look, camLookY + (far ? 0 : close ? 0.6 : 0.9), vPos.z + tmpD.z * ahead + lz * look);
       camLook.x += lx * shX * 3; camLook.y += shY * 3; camLook.z += lz * shX * 3;
       camera.position.copy(camPos); camera.up.set(0, 1, 0); camera.lookAt(camLook);
-      camera.fov = far ? 46 + Math.min(6, car.speed * 0.1) : 62 + Math.min(10, car.speed * 0.2);
+      camera.fov = close ? CC.closeFov + CC.closeFovGain * camSpd : far ? 46 + Math.min(6, car.speed * 0.1) : 62 + Math.min(10, car.speed * 0.2);
     } else if (camMode === 2) {
       camera.position.set(0, 0.78, 0.55).applyQuaternion(vQ).add(vPos);
       camLook.set(shX * 1.2, 0.6 + shY * 1.2, 12).applyQuaternion(vQ).add(vPos);
@@ -9014,24 +9141,6 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   let lastHud = {}, callAhead = 120, mmTick = 0;
   function setText(el, key, v) { if (lastHud[key] !== v) { lastHud[key] = v; el.textContent = v; } }
 
-  /* FPS counter: smoothed fps and the 1 % low (the slowest 1 % of frames) over the last ~10 s; text refreshed 2x a second */
-  const fpsBox = $('fpsBox'), fpsDt = [], fpsT = [];
-  let fpsPrev = 0, fpsSm = 0, fpsTxt = 0;
-  if (SHOW_FPS) fpsBox.hidden = false;
-  function fpsTick(now) {
-    if (fpsPrev) {
-      const d = now - fpsPrev; fpsDt.push(d); fpsT.push(now);
-      while (fpsT.length && now - fpsT[0] > 10000) { fpsT.shift(); fpsDt.shift(); }
-      fpsSm = fpsSm ? fpsSm * 0.95 + (1000 / d) * 0.05 : 1000 / d;
-    }
-    fpsPrev = now;
-    if (now - fpsTxt < 500 || fpsDt.length < 5) return;
-    fpsTxt = now;
-    const s = fpsDt.slice().sort((a, b) => b - a), low = 1000 / s[Math.floor(s.length * 0.01)];
-    const dpr = window.devicePixelRatio || 1, rw = rtColor.width, rh = rtColor.height;
-    fpsBox.textContent = (GFX_PC ? 'PC graphics (' + quality + ')  ' : 'gfx ' + quality + '  ') + fpsSm.toFixed(0) + ' fps  1% low ' + low.toFixed(0) +
-      '  |  DPR ' + dpr.toFixed(2) + '  render ' + rw + 'x' + rh + '  screen ' + innerWidth + 'x' + innerHeight;
-  }
   function updateVisuals(dt) {
     carGroup.position.copy(vPos); carGroup.quaternion.copy(vQ);
     // visual weight (handling): the body leans, dips and squats on its wheels (car.vis, from the physics); level in replays
@@ -9265,11 +9374,10 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   renderMenu();
   let last = performance.now(), acc = 0;
   dbgEl.hidden = !debugOn;
-  if (quality === 'low') setQuality('low');
+  if (quality === 'low') setQuality('low', false);
   let raceOn = null;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    if (SHOW_FPS) fpsTick(now);
     const on = state === 'running' || state === 'countdown';                 // on-screen controls only while racing
     if (on !== raceOn) { raceOn = on; document.body.classList.toggle('race-on', on); }
     if (state === 'countdown') {
