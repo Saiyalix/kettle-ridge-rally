@@ -417,7 +417,11 @@ class Car {
     else aDrive = -throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
     const rearShare = clamp(A.rearDrive * (CAR.rearDrive || 1), 0, 1);
     const aLift = this.gear > 0 && throttle === 0 && vF > 3 ? A.liftDecel : 0;
-    const holdA = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    const holdFull = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    // part steering (phone tilt): the slide settles at that share of the full hold angle, so a small tilt is a small slide.
+    // Keys are always 0 or full, so this never changes keyboard driving.
+    const part = Math.abs(inp.steer) > 0 && Math.abs(inp.steer) < 1 ? Math.abs(inp.steer) : 1;
+    const holdA = part < 1 ? Math.max(4 * D2R, holdFull * Math.pow(part, A.partHold)) : holdFull;
     // throttle eats rear grip (power slide) up to about the hold angle; past it, it just drives the car forwards
     const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
     const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * A.brakeRear * m + aLift * m * 0.5;   // engine braking: half of it at the rear

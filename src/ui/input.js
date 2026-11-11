@@ -34,7 +34,8 @@
      down unless you brake, so one thumb steers and the other is free for brake and handbrake drifts.
      Tilt steering is optional: the phone's gravity sensor gives analogue steering. */
   const isTouch = !!((window.matchMedia && matchMedia('(pointer: coarse)').matches) || (('ontouchstart' in window) && navigator.maxTouchPoints > 0));
-  let autoGas = true, tiltMode = 0, tiltSteer = 0, tiltZero = null;     // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+  let autoGas = true, tiltMode = 0, tiltDeg = 0, tiltZero = null;       // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+                                                                          // tiltDeg: phone turned like a wheel, ° from centre (+ = right); physicsStep makes it steering
   try { autoGas = localStorage.getItem('rallyAutoGas') !== 'off'; tiltMode = +(localStorage.getItem('rallyTilt') || 0) || 0; } catch (e) { /* ignore */ }
   function touchLabels() {
     document.body.classList.toggle('autogas', isTouch && autoGas);
@@ -81,15 +82,19 @@
     $('tcPause').addEventListener('click', () => { if (state === 'running' || state === 'countdown' || state === 'paused') togglePause(); });
     $('tcCam').addEventListener('click', () => { camMode = (camMode + 1) % CAM_MODES; });
     $('tcReset').addEventListener('click', () => { if (state === 'running') rescue(2, false); });
-    // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen
+    // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen.
+    // Measured against the screen's up-down axis too, so it reads the same whether the phone is held upright or
+    // leaned back (until it is nearly flat). Dead zone, range and smoothing: CONFIG.arcade.phone, in physicsStep.
     window.addEventListener('devicemotion', e => {
       const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
       const ang = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
       const sx = ang === 90 ? -a.y : (ang === 270 || ang === -90) ? a.y : ang === 180 ? -a.x : a.x;   // gravity along the screen's left-right axis
-      const deg = Math.asin(clamp(-sx / 9.81, -1, 1)) / D2R;
+      const sy = ang === 90 ? a.x : (ang === 270 || ang === -90) ? -a.x : ang === 180 ? -a.y : a.y;   // ...and along its up-down axis
+      const deg = Math.atan2(-sx, Math.max(Math.abs(sy), 4.9)) / D2R;
+      // re-centre: during the countdown the centre follows how the phone is held (up to 12° off level)
       if (tiltZero === null) tiltZero = 0;
-      const t = deg - tiltZero, dead = 2.5;
-      tiltSteer = clamp((Math.abs(t) - dead) / 20, 0, 1) * Math.sign(t) * (tiltMode === 2 ? -1 : 1);
+      if (state === 'countdown') tiltZero += (clamp(deg, -12, 12) - tiltZero) * 0.05;
+      tiltDeg = (deg - tiltZero) * (tiltMode === 2 ? -1 : 1);
     });
   }
   for (const id of ['autoGasBtn', 'autoGasBtn2']) $(id).addEventListener('click', toggleAutoGas);
