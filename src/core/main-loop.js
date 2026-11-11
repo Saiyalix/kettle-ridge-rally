@@ -5,7 +5,7 @@
   renderMenu();
   let last = performance.now(), acc = 0;
   dbgEl.hidden = !debugOn;
-  if (quality === 'low') setQuality('low');
+  if (quality === 'low') setQuality('low', false);
   let raceOn = null;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;

@@ -35,7 +35,7 @@ function startServer() {
 
 const launch = () => chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 
-// opts: { probe: bool, viewport, isMobile, hasTouch, deviceScaleFactor }
+// opts: { probe: bool, query: 'gfx=pc', storage: { key: value } (localStorage set before the game starts), viewport, isMobile, hasTouch, deviceScaleFactor }
 async function openGame(browser, base, opts = {}) {
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 720 }, deviceScaleFactor: opts.deviceScaleFactor || 1, isMobile: !!opts.isMobile, hasTouch: !!opts.hasTouch });
   const page = await ctx.newPage();
@@ -58,7 +58,8 @@ async function openGame(browser, base, opts = {}) {
   // web fonts are cosmetic and often blocked in the cloud; the CSS has fallbacks
   await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* ignore */ } });
-  await page.goto(base + '/index.html' + (opts.probe ? '?probe' : ''));
+  if (opts.storage) await page.addInitScript(o => { try { for (const k in o) localStorage.setItem(k, o[k]); } catch (e) { /* ignore */ } }, opts.storage);   // after the clear above
+  await page.goto(base + '/index.html' + (opts.probe ? '?probe' : opts.query ? '?' + opts.query : ''));
   // the game builds stage 1 on load; ready when the menu's start button is enabled
   await page.waitForFunction(() => { const b = document.getElementById('startBtn'); return b && !b.disabled; }, null, { timeout: 120000 });
   // font/cdn failures we caused ourselves are not game errors
