@@ -413,3 +413,7 @@ Owner approved the round ("go on with the steps as you described them"). All in 
 - **Shake**: none on tarmac, 70 % of the usual surface rumble on loose ground, none in replays; none at all if the phone or browser asks for reduced motion (`prefers-reduced-motion`). Landing and hit shake still work (short, small).
 - **Numbering**: the old chase view moved from mode 1 to mode 5 so the new one is next after the default; the other modes keep their numbers (cockpit 3 is used by sound, HUD and the blur).
 - **Default stays the far rally camera (mode 0).** The new view makes speed read much better and the road edge stays clear, but being low it shows less of the road beyond a hairpin than the far rally view, so it is offered first, not forced. Change the default only after the owner has tried it.
+
+## 2026-11-11 · Art: close chase camera raised a little
+**Request (owner):** "place it a tad bit higher so the car blocks less of the screen and the road ahead is better visible."
+- `CONFIG.camera`: `closeHeight` 1.25 to 1.85 m, `closeRise` 0.25 to 0.3 m, `closeLookAhead` 7 to 11 m (aim point further down the road, so a lower pitch). Distance, pull-back, field of view and shake are unchanged. Default camera unchanged (mode 0). Also fixed the config comment (close cam is mode 1, not 5). Camera only, no physics.
