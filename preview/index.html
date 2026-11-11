@@ -610,6 +610,8 @@ const CONFIG = {
     frontAim: 1.0,                // held key = front tyres at this × their peak slip angle. Higher = sharper turn-in, more rotation
     slideHold: 1.15,              // × the surface's `slide` angle where a held key stops adding rotation (the slide settles there).
                                   // Higher = bigger, longer slides from steering alone
+    partHold: 1.0,                // part steering (phone tilt): a held part key settles the slide at (share ^ partHold) × the full
+                                  // key's hold angle. 1 = in proportion; higher = small tilts slide even less. Keys are always full
     slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
     slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
@@ -631,6 +633,18 @@ const CONFIG = {
     settle: 4,                    // 1/s: with no key, extra help bringing the car back in line (higher = quicker, less swing-back)
     guard: { from: 42, range: 30, push: 9, damp: 7 }, // spin guard: from this angle (°), fully on `range` ° later; push = rad/s² back
                                                        // towards the travel, damp = how hard it brakes the rotation. Higher = harder to spin
+    // Phones (src/handling/physics-step.js): tilt steering and auto gas. Keys never use these.
+    phone: {
+      tiltDead: 3,                // ° of tilt that does nothing (hand shake). Higher = calmer on straights, less fine control
+      tiltFull: 28,               // ° of tilt for full lock. Higher = less twitchy, but you turn the phone further for hairpins
+      tiltCurve: 0.25,            // 0 = straight line; higher = gentler around the centre, same full lock
+      tiltSmooth: 0.05,           // s: smoothing of the tilt sensor. Higher = steadier but laggier
+      tapS: 0.35,                 // s: a brake press shorter than this counts as a tap...
+      brakeLift: 0.2,             // ...and keeps auto gas off this long after it (s). Higher = a tap rotates the car more
+      keepGasSlide: 36,           // ° of slide: past this when the brake goes on, auto gas stays down through the brake (no lift),
+                                  // like holding gas on keys. Lower = calmer big slides, less rotation from a tap mid-drift
+      handbrakeLift: 0.25,        // s auto gas stays off after the handbrake (it is always off while held). Higher = more rotation
+    },
     drift: {
       minSpeed: 9,                // m/s (≈32 km/h): slower than this the car never counts as drifting
       on: 12,                     // ° of slide that counts as a drift (HUD, sound, replays, dust)...
@@ -716,8 +730,8 @@ const CONFIG = {
   camera: { chaseDistance: 6.6, chaseHeight: 2.3, chaseLag: 7.0, rallyDistance: 15, rallyHeight: 10.5, rallyLookAhead: 7,
     // extra camera mode 4 (low far view, shows the sky): same follow as the far rally camera, lower and looking further ahead
     lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15,
-    // mode 5: low, close chase. Sits near the road so it rushes past; pulls back, rises a little and widens the view with speed (0 to 45 m/s)
-    closeDistance: 4.6, closePull: 1.8, closeHeight: 1.25, closeRise: 0.25, closeLookAhead: 7, closeFov: 66, closeFovGain: 16 },
+    // mode 1: low, close chase. Sits near the road so it rushes past; pulls back, rises a little and widens the view with speed (0 to 45 m/s)
+    closeDistance: 5.6, closePull: 1.8, closeHeight: 2.2, closeRise: 0.3, closeLookAhead: 12, closeFov: 66, closeFovGain: 16 },
 };
 
 /* ---------- small helpers ---------- */
@@ -1788,7 +1802,11 @@ class Car {
     else aDrive = -throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
     const rearShare = clamp(A.rearDrive * (CAR.rearDrive || 1), 0, 1);
     const aLift = this.gear > 0 && throttle === 0 && vF > 3 ? A.liftDecel : 0;
-    const holdA = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    const holdFull = Math.min(Math.max(4 * D2R, A.slideHold * SS.slide * D2R * CAR.drift) + D.holdExtra * D2R * CAR.drift * boost, (A.guard.from - 6) * D2R);
+    // part steering (phone tilt): the slide settles at that share of the full hold angle, so a small tilt is a small slide.
+    // Keys are always 0 or full, so this never changes keyboard driving.
+    const part = Math.abs(inp.steer) > 0 && Math.abs(inp.steer) < 1 ? Math.abs(inp.steer) : 1;
+    const holdA = part < 1 ? Math.max(4 * D2R, holdFull * Math.pow(part, A.partHold)) : holdFull;
     // throttle eats rear grip (power slide) up to about the hold angle; past it, it just drives the car forwards
     const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
     const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * A.brakeRear * m + aLift * m * 0.5;   // engine braking: half of it at the rear
@@ -8422,7 +8440,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
      down unless you brake, so one thumb steers and the other is free for brake and handbrake drifts.
      Tilt steering is optional: the phone's gravity sensor gives analogue steering. */
   const isTouch = !!((window.matchMedia && matchMedia('(pointer: coarse)').matches) || (('ontouchstart' in window) && navigator.maxTouchPoints > 0));
-  let autoGas = true, tiltMode = 0, tiltSteer = 0, tiltZero = null;     // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+  let autoGas = true, tiltMode = 0, tiltDeg = 0, tiltZero = null;       // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+                                                                          // tiltDeg: phone turned like a wheel, ° from centre (+ = right); physicsStep makes it steering
   try { autoGas = localStorage.getItem('rallyAutoGas') !== 'off'; tiltMode = +(localStorage.getItem('rallyTilt') || 0) || 0; } catch (e) { /* ignore */ }
   function touchLabels() {
     document.body.classList.toggle('autogas', isTouch && autoGas);
@@ -8469,15 +8488,19 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     $('tcPause').addEventListener('click', () => { if (state === 'running' || state === 'countdown' || state === 'paused') togglePause(); });
     $('tcCam').addEventListener('click', () => { camMode = (camMode + 1) % CAM_MODES; });
     $('tcReset').addEventListener('click', () => { if (state === 'running') rescue(2, false); });
-    // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen
+    // tilt: how far the phone is turned like a steering wheel, from the gravity direction across the screen.
+    // Measured against the screen's up-down axis too, so it reads the same whether the phone is held upright or
+    // leaned back (until it is nearly flat). Dead zone, range and smoothing: CONFIG.arcade.phone, in physicsStep.
     window.addEventListener('devicemotion', e => {
       const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
       const ang = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
       const sx = ang === 90 ? -a.y : (ang === 270 || ang === -90) ? a.y : ang === 180 ? -a.x : a.x;   // gravity along the screen's left-right axis
-      const deg = Math.asin(clamp(-sx / 9.81, -1, 1)) / D2R;
+      const sy = ang === 90 ? a.x : (ang === 270 || ang === -90) ? -a.x : ang === 180 ? -a.y : a.y;   // ...and along its up-down axis
+      const deg = Math.atan2(-sx, Math.max(Math.abs(sy), 4.9)) / D2R;
+      // re-centre: during the countdown the centre follows how the phone is held (up to 12° off level)
       if (tiltZero === null) tiltZero = 0;
-      const t = deg - tiltZero, dead = 2.5;
-      tiltSteer = clamp((Math.abs(t) - dead) / 20, 0, 1) * Math.sign(t) * (tiltMode === 2 ? -1 : 1);
+      if (state === 'countdown') tiltZero += (clamp(deg, -12, 12) - tiltZero) * 0.05;
+      tiltDeg = (deg - tiltZero) * (tiltMode === 2 ? -1 : 1);
     });
   }
   for (const id of ['autoGasBtn', 'autoGasBtn2']) $(id).addEventListener('click', toggleAutoGas);
@@ -8967,16 +8990,42 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   }
   /* ---------- fixed-step physics ---------- */
   const H = 1 / CONFIG.physicsHz;
-  let smoothGas = 0;
+  // pedal state: smoothed gas (0–1), smoothed tilt (°), auto-gas lift left (s), how long the brake has been held (s)
+  const pedals = { gas: 0, tilt: 0, lift: 0, brakeS: 0, keep: false };   // keep: gas stays down through this brake press
+  // gas pedal: a key or auto gas eases the throttle in and out instead of slamming it
+  function gasStep(target, dt, pp = pedals) {
+    pp.gas += clamp(target - pp.gas, -dt * 14, dt * 12);
+    return pp.gas < 0.02 ? 0 : pp.gas;
+  }
+  // Phone tilt -> steering (CONFIG.arcade.phone): smoothed, a dead zone, gentle around the centre, full lock at tiltFull °.
+  // Any part steering goes to the car as it is; keys are always 0 or full.
+  function tiltToSteer(deg, dt, pp = pedals) {
+    const P = CONFIG.arcade.phone;
+    pp.tilt += (deg - pp.tilt) * Math.min(1, dt / P.tiltSmooth);
+    const x = clamp((Math.abs(pp.tilt) - P.tiltDead) / (P.tiltFull - P.tiltDead), 0, 1);
+    return Math.sign(pp.tilt) * x * (1 - P.tiltCurve + P.tiltCurve * x);
+  }
+  // Auto gas: the gas stays down unless you brake. A quick brake tap or the handbrake also lifts it for a moment,
+  // like a driver on keys would, so the weight goes forward and the tail swings (rule 2). But if the car is already
+  // sliding past keepGasSlide ° when the brake goes on, the gas stays down through it (like holding gas on keys),
+  // so a tap can't push a big slide towards a spin. slideDeg = the car's slide now. true = gas down.
+  function autoGasOn(brakeKey, hbKey, dt, pp = pedals, slideDeg = 0) {
+    const P = CONFIG.arcade.phone;
+    if (brakeKey) { if (pp.brakeS === 0) pp.keep = slideDeg > P.keepGasSlide; pp.brakeS += dt; }
+    else if (pp.brakeS > 0) { if (pp.brakeS <= P.tapS && !pp.keep) pp.lift = Math.max(pp.lift, P.brakeLift); pp.brakeS = 0; pp.keep = false; }
+    if (hbKey) pp.lift = Math.max(pp.lift, P.handbrakeLift); else pp.lift = Math.max(0, pp.lift - dt);
+    return (!brakeKey || pp.keep) && !hbKey && pp.lift <= 0;
+  }
   function physicsStep() {
     const driving = state === 'running';
     const k = n => keys[n] || tapped[n];
-    const tGas = driving && (k('up') || (isTouch && autoGas && !k('down'))) ? 1 : 0;
-    smoothGas += clamp(tGas - smoothGas, -H * 14, H * 12);
-    inp.throttle = smoothGas < 0.02 ? 0 : smoothGas;
+    const phoneGas = isTouch && autoGas && autoGasOn(k('down'), k('hb'), H, pedals, Math.abs(car.beta) / D2R);
+    const tGas = driving && (k('up') || phoneGas) ? 1 : 0;
+    inp.throttle = gasStep(tGas, H);
     inp.brake = driving && k('down') ? 1 : 0;
     const keySteer = (k('right') ? 1 : 0) - (k('left') ? 1 : 0);
-    inp.steer = driving ? (keySteer || (isTouch && tiltMode ? tiltSteer : 0)) : 0;
+    const tiltSteer = isTouch && tiltMode ? tiltToSteer(tiltDeg, H) : 0;
+    inp.steer = driving ? (keySteer || tiltSteer) : 0;
     inp.handbrake = driving && !!k('hb');
     for (const t in tapped) tapped[t] = false;
     car.prevPos.copy(car.pos); car.prevQ.copy(car.q);
