@@ -49,6 +49,7 @@ core/game-flow.js         # game state, co-driver voice, start/rescue/menu/champ
 ui/menu.js                # main menu: stage cards, car pick
 ui/results.js             # messages, splits, finish screen, game over
 tracks/checkpoints.js     # progress along the road, checkpoints, finish, obstacle lookup
+tracks/ghost.js           # ghost of your best run per stage + car, gap to ghost and rivals
 core/debug-replay.js      # F1 debug overlay, run recording, replay viewer
 ui/pause.js               # pause menu, restart, graphics quality
 handling/physics-step.js  # fixed 120 Hz physics step: input → car

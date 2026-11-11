@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { startServer, launch } = require('./lib/game');
 
-const ALL = ['build', 'load', 'bot', 'handling', 'mobile', 'phone', 'gfx'];
+const ALL = ['build', 'load', 'bot', 'handling', 'mobile', 'phone', 'gfx', 'ghost'];
 const args = process.argv.slice(2);
 const RECORD = args.includes('--record');
 const picked = args.filter(a => ALL.includes(a));
