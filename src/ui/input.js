@@ -48,9 +48,21 @@
   function cycleTilt() {
     tiltMode = (tiltMode + 1) % 3; tiltZero = null;
     try { localStorage.setItem('rallyTilt', String(tiltMode)); } catch (e) { /* ignore */ }
-    if (tiltMode && window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission().catch(() => {});
+    tiltSeen = false; tiltWait = 0; document.body.classList.remove('tilt-off');
+    if (tiltMode && window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission().then(r => { if (r !== 'granted') tiltFail(); }).catch(tiltFail);
     touchLabels();
   }
+  // No working tilt sensor (none, or permission refused): show the steer buttons again and say so. The saved setting stays.
+  let tiltSeen = false, tiltWait = 0;
+  function tiltFail() {
+    if (!isTouch || !tiltMode || tiltSeen || document.body.classList.contains('tilt-off')) return;
+    document.body.classList.add('tilt-off');
+    banner('Tilt not available', '', 4.5); elBannerSub('using buttons');
+  }
+  setInterval(() => {                                   // 2 s of racing (countdown included) with no usable sensor reading
+    if (!isTouch || !tiltMode || tiltSeen) return;
+    if (state === 'countdown' || state === 'running') { tiltWait += 0.25; if (tiltWait >= 2) tiltFail(); }
+  }, 250);
   if (isTouch) {
     document.body.classList.add('touch');
     const pad = $('touch'), held = new Map();                // finger -> key it is holding
@@ -86,7 +98,8 @@
     // Measured against the screen's up-down axis too, so it reads the same whether the phone is held upright or
     // leaned back (until it is nearly flat). Dead zone, range and smoothing: CONFIG.arcade.phone, in physicsStep.
     window.addEventListener('devicemotion', e => {
-      const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
+      const a = e.accelerationIncludingGravity; if (!a || a.x == null || a.y == null) return;
+      tiltSeen = true;
       const ang = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
       const sx = ang === 90 ? -a.y : (ang === 270 || ang === -90) ? a.y : ang === 180 ? -a.x : a.x;   // gravity along the screen's left-right axis
       const sy = ang === 90 ? a.x : (ang === 270 || ang === -90) ? -a.x : ang === 180 ? -a.y : a.y;   // ...and along its up-down axis

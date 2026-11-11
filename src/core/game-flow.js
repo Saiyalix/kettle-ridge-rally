@@ -2,7 +2,14 @@
   let state = 'menu', raceTime = 0, countdown = 0, progIdx = 0, nextCp = 0, splits = [], lastCpS = 0, stuckTimer = 0, camMode = 0;
   let best = null, fallTimer = 0;
   const startS = 6;
-  const loadBest = (st) => { try { return JSON.parse(localStorage.getItem(st.bestKey) || 'null'); } catch (e) { return null; } };
+  // Best times live on the device, per stage AND per car: <bestKey>_<car id> = { time, splits, v }. v = the stage's times version
+  // (st.timesVer, default 1; tracks bumps it when a stage is re-timed, which retires older times). The old per-stage value
+  // (<bestKey>, from before cars were separate) still counts as the best for any car until a car beats it.
+  const bestVer = st => st.timesVer || 1;
+  const carKey = st => st.bestKey + '_' + CONFIG.cars[CONFIG.carIndex].id;
+  const readBest = (key, st) => { try { const b = JSON.parse(localStorage.getItem(key) || 'null'); return b && typeof b.time === 'number' && (b.v || 1) === bestVer(st) ? b : null; } catch (e) { return null; } };
+  const loadBest = st => readBest(carKey(st), st) || readBest(st.bestKey, st);
+  const saveBest = (st, b) => { try { localStorage.setItem(carKey(st), JSON.stringify({ time: b.time, splits: b.splits, v: bestVer(st) })); } catch (e) { /* storage unavailable */ } };
   // arcade state
   let lastBeep = 9, timeLeft = 0, raceOrder = null, finishPos = FIELD, lastClass = null, champ = null, bannerTimer = 0, lastWarn = 99, lastNote = null;
   const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');

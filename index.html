@@ -293,7 +293,7 @@ body.autogas .tc-gas { display: none; }
 body.autogas .tc-brake { height: clamp(96px, 34vh, 150px); }
 .tc-top { position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
 #touch .tc-mini { width: 46px; height: 40px; border-radius: 10px; font-size: 14px; font-style: normal; }
-body.tilt .tc-left { display: none; }
+body.tilt:not(.tilt-off) .tc-left { display: none; }   /* .tilt-off: no sensor, so the steer buttons come back */
 #rotate { position: fixed; inset: 0; z-index: 20; display: none; place-items: center; text-align: center; padding: 24px; background: #0a1840; color: #fff; font-family: var(--f-arcade); font-size: 24px; }
 #rotate span { display: block; font-size: 64px; margin-bottom: 12px; animation: tilt 1.6s ease-in-out infinite; }
 @keyframes tilt { 50% { transform: rotate(90deg); } }
@@ -8454,9 +8454,21 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   function cycleTilt() {
     tiltMode = (tiltMode + 1) % 3; tiltZero = null;
     try { localStorage.setItem('rallyTilt', String(tiltMode)); } catch (e) { /* ignore */ }
-    if (tiltMode && window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission().catch(() => {});
+    tiltSeen = false; tiltWait = 0; document.body.classList.remove('tilt-off');
+    if (tiltMode && window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission().then(r => { if (r !== 'granted') tiltFail(); }).catch(tiltFail);
     touchLabels();
   }
+  // No working tilt sensor (none, or permission refused): show the steer buttons again and say so. The saved setting stays.
+  let tiltSeen = false, tiltWait = 0;
+  function tiltFail() {
+    if (!isTouch || !tiltMode || tiltSeen || document.body.classList.contains('tilt-off')) return;
+    document.body.classList.add('tilt-off');
+    banner('Tilt not available', '', 4.5); elBannerSub('using buttons');
+  }
+  setInterval(() => {                                   // 2 s of racing (countdown included) with no usable sensor reading
+    if (!isTouch || !tiltMode || tiltSeen) return;
+    if (state === 'countdown' || state === 'running') { tiltWait += 0.25; if (tiltWait >= 2) tiltFail(); }
+  }, 250);
   if (isTouch) {
     document.body.classList.add('touch');
     const pad = $('touch'), held = new Map();                // finger -> key it is holding
@@ -8492,7 +8504,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     // Measured against the screen's up-down axis too, so it reads the same whether the phone is held upright or
     // leaned back (until it is nearly flat). Dead zone, range and smoothing: CONFIG.arcade.phone, in physicsStep.
     window.addEventListener('devicemotion', e => {
-      const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
+      const a = e.accelerationIncludingGravity; if (!a || a.x == null || a.y == null) return;
+      tiltSeen = true;
       const ang = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
       const sx = ang === 90 ? -a.y : (ang === 270 || ang === -90) ? a.y : ang === 180 ? -a.x : a.x;   // gravity along the screen's left-right axis
       const sy = ang === 90 ? a.x : (ang === 270 || ang === -90) ? -a.x : ang === 180 ? -a.y : a.y;   // ...and along its up-down axis
@@ -8520,7 +8533,14 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   let state = 'menu', raceTime = 0, countdown = 0, progIdx = 0, nextCp = 0, splits = [], lastCpS = 0, stuckTimer = 0, camMode = 0;
   let best = null, fallTimer = 0;
   const startS = 6;
-  const loadBest = (st) => { try { return JSON.parse(localStorage.getItem(st.bestKey) || 'null'); } catch (e) { return null; } };
+  // Best times live on the device, per stage AND per car: <bestKey>_<car id> = { time, splits, v }. v = the stage's times version
+  // (st.timesVer, default 1; tracks bumps it when a stage is re-timed, which retires older times). The old per-stage value
+  // (<bestKey>, from before cars were separate) still counts as the best for any car until a car beats it.
+  const bestVer = st => st.timesVer || 1;
+  const carKey = st => st.bestKey + '_' + CONFIG.cars[CONFIG.carIndex].id;
+  const readBest = (key, st) => { try { const b = JSON.parse(localStorage.getItem(key) || 'null'); return b && typeof b.time === 'number' && (b.v || 1) === bestVer(st) ? b : null; } catch (e) { return null; } };
+  const loadBest = st => readBest(carKey(st), st) || readBest(st.bestKey, st);
+  const saveBest = (st, b) => { try { localStorage.setItem(carKey(st), JSON.stringify({ time: b.time, splits: b.splits, v: bestVer(st) })); } catch (e) { /* storage unavailable */ } };
   // arcade state
   let lastBeep = 9, timeLeft = 0, raceOrder = null, finishPos = FIELD, lastClass = null, champ = null, bannerTimer = 0, lastWarn = 99, lastNote = null;
   const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
@@ -8751,15 +8771,15 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     cue.goal(); say(finishPos === 1 ? 'Goal! Fastest time!' : 'Goal!', true);
     const isBest = !best || raceTime < best.time;
     const prev = best;
-    if (isBest) { best = { time: raceTime, splits: splits.slice() }; try { localStorage.setItem(ST.bestKey, JSON.stringify(best)); } catch (e) { /* storage unavailable */ } }
+    if (isBest) { best = { time: raceTime, splits: splits.slice() }; saveBest(ST, best); }
     const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
     $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${CHAMP_STAGES} · ${ST.name}`) : ST.code + ' · ' + ST.name;
     $('resPos').textContent = ordinal(finishPos);
     $('resPos').className = 'big pos' + (finishPos === 1 ? ' p1' : '');
     const lead = lastClass[0];
-    $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
+    $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">NEW BEST' + (prev ? ' −' + (prev.time - raceTime).toFixed(2) + ' s' : '') + '</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
     $('bestLine').textContent = prev ? (isBest ? `Your best time on this stage, ${(prev.time - raceTime).toFixed(2)} s quicker.` : `Your best here is ${fmtTime(best.time)}.`) : 'First time recorded on this stage.';
-    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
+    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">NEW BEST' + (prev ? ' −' + (prev.time - raceTime).toFixed(2) + ' s' : '') + '</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
     showResults(lastClass, me);
     $('againBtn').textContent = ST.practice ? 'Drive again' : 'Race again';
     setTimeout(() => { if (state === 'finished') { $('finishScreen').hidden = false; ($('nextBtn').hidden ? $('againBtn') : $('nextBtn')).focus(); } }, 2400);

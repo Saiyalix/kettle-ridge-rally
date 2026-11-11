@@ -49,15 +49,15 @@
     cue.goal(); say(finishPos === 1 ? 'Goal! Fastest time!' : 'Goal!', true);
     const isBest = !best || raceTime < best.time;
     const prev = best;
-    if (isBest) { best = { time: raceTime, splits: splits.slice() }; try { localStorage.setItem(ST.bestKey, JSON.stringify(best)); } catch (e) { /* storage unavailable */ } }
+    if (isBest) { best = { time: raceTime, splits: splits.slice() }; saveBest(ST, best); }
     const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
     $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${CHAMP_STAGES} · ${ST.name}`) : ST.code + ' · ' + ST.name;
     $('resPos').textContent = ordinal(finishPos);
     $('resPos').className = 'big pos' + (finishPos === 1 ? ' p1' : '');
     const lead = lastClass[0];
-    $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
+    $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">NEW BEST' + (prev ? ' −' + (prev.time - raceTime).toFixed(2) + ' s' : '') + '</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
     $('bestLine').textContent = prev ? (isBest ? `Your best time on this stage, ${(prev.time - raceTime).toFixed(2)} s quicker.` : `Your best here is ${fmtTime(best.time)}.`) : 'First time recorded on this stage.';
-    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
+    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">NEW BEST' + (prev ? ' −' + (prev.time - raceTime).toFixed(2) + ' s' : '') + '</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
     showResults(lastClass, me);
     $('againBtn').textContent = ST.practice ? 'Drive again' : 'Race again';
     setTimeout(() => { if (state === 'finished') { $('finishScreen').hidden = false; ($('nextBtn').hidden ? $('againBtn') : $('nextBtn')).focus(); } }, 2400);
