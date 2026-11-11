@@ -97,6 +97,8 @@ const CONFIG = {
   //     rotates into a slide. How easily depends on the surface (rear grip, peak), the car, speed, throttle,
   //     braking and weight transfer. The slide settles where front and rear balance, never in a spin.
   //  3. The handbrake takes most of the rear grip away (tight turns, hairpins).
+  //  The tyres decide where the car goes: in a slide the lost rear grip still bends the path towards the nose (slideCarry,
+  //  powerCarry), and a slide costs a little speed (slideKeep), so drifting is never faster than gripping.
   //  4. Spin guard: past guard.from degrees the car resists the slide growing, hard.
   // Weight (body roll, dive, squat, bounce) is drawn from the real accelerations: see `body` below.
   arcade: {
@@ -120,13 +122,17 @@ const CONFIG = {
                                   // Higher = bigger, longer slides from steering alone
     partHold: 1.0,                // part steering (phone tilt): a held part key settles the slide at (share ^ partHold) × the full
                                   // key's hold angle. 1 = in proportion; higher = small tilts slide even less. Keys are always full
-    slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
+    slideCatch: 0.18,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
     slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
     slideFull: 19,                // m/s (68 km/h): ...above this the surface's full rear looseness applies
-    slideCarry: 1.0,              // share of the rear grip lost to a loose surface that still bends your path (at the centre, so the
-                                  // tail still swings out). Higher = slides corner as hard as gripping: sliding is the fast way round
-    slideKeep: 0.6,               // share of the speed a slide scrubs that you keep. Higher = a held slide loses less speed (1 = none)
+    slideCarry: 1.0,              // share of the rear grip lost to a loose surface that still bends your path towards the nose (at the
+                                  // centre, so the tail still swings out). Higher = slides corner as hard as gripping
+    slideKeep: 0.75,              // share of the speed a slide scrubs (tyres and carried grip) that you keep. Higher = a held slide loses
+                                  // less speed (1 = none, sliding gets faster than gripping); lower = drifting costs more speed
+    powerCarry: 0.9,              // share of the rear side grip that throttle takes (power slide) which still pulls the car round towards
+                                  // the nose (fades in with slideFrom/slideFull). Higher = on the gas in a drift the car goes where the
+                                  // nose points; 0 = throttle only swings the tail and the car runs wide
     weightShift: 1.4,             // × the real load transfer between the axles. Higher = braking or lifting swings the tail more
     powerSlide: 1.0,              // share of the rear drive force that eats rear grip. Higher = throttle pushes the tail out more
     brakeRear: 0.35,              // share of braking done by the rear wheels
