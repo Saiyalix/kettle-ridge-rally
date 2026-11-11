@@ -413,3 +413,11 @@ Owner approved the round ("go on with the steps as you described them"). All in 
 - **Shake**: none on tarmac, 70 % of the usual surface rumble on loose ground, none in replays; none at all if the phone or browser asks for reduced motion (`prefers-reduced-motion`). Landing and hit shake still work (short, small).
 - **Numbering**: the old chase view moved from mode 1 to mode 5 so the new one is next after the default; the other modes keep their numbers (cockpit 3 is used by sound, HUD and the blur).
 - **Default stays the far rally camera (mode 0).** The new view makes speed read much better and the road edge stays clear, but being low it shows less of the road beyond a hairpin than the far rally view, so it is offered first, not forced. Change the default only after the owner has tried it.
+
+## 2026-11-11 · UI: PC graphics by default on phones, with an automatic fallback
+**Request (owner):** phone speed with PC graphics (`?gfx=pc` on the preview) was "perfect"; Package 2, "Phone first".
+- **Default**: graphics quality is **High** on every device, phones included. Before, touch devices defaulted to Low.
+- **Saved choice wins**: the Pause button and the auto-drop save to `rallyQualityV2`. The old key `rallyQuality` is read only on non-touch devices, because the old code saved "low" on every phone by itself at start (so it is not a player choice); phones that had it start on High once and can pick Low in Pause.
+- **Auto-drop** (`autoQualityTick` in `ui/pause.js`): while driving (not in menu, loading, countdown, pause, replay), after 4 s of driving, if the smoothed frame time stays over **40 ms (under 25 fps) for 3 s in a row**, it switches to Low once, saves it, and shows a 4.5 s message ("Graphics set to Low / for smoother play. Change it in Pause"). It never switches back up by itself. Timers use wall-clock time (the game's own frame step is capped at 0.1 s). This replaces the old "LOW FRAME RATE" nudge (below 40 fps for 5 s) in `core/debug-replay.js`.
+- **Switches kept**: `?gfx=pc` / `?gfx=high` = High for this visit only (not saved, no auto-drop) with the FPS counter; `?fps=1` = FPS counter only; new `?autogfx=0` = no auto-drop. These switches existed only on the preview page; they are now in the real game.
+- **Test**: `tests/gfx.test.js` fakes slow frames with `window.__fakeFrameMs` (the container has no GPU).
