@@ -28,6 +28,10 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   checks.push({ name: 'menu: items do not overlap', pass: mo.length === 0, detail: mo.length ? mo.join(', ') : `${menu.length} items checked` });
   const wide = menu.filter(r => r.x < -1 || r.x + r.w > vw + 1).map(r => r.name);
   checks.push({ name: 'menu: nothing cut off left or right', pass: wide.length === 0, detail: wide.length ? wide.join(', ') : 'ok' });
+  const cards = menu.filter(r => r.name.startsWith('.stage-card'));
+  const offCards = cards.filter(r => !inside(r)).map(r => r.name);
+  checks.push({ name: 'menu: all stage cards (SS1-SS4 + Test Track) on screen without scrolling', pass: cards.length === 5 && offCards.length === 0,
+    detail: cards.length !== 5 ? `found ${cards.length} cards, expected 5` : offCards.length ? 'off screen: ' + offCards.join(', ') : 'all 5 visible' });
   const startBefore = menu.find(r => r.name === '#startBtn');
   await g.page.evaluate(() => document.getElementById('startBtn').scrollIntoView({ block: 'nearest' }));
   const [start] = await rectsOf(g.page, ['#startBtn']);

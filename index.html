@@ -325,6 +325,26 @@ body.touch #mapwrap { top: calc(54px + env(safe-area-inset-top, 0px)); }
 }
 @media (max-height: 800px) { .menu-panel { gap: 10px; } }
 @media (max-height: 520px) { .menu-panel { gap: 8px; } .carblurb { display: none; } }
+
+/* Short landscape phones (about 360 px tall): compact stage cards in two columns so all 5 stages, the car/paint rows
+   and Race fit without scrolling. Skipped for portrait (that has its own bottom sheet layout above). */
+@media (max-height: 420px) and (orientation: landscape) {
+  .menu-panel { width: min(640px, 100%); gap: 6px; padding-block: calc(8px + env(safe-area-inset-top, 0px)) calc(8px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+  .logo { flex-direction: row; align-items: baseline; gap: 8px; margin: 0 0 0 6px; }
+  .logo .l1 { font-size: 18px; } .logo .l2 { font-size: 26px; }
+  .logo span { -webkit-text-stroke: 1px #0d1216; filter: drop-shadow(2px 2px 0 #0d1216); }
+  .stage-list { grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+  .stage-card { grid-template-columns: auto 1fr; align-items: center; min-height: 40px; padding: 4px 10px; row-gap: 0; }
+  .sc-code { grid-row: 1 / span 2; font-size: 17px; padding-top: 0; align-self: center; }
+  .sc-name { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sc-best { grid-column: 2; grid-row: 2; font-size: 11px; text-align: left; }
+  .sc-meta, .sc-surf, .blurb, .carblurb, .tip { display: none; }
+  .pick-row { gap: 8px; flex-wrap: nowrap; }
+  .car-chip { padding: 4px 10px; font-size: 15px; min-height: 40px; box-sizing: border-box; }
+  .menu-actions { gap: 10px; }
+  .toggle { font-size: 13px; }
+}
 </style>
 </head>
 <body>
