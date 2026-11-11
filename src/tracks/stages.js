@@ -45,7 +45,7 @@ const THORN_PRE = [
   ['R', 60, 70], ['S', 40], ['L', 85, 38], ['S', 70], ['R', 30, 150], ['S', 80], ['L', 55, 60], ['S', 40], ['R', 100, 34], ['S', 40],   // forest (bridge hump on the 80 m straight)
   ['R', 70, 50], ['S', 30], ['L', 140, 24], ['S', 30], ['R', 60, 80], ['S', 20], ['L', 40, 100], ['S', 53],                  // the climb to the castle
 ];
-const THORN_CASTLE = [['S', 40], ['R', 90, 18], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
+const THORN_CASTLE = [['S', 40], ['R', 90, 22], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
 const THORN_POST = [
   ['S', 25], ['R', 100, 40], ['S', 40], ['L', 55, 60], ['S', 40], ['R', 75, 45], ['S', 40], ['L', 60, 55], ['S', 50],             // winding descent past the wall and moat
   ['R', 40, 100], ['S', 60], ['L', 70, 50], ['S', 50], ['R', 50, 70], ['S', 80], ['S', 150],                                      // down to the meadow
@@ -195,7 +195,7 @@ const STAGES = [
     checkpoints: [560, 1100, 1700, 2120],
     timeStart: 31, timeExt: [26, 31, 22, 16], refTime: 111,
     jumps: [[850, 1.9]],
-    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 18] },
+    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 22] },
     segments: [...THORN_PRE, ...THORN_CASTLE, ...THORN_POST],
     // look (art): a misty morning at dawn. Low warm sun behind the player on the approach (long shadows, the castle front glows), pale golden sky,
     // soft peach mist in the valleys (fog starts close, so far hills and the keep melt into it), cool blue shade, dew-bright meadows.

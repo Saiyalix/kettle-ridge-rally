@@ -235,7 +235,7 @@
         }
       }
     } else if (ST.id === 'vulture') {
-      // drop side: a continuous low stone wall hugging the road (same line as the old corner walls). Rock side: a layered rock face.
+      // drop side: a continuous low stone wall 1.8 m outside the road edge (same line as the old corner walls; its face is 1.3 m out, so a car on the road never touches it). Rock side: a layered rock face.
       for (const side of [-1, 1]) {
         const up = p => side > 0 ? p.upR : p.upL;
         let runs = [], cur = null;
@@ -245,7 +245,7 @@
         }
         runs.forEach(r => {
           if (r.b - r.a < 9) return;
-          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.3, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
+          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.8, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }

@@ -1,8 +1,8 @@
   /* ---------- event detail (tracks): where the rally-event props stand ----------
      Uses art's builders from art/details.js. Where and how many is decided here; how things look is art's.
      Own generator (ST.seed * 131 + 7): the stage's rng is never touched, so the older scenery stays where it was.
-     Rules (forgiving): nothing within 5 m of the road edge; nothing solid except hay rows that are 8 m or more from the edge (none
-     are placed that close in at the moment: hay stands 3.2 m from the edge and is visual only); tents, cars, loos and towers 10 m or
+     Rules (forgiving): nothing within 5 m of the road edge; nothing solid except hay rows (3.2 m from the edge,
+     low and soft, see where they are placed); tents, cars, loos and towers 10 m or
      more from the edge; only on the outside of corners; nothing on a drop side (ground lower than the road beside it), steep ground,
      near trees / walls / houses (obstacles), near people already placed, or in a gate zone. */
   function eventDetail() {
@@ -117,6 +117,10 @@
       haySpecs.push(runs.sort((a, b) => b.length - a.length).map(r => { const k = Math.min(r.length, room); room -= k; return r.slice(0, k); }).filter(r => r.length > 3)); haySpread.push(t.s0);
     }
     for (const runs of haySpecs) for (const run of runs) for (const b of hayRow(run, { rows: quality === 'low' ? 1 : 2 })) L.hay.push(b);
+    // the bales are solid but soft: a wall of short segments along each row. Low (1.2 m) so a jump clears it, a good bounce (e 0.45, the
+    // default is 0.18) and little scraping: a car that runs wide is slowed, thrown gently back and turned along the row, never stopped dead
+    for (const runs of haySpecs) for (const run of runs) for (let i = 0; i + 1 < run.length; i++)
+      obstacles.push({ ax: run[i].x, az: run[i].z, bx: run[i + 1].x, bz: run[i + 1].z, r: 0.28, h: 1.2, e: 0.45, mu: 0.12, hay: true });
 
     // extra small spectator groups: outside of a few medium corners and at the jump (their own tape is not drawn: the groups stand 6 to 7 m back)
     const small = track.turns.filter(t => t.r > 40 && t.r <= 100 && t.s0 > 150 && t.s1 < F - 100).slice(0, 4);

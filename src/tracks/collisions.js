@@ -65,7 +65,7 @@ function collideCar(car, cands, groundH, fx) {
 // Low stone walls on the outside of every corner that has a drop beyond it (cliff stage), as wall segments
 function cliffBarriers(track, half) {
   const P = track.samples, at = s => P[clamp(Math.round(s / track.step), 0, P.length - 1)];
-  const step = 2.4, n = Math.ceil(track.length / step), off = half + 1.3;
+  const step = 2.4, n = Math.ceil(track.length / step), off = half + 1.8;       // face 1.3 m out: a car that is on the road (body radius 0.95 from its centre line) never touches it
   const want = { [-1]: new Uint8Array(n), [1]: new Uint8Array(n) };
   for (const t of track.turns) {
     const side = t.dir === 'R' ? -1 : 1;                                   // outside of a right turn is the left side
@@ -73,6 +73,12 @@ function cliffBarriers(track, half) {
       const i = Math.round(s / step), p = at(s);
       if (i >= 0 && i < n && (side > 0 ? p.upR : p.upL) < 0.4) want[side][i] = 1;
     }
+  }
+  // the start, checkpoint and finish gates interrupt the drawn wall: keep the invisible one going 8 m either side, so no gap opens at a drop
+  const gates = [16, ...(CONFIG.stage && CONFIG.stage.checkpoints || []), track.finishS];
+  for (const g of gates) for (let s = g - 8; s <= g + 8; s += step) {
+    const i = Math.round(s / step), p = at(s);
+    if (i >= 0 && i < n) { if (p.upR < 0.4) want[1][i] = 1; if (p.upL < 0.4) want[-1][i] = 1; }
   }
   const blocks = [], segs = [];
   for (const side of [-1, 1]) {

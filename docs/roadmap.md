@@ -26,7 +26,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 2. **SS2 drop wall clearance**: keep the drop-side wall at least 1 m clear of stacked road sections on hairpins. (tracks)
 3. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. (ui-mobile, art)
 4. **Best times leaderboard on the device**: top times per stage and car, saved locally. (ui-mobile)
-5. **SS4 tuning**: Thornwick courtyard late-brake slide into the castle wall near s 1511 (make it easier); slightly wider SS4 gates; hay bales are walk-through (make solid). (tracks)
+5. ~~**SS4 tuning**~~ done 2026-11-11 (courtyard corner gentler, wider gates, solid soft hay, Vulture wall clearance): see `docs/decisions.md`.
 6. **Menu fit on short phones**: Start button and the SS4 card sit below the fold. (ui-mobile)
 
 ## Ideas (not planned yet)

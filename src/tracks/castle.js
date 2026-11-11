@@ -22,7 +22,7 @@
      towers     [{ x, z, r, h, kind }]                          kind: 'corner' | 'mid' | 'gate'
      gatehouses [{ x, z, th, s, depth, half, passageH, h, blockW, towerAt, which }]
                   x, z, th = middle of the passage on the road; depth along the road; half = clear half width of the
-                  passage (4.4: the road is 4.0); passageH = clear height of the arch (7.0); h = height of the blocks and
+                  passage (5.6: the road is 4.0); passageH = clear height of the arch (7.0); h = height of the blocks and
                   the lintel; blockW = width of each block beside the passage; towerAt = lateral offset of the two gate towers
      buildings  [{ kind, x, z, yaw, w, d, h, style, roof, builder }]
                   yaw = rotation.y; the FRONT faces local +z (as in art/buildings.js); w along the front, d deep, h wall height.
@@ -71,7 +71,7 @@ function castleFrame(C, segments) {
 const castleRectDist = (R, u, v) => Math.hypot(Math.max(R.u0 - u, 0, u - R.u1), Math.max(R.v0 - v, 0, v - R.v1));
 const castleRectDepth = (R, u, v) => Math.max(0, Math.min(u - R.u0, R.u1 - u, v - R.v0, R.v1 - v));
 
-const GATE = { depth: 12, half: 4.4, passageH: 7.0, h: 12.5, blockW: 7.6, towerAt: 12.4 };
+const GATE = { depth: 12, half: 5.6, passageH: 7.0, h: 12.5, blockW: 6.4, towerAt: 12.4 };      // passage 11.2 m wide (the road is 8): a car at the road edge clears the blocks with 0.65 m to spare; the blocks still end at 12 m
 
 function castleLayout(track, ST = CONFIG.stage) {
   const C = ST.castle, F = castleFrame(C, ST.segments), R = F.rect;
