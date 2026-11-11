@@ -5,7 +5,7 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
-### 2026-11-12 · Handling: in a drift the tyres decide where the car goes, and drifting is never the faster way
+### 2026-11-11 · Handling: in a drift the tyres decide where the car goes, and drifting is never the faster way
 **Request (owner):** "as soon as you drift the car goes alot quicker ... its like the wheels on the ground dont dictate
 where the car goes ... in a drift the car will keep going in a straight line when accelerating, instead of going where
 the nose of the car points. Adjust that."
