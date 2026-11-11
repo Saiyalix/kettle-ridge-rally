@@ -41,7 +41,9 @@ art/rival-model.js        # rival cars: shared models, level of detail, per-crew
 art/effects.js            # dust particles, hit effects (sparks, shake)
 tracks/rivals.js          # the 14 rival crews: pace, start gaps, positions, bumping
 ui/hud.js                 # lens flare, rev counter, HUD element references
-audio/audio.js            # synthesized engine, tyres, wind, impacts, UI beeps
+audio/engine-samples.js   # Engine B: two short recorded engine loops (CC0, embedded as text)
+audio/engine-dsp.js       # Engine A: the modelled engine (also runs inside an AudioWorklet)
+audio/audio.js            # all sound: engine A / B, rally effects, tyres, surfaces, crowd, echo, UI beeps
 ui/input.js               # keyboard, touch buttons, tilt steering, auto gas
 core/game-flow.js         # game state, co-driver voice, start/rescue/menu/championship flow
 ui/menu.js                # main menu: stage cards, car pick

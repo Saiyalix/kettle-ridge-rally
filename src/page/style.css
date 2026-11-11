@@ -162,6 +162,9 @@ button.go:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
 .card.pause { max-width: 360px; }
 .pause-list { display: grid; gap: 10px; margin-top: 14px; }
 .pause-list button { width: 100%; text-align: left; }
+.mixer summary { cursor: pointer; padding: 4px 2px; }
+.mixer label { display: grid; grid-template-columns: 88px 1fr; align-items: center; gap: 8px; margin: 6px 0; }
+.mixer input { width: 100%; min-width: 0; }
 #replayBar { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(720px, calc(100% - 32px)); z-index: 6; background: rgba(8,14,34,.88); border-top: 4px solid #ffd21f; padding: 10px 14px; box-sizing: border-box; font-family: var(--f-arcade); color: #fff; }
 .rp-top { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
 .rp-tag { color: #ff4a3a; font-style: italic; letter-spacing: .1em; animation: pulse 1s steps(2) infinite; }

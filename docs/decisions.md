@@ -392,6 +392,13 @@ The 14 rival crews use the player's two bodies (Kestrel, Strada), each with or w
 - **Tests**: the bot skips practice stages (`stageCount` in `tests/lib/probe.js` counts stages that are not practice), so SS1 to SS4 expected times are untouched and no value is recorded for TEST. The bot drove the Test Track once by hand with the old driving model: finishes with both cars, 0 rescues, 0 off-road, 0 unrequested drifts (about 128 s).
 - **Other files touched** (small, for ui-mobile / core to review): `core/game-flow.js` (`startStage`: order and banner), `ui/results.js` (four `STAGES.length` -> `CHAMP_STAGES`, practice finish screen), `ui/visuals-hud.js` (`--` for clock and position), `tracks/track.js` (jump entries can be `[s, h, 'bump']`, "Full circle" pace note), `tracks/stage-load.js`, `themes.js`, `scenery.js`, `rivals.js`.
 
+## 2026-11-11 · Audio: the retuned sound goes live, Modelled engine is the default
+**Owner:** retuned sound is "okay for now"; "Do the default engine for now" (my suggestion: Modelled).
+- Sound files copied from `audio/rally-sound` (not merged, it forked before the new driving): `src/audio/*` (engine-dsp.js, engine-samples.js, audio.js), co-driver voice in `core/game-flow.js`, pause-menu engine button and volume sliders, `docs/credits.md`. No physics, track or test file touched.
+- Default engine is **Modelled** (no download, no embedded recording, lightest on phones). The player's choice (Modelled/Recorded) and the volume sliders are still saved on the device (`rallyAudio` in localStorage).
+- Phone safety: sound starts on the first tap/key, now also wakes again when the tab comes back (`visibilitychange`) and every frame retries if the context is suspended; compressor plus a soft clipper (0.95) at the end of the chain; every path returns if audio is missing. Node count unchanged from the retune.
+- Tyre and slide sound read wheel slip, grip use and body angle, which the new driving still provides; levels left as tuned.
+
 ## 2026-11-11 · Art: low, close chase camera with speed feel
 **Request (owner):** the low, close chase camera ("go on with the steps as you described them").
 - **What**: a new view, camera mode 1 in `art/camera.js`, the first one you get when you press C (or the touch camera button) from the default. It sits 4.6 m behind and 1.25 m above the car (old chase: 6.6 / 2.3), pulls back 1.8 m and rises 0.25 m with speed, and widens the field of view from 66 to 82 degrees (0 to 45 m/s, smoothed). It follows 65 % the direction of travel (35 % the nose), so in a slide it looks along the road, and it looks further into the corner you are turning through. Numbers live in `CONFIG.camera` (`close*`). Pure camera: no physics change.
