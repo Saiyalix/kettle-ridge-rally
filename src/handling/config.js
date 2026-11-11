@@ -223,6 +223,8 @@ const CONFIG = {
 
   camera: { chaseDistance: 6.6, chaseHeight: 2.3, chaseLag: 7.0, rallyDistance: 15, rallyHeight: 10.5, rallyLookAhead: 7,
     // extra camera mode 4 (low far view, shows the sky): same follow as the far rally camera, lower and looking further ahead
-    lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15 },
+    lowDistance: 15, lowHeight: 6.8, lowLookAhead: 15,
+    // mode 5: low, close chase. Sits near the road so it rushes past; pulls back, rises a little and widens the view with speed (0 to 45 m/s)
+    closeDistance: 4.6, closePull: 1.8, closeHeight: 1.25, closeRise: 0.25, closeLookAhead: 7, closeFov: 66, closeFovGain: 16 },
 };
 

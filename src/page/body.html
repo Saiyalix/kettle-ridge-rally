@@ -59,6 +59,13 @@
       <button class="go" id="resumeBtn">Resume</button>
       <button class="ghost" id="restartBtn">Restart stage <kbd class="key-only">⌫</kbd></button>
       <button class="ghost" id="qualityBtn">Graphics: High</button>
+      <button class="ghost" id="engineBtn">Engine sound: Modelled</button>
+      <details class="mixer"><summary>Volumes</summary>
+        <label>Master <input type="range" id="vol_master" min="0" max="150" value="100"></label>
+        <label>Engine <input type="range" id="vol_engine" min="0" max="150" value="100"></label>
+        <label>Effects <input type="range" id="vol_fx" min="0" max="150" value="100"></label>
+        <label>Co-driver <input type="range" id="vol_voice" min="0" max="100" value="100"></label>
+      </details>
       <button class="ghost touch-only" id="autoGasBtn2">Auto gas: On</button>
       <button class="ghost touch-only" id="tiltBtn2">Steering: Buttons</button>
       <button class="ghost" id="debugBtn">Debug overlay: Off</button>
