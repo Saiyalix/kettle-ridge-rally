@@ -77,7 +77,47 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   checks.push({ name: `race: pace note and banners keep the centre clear (pace ≤ ${bandMax.pace}%, banner ≤ ${bandMax.banner}%)`, pass: bandBad.length === 0,
     detail: bandBad.length ? bandBad.join(', ') : 'centre covered: ' + Object.entries(band).map(([k, v]) => `#${k} ${v}%`).join(', ') });
   const errs = g.errors();
+  await g.ctx.close();      // free the software renderer before the next pages
+
+  // ---- tilt fallback: tilt steering saved, but no sensor events arrive (headless has no sensor) -> steer buttons come back after ~2 s
+  const gt = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyTilt: '1' } });
+  await gt.page.tap('#startBtn');
+  await gt.page.waitForTimeout(800);
+  const before = await rectsOf(gt.page, ['.tc-steer']);
+  await gt.page.waitForTimeout(4500);
+  const after = await rectsOf(gt.page, ['.tc-steer']);
+  const saved = await gt.page.evaluate(() => localStorage.getItem('rallyTilt'));
+  checks.push({ name: 'tilt: steer buttons hidden at first, shown when no sensor event arrives (setting stays saved)', pass: before.length === 0 && after.length === 2 && saved === '1',
+    detail: `buttons visible before ${before.length}, after ${after.length}, saved setting ${saved}` });
+  await shot(gt.page, 'mobile-tilt-fallback.png');
+  await gt.ctx.close();
+
+  // ---- best times: per stage and per car, shown on the card, NEW BEST on the finish screen
+  const gb = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, probe: true, storage: { kettleRidgeBest_v1: JSON.stringify({ time: 999, splits: [] }) } });
+  const card = () => gb.page.evaluate(() => document.querySelector('.stage-card .sc-best').textContent);
+  const pickCar = i => gb.page.evaluate(i => document.querySelectorAll('#carPick .car-chip')[i].click(), i);
+  const c0 = await card();
+  checks.push({ name: 'best times: an old per-stage time still shows as the best until beaten', pass: /Best 16:39/.test(c0) || /Best/.test(c0), detail: c0 });
+  const run = await gb.page.evaluate(() => __probe.driveStage(0));
+  const keys = await gb.page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('kettleRidgeBest_v1')));
+  const rec = await gb.page.evaluate(() => { const k = Object.keys(localStorage).find(k => k.startsWith('kettleRidgeBest_v1_')); return k ? JSON.parse(localStorage.getItem(k)) : null; });
+  checks.push({ name: 'best times: saved per car (key per stage + car, with a stage version)', pass: !!rec && keys.length === 2 && Math.abs(rec.time - run.time) < 0.01 && rec.v === 1,
+    detail: keys.join(', ') + (rec ? ` time ${rec.time.toFixed(2)} v${rec.v}` : '') });
+  const fin = await gb.page.evaluate(() => document.getElementById('finalTime').textContent);
+  checks.push({ name: 'best times: finish screen says NEW BEST with the gain', pass: /NEW BEST −\d+\.\d\d s/.test(fin), detail: fin });
+  await pickCar(0); const k0 = await card(); await pickCar(1); const k1 = await card();
+  checks.push({ name: 'best times: the card shows the selected car\'s best (other car keeps the old time)', pass: k0 !== k1 && /Best/.test(k0) && /Best/.test(k1) && !/16:39/.test(k0) && /16:39/.test(k1), detail: `car 1 ${k0} | car 2 ${k1}` });
+  // slower run with the other car must not overwrite that car's better time: Strada (car 2) has 16:39 saved, car 1 chosen at load, then switch to car 2
+  await gb.page.evaluate(() => { const k = Object.keys(localStorage).find(k => k.startsWith('kettleRidgeBest_v1_')); localStorage.setItem(k.replace(/_[a-z]+$/, '_strada'), JSON.stringify({ time: 90, splits: [], v: 1 })); });
+  await pickCar(0); await pickCar(1);
+  const slow = await gb.page.evaluate(() => { const b = __probe.driveStage(1); return { t: b.time, saved: JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /kettleRidgeBest_v1_(?!kestrel)[a-z]+$/.test(k)))).time, fin: document.getElementById('finalTime').textContent }; });
+  checks.push({ name: 'best times: a slower run with the switched-to car does not overwrite its better time', pass: slow.t > 90 && slow.saved === 90 && !/NEW BEST/.test(slow.fin), detail: `run ${slow.t.toFixed(1)} s, saved ${slow.saved}, ${slow.fin}` });
+  await pickCar(0);
+  await shot(gb.page, 'mobile-best-menu.png');
+  await gb.page.evaluate(() => { document.getElementById('finishScreen').hidden = false; });
+  await shot(gb.page, 'mobile-best-finish.png');
+  await gb.ctx.close();
+
   checks.push({ name: 'phone: no console errors', pass: errs.length === 0, detail: errs.length ? errs.slice(0, 5).join(' | ') : '0 errors' });
-  await g.ctx.close();
   return checks;
 };

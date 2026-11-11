@@ -283,7 +283,7 @@ body.autogas .tc-gas { display: none; }
 body.autogas .tc-brake { height: clamp(96px, 34vh, 150px); }
 .tc-top { position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
 #touch .tc-mini { width: 46px; height: 40px; border-radius: 10px; font-size: 14px; font-style: normal; }
-body.tilt .tc-left { display: none; }
+body.tilt:not(.tilt-off) .tc-left { display: none; }   /* .tilt-off: no sensor, so the steer buttons come back */
 #rotate { position: fixed; inset: 0; z-index: 20; display: none; place-items: center; text-align: center; padding: 24px; background: #0a1840; color: #fff; font-family: var(--f-arcade); font-size: 24px; }
 #rotate span { display: block; font-size: 64px; margin-bottom: 12px; animation: tilt 1.6s ease-in-out infinite; }
 @keyframes tilt { 50% { transform: rotate(90deg); } }
