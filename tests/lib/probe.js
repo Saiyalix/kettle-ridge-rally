@@ -64,5 +64,5 @@
       await loadStage(i);
       while (loading || stageIdx !== i) await new Promise(r => setTimeout(r, 50));
     }
-    return { Car, CONFIG, driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
+    return { Car, CONFIG, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
   })();

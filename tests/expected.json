@@ -76,6 +76,26 @@
       "surface": "gravel",
       "kmh": 55,
       "maxS": 1.2
+    },
+    "phone": {
+      "_readme": "Phone controls on the skid pad (docs/decisions.md, 2026-11-11). Tilt = % of the tilt that gives full lock (CONFIG.arcade.phone.tiltFull), with a small hand shake; cruise throttle. Auto gas = full gas from the phone code, right button held.",
+      "tiltPct": [
+        20,
+        40,
+        70,
+        100
+      ],
+      "tiltKmh": 90,
+      "tiltMinStepDeg": 0.3,
+      "tiltWobbleMaxDeg": 3,
+      "tiltHalfPct": 40,
+      "tiltHalfMaxShare": 0.5,
+      "autoGasKmh": 90,
+      "brakeTapSurfaces": [
+        "gravel",
+        "dirt"
+      ],
+      "brakeTapMinExtraTurnDeg": 3
     }
   },
   "mobile": {
