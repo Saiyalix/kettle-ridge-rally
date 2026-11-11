@@ -746,7 +746,7 @@ function fmtTime(t) { if (t == null || !isFinite(t)) return '–'; const m = Mat
      towers     [{ x, z, r, h, kind }]                          kind: 'corner' | 'mid' | 'gate'
      gatehouses [{ x, z, th, s, depth, half, passageH, h, blockW, towerAt, which }]
                   x, z, th = middle of the passage on the road; depth along the road; half = clear half width of the
-                  passage (4.4: the road is 4.0); passageH = clear height of the arch (7.0); h = height of the blocks and
+                  passage (5.6: the road is 4.0); passageH = clear height of the arch (7.0); h = height of the blocks and
                   the lintel; blockW = width of each block beside the passage; towerAt = lateral offset of the two gate towers
      buildings  [{ kind, x, z, yaw, w, d, h, style, roof, builder }]
                   yaw = rotation.y; the FRONT faces local +z (as in art/buildings.js); w along the front, d deep, h wall height.
@@ -795,7 +795,7 @@ function castleFrame(C, segments) {
 const castleRectDist = (R, u, v) => Math.hypot(Math.max(R.u0 - u, 0, u - R.u1), Math.max(R.v0 - v, 0, v - R.v1));
 const castleRectDepth = (R, u, v) => Math.max(0, Math.min(u - R.u0, R.u1 - u, v - R.v0, R.v1 - v));
 
-const GATE = { depth: 12, half: 4.4, passageH: 7.0, h: 12.5, blockW: 7.6, towerAt: 12.4 };
+const GATE = { depth: 12, half: 5.6, passageH: 7.0, h: 12.5, blockW: 6.4, towerAt: 12.4 };      // passage 11.2 m wide (the road is 8): a car at the road edge clears the blocks with 0.65 m to spare; the blocks still end at 12 m
 
 function castleLayout(track, ST = CONFIG.stage) {
   const C = ST.castle, F = castleFrame(C, ST.segments), R = F.rect;
@@ -921,7 +921,7 @@ const THORN_PRE = [
   ['R', 60, 70], ['S', 40], ['L', 85, 38], ['S', 70], ['R', 30, 150], ['S', 80], ['L', 55, 60], ['S', 40], ['R', 100, 34], ['S', 40],   // forest (bridge hump on the 80 m straight)
   ['R', 70, 50], ['S', 30], ['L', 140, 24], ['S', 30], ['R', 60, 80], ['S', 20], ['L', 40, 100], ['S', 53],                  // the climb to the castle
 ];
-const THORN_CASTLE = [['S', 40], ['R', 90, 18], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
+const THORN_CASTLE = [['S', 40], ['R', 90, 22], ['S', 62], ['S', 7]];                                                           // gate 1 (middle of the arch) -> courtyard corner -> gate 2 -> out
 const THORN_POST = [
   ['S', 25], ['R', 100, 40], ['S', 40], ['L', 55, 60], ['S', 40], ['R', 75, 45], ['S', 40], ['L', 60, 55], ['S', 50],             // winding descent past the wall and moat
   ['R', 40, 100], ['S', 60], ['L', 70, 50], ['S', 50], ['R', 50, 70], ['S', 80], ['S', 150],                                      // down to the meadow
@@ -1071,7 +1071,7 @@ const STAGES = [
     checkpoints: [560, 1100, 1700, 2120],
     timeStart: 31, timeExt: [26, 31, 22, 16], refTime: 111,
     jumps: [[850, 1.9]],
-    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 18] },
+    castle: { gate1: THORN_G1, gate2: THORN_G2, level: 14, west: 70, northPast: 42, well: [40, 22] },
     segments: [...THORN_PRE, ...THORN_CASTLE, ...THORN_POST],
     // look (art): a misty morning at dawn. Low warm sun behind the player on the approach (long shadows, the castle front glows), pale golden sky,
     // soft peach mist in the valleys (fog starts close, so far hills and the keep melt into it), cool blue shade, dew-bright meadows.
@@ -1235,7 +1235,7 @@ function buildTrack(ST = CONFIG.stage) {
   // SS4: the co-driver knows the castle. The corner before gate 1 says "gate", the courtyard corner says "around the well"
   if (ST.castle) {
     const before = notes.filter(nt => nt.kind !== 'jump' && nt.s1 <= ST.castle.gate1).pop();
-    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate';
+    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate, brake for the well';      // early warning: the courtyard corner comes 40 m after the gate
     for (const nt of notes) if (nt.kind !== 'jump' && nt.s >= ST.castle.gate1 && nt.s1 <= ST.castle.gate2) nt.text = nt.text.replace(", don't cut", '') + ', around the well';
   }
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
@@ -2021,7 +2021,7 @@ function collideCar(car, cands, groundH, fx) {
 // Low stone walls on the outside of every corner that has a drop beyond it (cliff stage), as wall segments
 function cliffBarriers(track, half) {
   const P = track.samples, at = s => P[clamp(Math.round(s / track.step), 0, P.length - 1)];
-  const step = 2.4, n = Math.ceil(track.length / step), off = half + 1.3;
+  const step = 2.4, n = Math.ceil(track.length / step), off = half + 1.8;       // face 1.3 m out: a car that is on the road (body radius 0.95 from its centre line) never touches it
   const want = { [-1]: new Uint8Array(n), [1]: new Uint8Array(n) };
   for (const t of track.turns) {
     const side = t.dir === 'R' ? -1 : 1;                                   // outside of a right turn is the left side
@@ -2029,6 +2029,12 @@ function cliffBarriers(track, half) {
       const i = Math.round(s / step), p = at(s);
       if (i >= 0 && i < n && (side > 0 ? p.upR : p.upL) < 0.4) want[side][i] = 1;
     }
+  }
+  // the start, checkpoint and finish gates interrupt the drawn wall: keep the invisible one going 8 m either side, so no gap opens at a drop
+  const gates = [16, ...(CONFIG.stage && CONFIG.stage.checkpoints || []), track.finishS];
+  for (const g of gates) for (let s = g - 8; s <= g + 8; s += step) {
+    const i = Math.round(s / step), p = at(s);
+    if (i >= 0 && i < n) { if (p.upR < 0.4) want[1][i] = 1; if (p.upL < 0.4) want[-1][i] = 1; }
   }
   const blocks = [], segs = [];
   for (const side of [-1, 1]) {
@@ -3152,7 +3158,7 @@ function boot() {
         }
       }
     } else if (ST.id === 'vulture') {
-      // drop side: a continuous low stone wall hugging the road (same line as the old corner walls). Rock side: a layered rock face.
+      // drop side: a continuous low stone wall 1.8 m outside the road edge (same line as the old corner walls; its face is 1.3 m out, so a car on the road never touches it). Rock side: a layered rock face.
       for (const side of [-1, 1]) {
         const up = p => side > 0 ? p.upR : p.upL;
         let runs = [], cur = null;
@@ -3162,7 +3168,7 @@ function boot() {
         }
         runs.forEach(r => {
           if (r.b - r.a < 9) return;
-          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.3, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
+          if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.8, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
       }
@@ -6224,8 +6230,8 @@ function boot() {
   /* ---------- event detail (tracks): where the rally-event props stand ----------
      Uses art's builders from art/details.js. Where and how many is decided here; how things look is art's.
      Own generator (ST.seed * 131 + 7): the stage's rng is never touched, so the older scenery stays where it was.
-     Rules (forgiving): nothing within 5 m of the road edge; nothing solid except hay rows that are 8 m or more from the edge (none
-     are placed that close in at the moment: hay stands 3.2 m from the edge and is visual only); tents, cars, loos and towers 10 m or
+     Rules (forgiving): nothing within 5 m of the road edge; nothing solid except hay rows (3.2 m from the edge,
+     low and soft, see where they are placed); tents, cars, loos and towers 10 m or
      more from the edge; only on the outside of corners; nothing on a drop side (ground lower than the road beside it), steep ground,
      near trees / walls / houses (obstacles), near people already placed, or in a gate zone. */
   function eventDetail() {
@@ -6340,6 +6346,10 @@ function boot() {
       haySpecs.push(runs.sort((a, b) => b.length - a.length).map(r => { const k = Math.min(r.length, room); room -= k; return r.slice(0, k); }).filter(r => r.length > 3)); haySpread.push(t.s0);
     }
     for (const runs of haySpecs) for (const run of runs) for (const b of hayRow(run, { rows: quality === 'low' ? 1 : 2 })) L.hay.push(b);
+    // the bales are solid but soft: a wall of short segments along each row. Low (1.2 m) so a jump clears it, a good bounce (e 0.45, the
+    // default is 0.18) and little scraping: a car that runs wide is slowed, thrown gently back and turned along the row, never stopped dead
+    for (const runs of haySpecs) for (const run of runs) for (let i = 0; i + 1 < run.length; i++)
+      obstacles.push({ ax: run[i].x, az: run[i].z, bx: run[i + 1].x, bz: run[i + 1].z, r: 0.28, h: 1.2, e: 0.45, mu: 0.12, hay: true });
 
     // extra small spectator groups: outside of a few medium corners and at the jump (their own tape is not drawn: the groups stand 6 to 7 m back)
     const small = track.turns.filter(t => t.r > 40 && t.r <= 100 && t.s0 > 150 && t.s1 < F - 100).slice(0, 4);

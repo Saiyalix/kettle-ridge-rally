@@ -124,7 +124,7 @@ function buildTrack(ST = CONFIG.stage) {
   // SS4: the co-driver knows the castle. The corner before gate 1 says "gate", the courtyard corner says "around the well"
   if (ST.castle) {
     const before = notes.filter(nt => nt.kind !== 'jump' && nt.s1 <= ST.castle.gate1).pop();
-    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate';
+    if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate, brake for the well';      // early warning: the courtyard corner comes 40 m after the gate
     for (const nt of notes) if (nt.kind !== 'jump' && nt.s >= ST.castle.gate1 && nt.s1 <= ST.castle.gate2) nt.text = nt.text.replace(", don't cut", '') + ', around the well';
   }
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
