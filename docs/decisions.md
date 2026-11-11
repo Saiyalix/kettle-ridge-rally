@@ -5,6 +5,17 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-11 · Studio: dashboard updated at every step
+**Request (owner):** "Make the dashboard live at all times."
+**Decision:** the main session updates the studio dashboard whenever a department starts, finishes or gets stuck, when an
+owner question comes up or is answered, when a roadmap item moves, and after every merge (rule in `CLAUDE.md`, "The owner").
+Each data file now says how it stays current and shows as stale after 24 h (departments, waiting) or 48 h (roadmap, shipped).
+**Why not fully automatic:** the dashboard can only read live data through a claude.ai connector, and no GitHub connector
+is available to it. Department status and owner questions live only in the working session, so they can't be read live anyway.
+If a GitHub connector becomes available, "Shipped" and "Roadmap" could read straight from GitHub.
+
+---
+
 ### 2026-11-10 · Tracks: stages checked and adjusted for the new driving
 **Request (owner):** "Make that live, make sure the stages are tested and adjusted for the driving if need be."
 **How checked:** the bot plus scripted drivers on all 4 stages, both cars: pushing 17% / 35% over the bot's corner speed, late braking,

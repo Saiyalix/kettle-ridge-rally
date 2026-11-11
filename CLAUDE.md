@@ -20,6 +20,11 @@ Every department (subagent) follows this file. If a department file and this fil
 - Wants plain language, small steps, practical output. No corporate language, no filler.
 - Decided 2026-11-04: once qa writes `READY TO MERGE`, the main session merges the PR itself and tells the owner.
   The owner can say "hold" or "don't merge" in chat at any time; that wins.
+- Studio dashboard (private claude.ai page): https://claude.ai/artifact/UUqkNT2HZ2bB8cYe56SQDX. Owner, 2026-11-11:
+  "Make the dashboard live at all times." The main session updates it **at every step, not only after merges**: when a
+  department starts, finishes or gets stuck, when a question for the owner comes up or is answered, when a roadmap item
+  moves, and right after every merge. Data: four JSON files (`departments`, `waiting`, `roadmap`, `shipped`) attached to
+  the page. Departments can't update it themselves; they report to the main session, which does.
 
 ## Handling rules (do not break without the owner's approval)
 
