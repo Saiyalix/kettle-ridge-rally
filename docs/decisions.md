@@ -416,4 +416,4 @@ Owner approved the round ("go on with the steps as you described them"). All in 
 
 ## 2026-11-11 · Art: close chase camera raised a little
 **Request (owner):** "place it a tad bit higher so the car blocks less of the screen and the road ahead is better visible."
-- `CONFIG.camera`: `closeHeight` 1.25 to 1.85 m, `closeRise` 0.25 to 0.3 m, `closeLookAhead` 7 to 11 m (aim point further down the road, so a lower pitch). Distance, pull-back, field of view and shake are unchanged. Default camera unchanged (mode 0). Also fixed the config comment (close cam is mode 1, not 5). Camera only, no physics.
+- `CONFIG.camera` (first try 1.85 m made the car look bigger, measured and redone): `closeDistance` 4.6 to 6.8 m, `closeHeight` 1.25 to 2.5 m, `closeRise` 0.25 to 0.3 m, `closeLookAhead` 7 to 15 m (lower pitch, more road ahead). Pull-back rate, field of view and shake unchanged. Car's on-screen box at 130 km/h, 800x360, settled: Kettle Ridge 9149 to 6693 px (-27 %), Vulture Ledge 9035 to 4610 (-49 %), Sakura 3848 to 2632 (-32 %). Default camera unchanged (mode 0). Also fixed the config comment (close cam is mode 1, not 5). Camera only, no physics.
