@@ -1,7 +1,7 @@
   /* ---------- fixed-step physics ---------- */
   const H = 1 / CONFIG.physicsHz;
   // pedal state: smoothed gas (0–1), smoothed tilt (°), auto-gas lift left (s), how long the brake has been held (s)
-  const pedals = { gas: 0, tilt: 0, lift: 0, brakeS: 0 };
+  const pedals = { gas: 0, tilt: 0, lift: 0, brakeS: 0, keep: false };   // keep: gas stays down through this brake press
   // gas pedal: a key or auto gas eases the throttle in and out instead of slamming it
   function gasStep(target, dt, pp = pedals) {
     pp.gas += clamp(target - pp.gas, -dt * 14, dt * 12);
@@ -16,18 +16,20 @@
     return Math.sign(pp.tilt) * x * (1 - P.tiltCurve + P.tiltCurve * x);
   }
   // Auto gas: the gas stays down unless you brake. A quick brake tap or the handbrake also lifts it for a moment,
-  // like a driver on keys would, so the weight goes forward and the tail swings (rule 2). true = gas down.
-  function autoGasOn(brakeKey, hbKey, dt, pp = pedals) {
+  // like a driver on keys would, so the weight goes forward and the tail swings (rule 2). But if the car is already
+  // sliding past keepGasSlide ° when the brake goes on, the gas stays down through it (like holding gas on keys),
+  // so a tap can't push a big slide towards a spin. slideDeg = the car's slide now. true = gas down.
+  function autoGasOn(brakeKey, hbKey, dt, pp = pedals, slideDeg = 0) {
     const P = CONFIG.arcade.phone;
-    if (brakeKey) pp.brakeS += dt;
-    else if (pp.brakeS > 0) { if (pp.brakeS <= P.tapS) pp.lift = Math.max(pp.lift, P.brakeLift); pp.brakeS = 0; }
+    if (brakeKey) { if (pp.brakeS === 0) pp.keep = slideDeg > P.keepGasSlide; pp.brakeS += dt; }
+    else if (pp.brakeS > 0) { if (pp.brakeS <= P.tapS && !pp.keep) pp.lift = Math.max(pp.lift, P.brakeLift); pp.brakeS = 0; pp.keep = false; }
     if (hbKey) pp.lift = Math.max(pp.lift, P.handbrakeLift); else pp.lift = Math.max(0, pp.lift - dt);
-    return !brakeKey && !hbKey && pp.lift <= 0;
+    return (!brakeKey || pp.keep) && !hbKey && pp.lift <= 0;
   }
   function physicsStep() {
     const driving = state === 'running';
     const k = n => keys[n] || tapped[n];
-    const phoneGas = isTouch && autoGas && autoGasOn(k('down'), k('hb'), H);
+    const phoneGas = isTouch && autoGas && autoGasOn(k('down'), k('hb'), H, pedals, Math.abs(car.beta) / D2R);
     const tGas = driving && (k('up') || phoneGas) ? 1 : 0;
     inp.throttle = gasStep(tGas, H);
     inp.brake = driving && k('down') ? 1 : 0;

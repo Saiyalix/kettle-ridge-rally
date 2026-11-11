@@ -149,6 +149,8 @@ const CONFIG = {
       tiltSmooth: 0.05,           // s: smoothing of the tilt sensor. Higher = steadier but laggier
       tapS: 0.35,                 // s: a brake press shorter than this counts as a tap...
       brakeLift: 0.2,             // ...and keeps auto gas off this long after it (s). Higher = a tap rotates the car more
+      keepGasSlide: 36,           // ° of slide: past this when the brake goes on, auto gas stays down through the brake (no lift),
+                                  // like holding gas on keys. Lower = calmer big slides, less rotation from a tap mid-drift
       handbrakeLift: 0.25,        // s auto gas stays off after the handbrake (it is always off while held). Higher = more rotation
     },
     drift: {

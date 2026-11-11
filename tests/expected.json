@@ -110,7 +110,5 @@
       "msg": 10
     }
   },
-  "knownIssues": {
-    "Strada HF snow auto gas 90 km/h: brake tap never past 90°, ≤ 0.5 s past 45°": "full gas + full lock on snow at about 125 km/h, then a brake tap: 0.58 s past 45° (no spin, peak 55°). Also on keys: 0.49 s holding gas through the tap, 0.53 s lifting during it. Needs a car.js change that would alter keyboard driving; follow-up for handling (docs/decisions.md, 2026-11-11 phone pass)."
-  }
+  "knownIssues": {}
 }

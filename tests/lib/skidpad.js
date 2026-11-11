@@ -17,7 +17,7 @@
 module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = true, autoGas = false }) {
   // Car and CONFIG come from the probe (works when the game script is a module and they are not globals)
   const probe = window.__probe || window, { Car, CONFIG } = probe;
-  const pads = { gas: 0, tilt: 0, lift: 0, brakeS: 0 };                  // the phone controls' own state for this run
+  const pads = { gas: 0, tilt: 0, lift: 0, brakeS: 0, keep: false };                  // the phone controls' own state for this run
   const prevCar = CONFIG.carIndex; CONFIG.carIndex = carIndex;
   const world = { groundAt(x, z, o) { o.h = 0; o.n.set(0, 1, 0); }, surfaceAt() { return surface; } };
   const car = new Car(); car.reset(0, 0.75, 0, 0);
@@ -80,7 +80,7 @@ module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = tru
     for (let k = 1; k <= Math.round(3 / H); k++) {
       const t = k * H;
       inp.brake = tap && t > 1.5 && t <= 1.65 ? 1 : 0;
-      inp.throttle = probe.gasStep(probe.autoGasOn(inp.brake > 0, false, H, pads) ? 1 : 0, H, pads);
+      inp.throttle = probe.gasStep(probe.autoGasOn(inp.brake > 0, false, H, pads, Math.abs(car.beta) * DEG) ? 1 : 0, H, pads);
       step();
       const b = Math.abs(car.beta) * DEG, y = Math.atan2(car.fwd.x, car.fwd.z);
       if (t > 1 && t <= 1.5) { slideSum += b; slideN++; }
