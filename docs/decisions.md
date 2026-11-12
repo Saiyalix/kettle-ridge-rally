@@ -5,6 +5,85 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · QA: the test kit checks the Nightjar KR against its own targets
+**Decision:** the Nightjar's targets are in `CLAUDE.md` (owner approved a slidey third car); the tests now check them. No target value was
+invented here: every number below is the one in `CLAUDE.md`, and Kestrel and Strada keep exactly their old values.
+- `expected.json` → `handling.perCar["Nightjar KR"]`: its own held-key slide ranges (keys and full phone tilt use the same ones: tarmac 8–24°
+  and at least 10° from 80 km/h up, gravel/dirt/snow 26–38°), grass at most 42°, letting go 1.0 s (grass 1.8 s). Cars not listed there use the shared values.
+- `handling.slideMorePairs` replaces `stradaExtraDeg` and the hard-coded car order: Strada over Kestrel by 4°, Nightjar over Strada by 7° (gravel, dirt, average over the speeds).
+- New skid pad mode `long` and check "long drift": gravel, 80 km/h, key held 4 s, gas off; angle within ±4° of its average from 1.5 s, and the Nightjar keeps
+  at least 4 points more speed than the better of Kestrel and Strada. The spread is the biggest distance from the average (as in handling's own measurement).
+  Measured on this branch: Nightjar 32.3° ±1.9, 66.5% kept; Kestrel 60.4%; Strada 58.5% (+6.0 points).
+- `bot.neverFasterThan`: on every stage the Nightjar's bot time must not beat the faster of Kestrel and Strada (smallest gap Thornwick, +0.19 s).
+- `mobile.carCount` (3): the menu must show one chip per car, all on screen and at least 30 px high/wide; the best-times check only touches cars 1 and 2, so it holds for any car count.
+- Bot times for the Nightjar were recorded by handling in the entry below; Kestrel and Strada times are unchanged.
+
+### 2026-11-12 · Handling: third car, Nightjar KR, tuned for long drifts
+**Request (owner):** "Yes make a third car. Make it slidey, distinctly different handling than the other two. The car should
+be really built to handle long drifts. Keep damage for looks only." The owner's yes covers this car having its own slide
+targets; rules 1–6 hold for it unchanged (spin guard stays at 42°, letting go straightens it, surfaces never change the wind-on).
+
+**Stats** (`CONFIG.cars[2]`): accel 1.0, top 1.0, grip 1.0, drift 1.04, turn 1.05, rear 0.85, rearDrive 1.15, plus its own
+handling fields: `slideBite` 4 (`biteAfter` 0.6 s, `biteRamp` 0.6 s), `slideCatch` 0.4, `slideKeep` 0.9, `slideFrom` 8, `slideFull` 15.
+Damage stays drawn only (art's scuffs; no physics).
+
+**How it works (`handling/car.js`):** a car may now override `slideCatch`, `slideKeep`, `slideFrom`, `slideFull`, and set
+`slideBite`. Kestrel and Strada set none of them and drive exactly as before (all 124 skid-pad rows and 8 bot runs identical).
+- `slideBite`: once a key has been held 0.6 s (fully 0.6 s later), the fronts keep full bite until the slide is within a
+  quarter of the hold angle, so a held drift settles near the hold angle (about 32–34° on loose surfaces, under the 36° cap,
+  guard.from − 6) instead of at about 0.7× it. Quick taps and corrections never get it: an earlier version without the
+  0.6 s delay made the bot leave the road on Kettle Ridge and Thornwick Keep. A handbrake pull or brake tap brings it in at once.
+  Phone tilt gets a share from half to full lock. Off on grass (new `CONFIG.arcade.surfaces.grass.bite: 0`): with it, the bot
+  swung to 61° on grass while recovering.
+- Its own `slideCatch` 0.4 calms slides from steering alone; during a handbrake pull or brake tap it falls back to the global
+  0.18, otherwise the handbrake turn took 1.5 s.
+- `slideKeep` 0.9: a drift loses less speed than on the other cars; the bot still is never faster than the faster of the other two.
+
+**Measured** (flat skid pad, `node tests/run.js handling` plus a 4 s long-drift run; Kestrel / Strada / Nightjar):
+
+| | Kestrel | Strada | Nightjar |
+|---|---|---|---|
+| Held slide tarmac 50/80/110/140 km/h | 0.1/2.5/3.3/3.6 | 2.6/3.6/4.1/4.3 | 15.1/14.9/14.5/12.3 |
+| Gravel | 14.3/18.0/17.3/16.6 (avg 16.6) | 18.3/27.1/27.9/23.6 (avg 24.2) | 32.6/32.7/32.3/31.9 (avg 32.4, +8.2) |
+| Dirt | 15.8/20.2/19.3/17.8 (avg 18.3) | 18.7/27.2/28.9/26.4 (avg 25.3) | 32.9/33.2/32.8/32.4 (avg 32.8, +7.5) |
+| Snow | 17.9/24.0/22.3/20.1 | 19.2/23.5/24.3/26.3 | 33.2/33.7/33.4/33.1 |
+| Grass (50) | 26.1 | 36.1 | 34.2 |
+| First swing-out, worst surface | 32.8 snow, 31.7 grass | 43.3 snow, 47.8 grass | 33.8 snow, 47.1 grass |
+| Spin test max / s past 45° | 34° / 0 | 46° / 0.24 s | 46° / 0.27 s (grass); loose roads ≤ 34° |
+| Letting go: back under 5° (worst), overshoot | 0.58 s (grass 0.92), 0° | 0.68 s (grass 1.00), 0° | 0.65 s (grass 1.04), 0° |
+| Wind-on 50/80/110/140 km/h | 92/100/108/125 ms | same | same, equal on every surface |
+| Handbrake 55 km/h gravel, keys / auto gas | 1.10 / 1.09 s | 1.03 / 1.12 s | 0.91 / 0.97 s, peak 54° |
+| Long drift, gravel 80 km/h, gas off 4 s: angle 1.5–4 s | 16.9° ±2.2 | 20.8° ±3.3 | 32.3° ±1.9 |
+| Long drift, speed kept after 4 s, gas off | 60.4% | 58.5% | 66.5% |
+| Long drift, same with the gas held (cruise) | 17.9° ±0.5 | 24.0° ±8.2 | 32.7° ±0.5 |
+| Phone full tilt (90 km/h) tarmac / gravel / dirt / snow | inside shared ranges | inside | 14.6 / 32.3 / 32.7 / 33.4° (70% tilt: 3.6 / 15.3 / 15.8 / 16.3°) |
+
+**Bot** (recorded with `node tests/run.js bot --record`; Kestrel and Strada times unchanged): Kettle Ridge 95.00 s (best of
+the others 90.04), Vulture Ledge 87.76 (86.94), Sakura Touge 88.48 (87.93), Thornwick Keep 93.94 (93.75). 0 spins, 0 rescues,
+off road at most 1.5 s, tightest clock margin 8.9 s. Never faster than the faster of Kestrel and Strada; the smallest gap is
+Thornwick, +0.19 s. Robustness: with the Nightjar's stats under the other two cars' rival seeds, 1 of 8 runs went 9.8 s off
+road (Thornwick); the Strada's own stats under the three seeds also fail 1 of 12 (Thornwick, 14.2 s). The bot is seed-sensitive
+on Thornwick for loose cars; the recorded runs are clean.
+
+**Proposed per-car targets (Nightjar)**, replacing the producer's first draft where measuring showed a limit:
+- Held-key slide: tarmac 8–24° and at least 10° at 80 km/h and above (draft: 12°; the 140 km/h slide is still building at the
+  2–3 s window, 12.3°, and settles at 14°); gravel, dirt and snow 26–38°; grass at most 42°.
+- On gravel and dirt, at least 7° bigger on average than the Strada (draft: 8°; measured +8.2 / +7.5. The 36° hold cap,
+  guard.from − 6, is the ceiling: dirt would need 33.3° on average at every speed).
+- Long drift (gravel, 80 km/h, key held 4 s, gas off): angle within ±4° of its average from 1.5 s to 4 s (the first 1.5 s is
+  the swing-out), and at least 4 points more of its speed kept than the better of Kestrel and Strada (measured +6.1).
+- Letting go: back under 5° within 1.0 s (grass 1.8 s), at most 3° past straight.
+- Bot: never faster on any stage than the faster of Kestrel and Strada.
+- Everything else as the other cars (swing-out ≤ 50°, spin test, wind-on, handbrake, bot clean).
+- Phone tilt: the shared full-tilt slide range would need the same per-car ranges as the keys.
+
+### 2026-11-12 · Art: Nightjar KR gets its own body and four liveries
+**Decision:** the third car (owner: "slidey, distinctly different, built for long drifts") has an original body, not a recolour of the Strada.
+- Shape: long nose (2.2 m ahead of the centre, vs 2.12 / 1.88), low roof set far back, ducktail lip, fat rear haunches with bolt-on flares (about 2.0 m wide over the flares), side-exit pipes, round fender lamps, a big swan-neck rear wing with an accent-colour gurney flap and an accent splitter lip. Eight thin wheel spokes. Wheel centres, radius and centre of mass are untouched (drawn only).
+- Cost (High): about 10 000 triangles and 13 draw calls, in line with Kestrel (9 500 / 13) and Strada (9 700 / 13). The Low path uses the same smaller wheel / flare segment counts as the other cars.
+- Liveries (plate prefix NJ): Dusk (black, orange; the default so it is not mistaken for the other two), Bone Drift (white, black skid arcs, red sun), Deep Sea (teal, pink and cyan waves), Sandstorm (tan, brown chevrons). Only existing sponsor names are used.
+- Code: `BODIES[ci]` replaces the `ci === 0 ? KESTREL : STRADA` picks; Nightjar details in `buildNightjarDetails`. Rivals stay on the two existing bodies. Stats (accel / top / grip / drift / turn / rear / rearDrive) are handling's and untouched here.
+
 ### 2026-11-12 · Tracks: earlier, louder warnings for tight corners
 **Decision:**
 - Hairpin, Square and Full circle calls now end ", brake!" (not where the call already says careful or the well). Sharp corners keep "don't cut".
