@@ -30,13 +30,14 @@
 
   /* ---------- touch controls (phones, tablets) ----------
      Left thumb steers with two big buttons, right thumb has gas, brake and handbrake. A thumb can roll from
-     one button to its neighbour (left to right, gas to brake) without lifting. Auto gas keeps the throttle
-     down unless you brake, so one thumb steers and the other is free for brake and handbrake drifts.
+     one button to its neighbour (left to right, gas to brake) without lifting. GAS = full throttle while held, let go to lift (the default).
+     Auto gas is an option (pause menu): it keeps the throttle down unless you brake and hides the GAS button.
      Tilt steering is optional: the phone's gravity sensor gives analogue steering. */
   const isTouch = !!((window.matchMedia && matchMedia('(pointer: coarse)').matches) || (('ontouchstart' in window) && navigator.maxTouchPoints > 0));
-  let autoGas = true, tiltMode = 0, tiltDeg = 0, tiltZero = null;       // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
+  let autoGas = false, tiltMode = 0, tiltDeg = 0, tiltZero = null;       // tiltMode: 0 buttons, 1 tilt, 2 tilt reversed
                                                                           // tiltDeg: phone turned like a wheel, ° from centre (+ = right); physicsStep makes it steering
-  try { autoGas = localStorage.getItem('rallyAutoGas') !== 'off'; tiltMode = +(localStorage.getItem('rallyTilt') || 0) || 0; } catch (e) { /* ignore */ }
+  // default off (the GAS button). Only an explicit saved 'on' (the player switched it on) keeps auto gas.
+  try { autoGas = localStorage.getItem('rallyAutoGas') === 'on'; tiltMode = +(localStorage.getItem('rallyTilt') || 0) || 0; } catch (e) { /* ignore */ }
   function touchLabels() {
     document.body.classList.toggle('autogas', isTouch && autoGas);
     document.body.classList.toggle('tilt', isTouch && tiltMode > 0);

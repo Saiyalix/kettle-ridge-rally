@@ -4,7 +4,7 @@
 //  1 tilt   : countdown re-centre, small tilt -> small steer, full tilt -> full lock, direction, both landscape directions and
 //             the portrait angle, phone upright and leaned back, "tilt reversed", hand-shake jitter, no sensor at all.
 //  2 touch  : 3 fingers at once, release/cancel leave nothing stuck, thumb rolling, rotating the phone mid-race.
-//  3 auto gas: a brake tap and the handbrake lift the gas (the car rotates), the gas comes back.
+//  3 auto gas: off by default (GAS button); as an option, a brake tap and the handbrake lift the gas (the car rotates), the gas comes back.
 //  4 frame time: NOT tested. Headless Chrome has no GPU (software rendering), so milliseconds per frame say nothing about a phone.
 // The physics are stepped synchronously inside the page (probe.phone.step), so results repeat exactly and run fast.
 // All numbers: tests/expected.json -> phone.
@@ -148,7 +148,7 @@ module.exports = async function phoneTest({ browser, base, expected, shot }) {
   await page.waitForTimeout(600);                         // let a frame show the on-screen controls
   const centre = sel => page.evaluate(s => { const e = document.querySelector(s), r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; }, sel);
   const pts = {};
-  for (const [k, sel] of [['left', '.tc-steer[data-key=left]'], ['right', '.tc-steer[data-key=right]'], ['hb', '.tc-hb'], ['down', '.tc-brake']]) pts[k] = await centre(sel);
+  for (const [k, sel] of [['left', '.tc-steer[data-key=left]'], ['right', '.tc-steer[data-key=right]'], ['hb', '.tc-hb'], ['down', '.tc-brake'], ['up', '.tc-gas']]) pts[k] = await centre(sel);
   const fingers = new Map();                              // id -> point
   const send = async type => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchCancel' ? [] : [...fingers].map(([id, p]) => ({ x: p.x, y: p.y, id })) });
   const down = async (id, key) => { fingers.set(id, pts[key]); await send('touchStart'); };
@@ -180,6 +180,26 @@ module.exports = async function phoneTest({ browser, base, expected, shot }) {
   await down(7, 'right'); await page.waitForTimeout(900); const hh = await page.evaluate(() => window.__probe.phone.read()); await up(7);
   add('touch: holding the right button for a moment really steers the car right', hh.steer > 0.5, `steering ${f(hh.steer)}`);
 
+  // GAS button (auto gas is off by default): held = full throttle in the real loop, let go = lift; works with steering and handbrake
+  const defAuto = await page.evaluate(() => ({ auto: window.__probe.phone.read().autoGas, cls: document.body.className }));
+  add('gas button: auto gas is off by default on a phone, so the GAS button is shown', defAuto.auto === false && !/\bautogas\b/.test(defAuto.cls), `autoGas ${defAuto.auto}, body "${defAuto.cls}"`);
+  await down(11, 'right'); await down(12, 'up'); const g1 = await keys();
+  add('gas button: steer + GAS with two fingers both register', on(g1) === 'right+up', `pressed: ${on(g1)}`);
+  await page.waitForTimeout(700);
+  const gasHeld = await page.evaluate(() => ({ thr: window.__probe.phone.read().throttle, lit: document.querySelector('.tc-gas').classList.contains('on') }));
+  add('gas button: holding GAS gives full throttle (≥ 0.95) and the button lights up', gasHeld.thr >= 0.95 && gasHeld.lit, `throttle ${f(gasHeld.thr)}, lit ${gasHeld.lit}`);
+  await down(13, 'hb'); const g2 = await keys();
+  add('gas button: gas + handbrake (+ steer) at once all register', on(g2) === 'hb+right+up', `pressed: ${on(g2)}`);
+  await up(13); await up(12);
+  await page.waitForTimeout(700);
+  const gasLift = await page.evaluate(() => ({ thr: window.__probe.phone.read().throttle, lit: document.querySelector('.tc-gas').classList.contains('on') }));
+  add('gas button: letting go of GAS lifts the throttle (≤ 0.05, no auto gas) and the light goes out', gasLift.thr <= 0.05 && !gasLift.lit, `throttle ${f(gasLift.thr)}, lit ${gasLift.lit}`);
+  await down(14, 'up'); await moveTo(14, pts.down); const g3 = await keys();
+  add('gas button: sliding the thumb from GAS onto BRAKE switches to brake, GAS lets go', on(g3) === 'down+right', `pressed: ${on(g3)}`);
+  await up(14); await up(11);
+  const g4 = await keys();
+  add('gas button: every finger up -> nothing stuck', on(g4) === 'none', `pressed: ${on(g4)}`);
+
   // rotating the phone mid-race with a finger down
   await down(8, 'right'); await page.waitForTimeout(150);
   await page.setViewportSize({ width: V.height, height: V.width });
@@ -205,8 +225,11 @@ module.exports = async function phoneTest({ browser, base, expected, shot }) {
   await down(9, 'right'); await down(10, 'hb'); const k8 = await keys(); await up(9); await up(10);
   add('rotate: controls still respond after turning the phone back', on(k8) === 'hb+right', `pressed: ${on(k8)}`);
 
-  // ================= 3. AUTO GAS: brake tap and handbrake give the lift (auto gas is on by default) =================
+  // ================= 3. AUTO GAS option (off by default): brake tap and handbrake give the lift =================
   const AG = X.autoGas, ag = {};
+  await clickId('autoGasBtn2');                          // switch auto gas ON in the pause menu
+  const agOn = await page.evaluate(() => ({ auto: window.__probe.phone.read().autoGas, saved: localStorage.getItem('rallyAutoGas'), cls: document.body.className, label: document.getElementById('autoGasBtn2').textContent }));
+  add('auto gas option: the pause menu button switches it on, saves it, and hides the GAS button', agOn.auto === true && agOn.saved === 'on' && /\bautogas\b/.test(agOn.cls) && agOn.label === 'Auto gas: On', `autoGas ${agOn.auto}, saved ${agOn.saved}, label "${agOn.label}", body "${agOn.cls}"`);
   ag.none = await page.evaluate(autoGasScenario, { kmh: AG.kmh, holdS: 0.15, pad: null });
   ag.tap = await page.evaluate(autoGasScenario, { kmh: AG.kmh, holdS: 0.15, pad: 'down' });
   ag.hb = await page.evaluate(autoGasScenario, { kmh: AG.kmh, holdS: 0.3, pad: 'hb' });
@@ -221,7 +244,7 @@ module.exports = async function phoneTest({ browser, base, expected, shot }) {
     ag.tap.gasAtEnd >= AG.backMinGas && ag.hb.gasAtEnd >= AG.backMinGas && ag.tap.peak <= AG.maxSlideDeg && ag.hb.peak <= AG.maxSlideDeg,
     `gas after tap ${f(ag.tap.gasAtEnd)}, after handbrake ${f(ag.hb.gasAtEnd)}, peaks ${f(ag.tap.peak, 0)}° / ${f(ag.hb.peak, 0)}°`);
 
-  // auto gas OFF (press the Auto gas button): GAS button appears; gas + steer + handbrake at once
+  // auto gas OFF again (press the Auto gas button): the GAS button comes back
   await clickId('autoGasBtn2');
   await page.evaluate(() => { const P = window.__probe.phone; P.start(); P.step(5); P.go(); });
   await page.waitForTimeout(600);
