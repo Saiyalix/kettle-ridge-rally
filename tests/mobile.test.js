@@ -88,7 +88,9 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   // ---- tilt steering + GAS button: steer buttons hidden, GAS and the other pedals stay on screen, clear of the HUD
   const gg = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyTilt: '1' } });
   await gg.page.tap('#startBtn');
-  await gg.page.waitForTimeout(1000);                 // before the "no sensor" fallback (2 s of racing) brings the steer buttons back
+  await gg.page.waitForSelector('body.race-on:not(.menu-mode) #touch .tc-brake', { state: 'visible' });
+  await gg.page.evaluate(() => { const fire = () => window.dispatchEvent(new DeviceMotionEvent('devicemotion', { accelerationIncludingGravity: { x: 9.81, y: 0, z: 0 } })); fire(); setInterval(fire, 200); });   // a working tilt sensor, so the steer buttons stay hidden
+  await gg.page.waitForTimeout(500);
   const tg = await rectsOf(gg.page, ['.tc-steer', '.tc-brake', '.tc-hb', '.tc-gas', '.tc-mini']);
   const tgHud = await rectsOf(gg.page, ['#timing', '#clock', '#mapwrap', '#dash']);
   const tgBad = [...pairs(tg), ...tg.flatMap(a => tgHud.filter(b => overlap(a, b)).map(b => `${a.name} × ${b.name}`)), ...tg.filter(r => !inside(r)).map(r => r.name + ' off screen'), ...tg.filter(r => Math.min(r.w, r.h) < expected.mobile.minTouchPx).map(r => r.name + ' too small')];
