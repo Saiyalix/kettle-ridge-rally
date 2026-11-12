@@ -102,7 +102,21 @@
   }
 
   /* ---- ground: grass, plus a soil/pebble layer blended in by the ground shader on high quality ---- */
+  // desert ground: pale sand and hardpan with pebbles, wind ripples and dry scrub flecks (no green; the vertex colours carry the sand/ochre hue)
+  function sandTex() {
+    return artTex('sand', [512, 512], (g, W, H, S, r) => {
+      g.fillStyle = '#e2d6c0'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 90; i++) { const x = r() * W, y = r() * H, rad = (25 + r() * 90) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, pick(r, ['150,100,60', '255,250,230', '190,140,90', '120,84,56']), 0.12 + r() * 0.1)); }
+      for (let i = 0; i < 9000 * S * S; i++) {                                                           // wind-blown grain and ripples
+        const x = r() * W, y = r() * H, len = (2 + r() * 6) * S, ang = 1.45 + (r() - 0.5) * 0.4;
+        g.strokeStyle = pick(r, ['rgba(120,80,50,0.28)', 'rgba(255,248,225,0.4)', 'rgba(160,120,80,0.3)']); g.lineWidth = (0.8 + r() * 0.8) * S;
+        wrapXY(W, H, x, y, 8 * S, (X, Y) => { g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.sin(ang) * len, Y - Math.cos(ang) * len); g.stroke(); });
+      }
+      for (let i = 0; i < 220; i++) { const x = r() * W, y = r() * H, rad = (1 + r() * 2.4) * S; wrapXY(W, H, x, y, 8 * S, (X, Y) => { g.fillStyle = 'rgba(70,50,36,0.35)'; g.beginPath(); g.ellipse(X + S, Y + S, rad, rad * 0.8, 0, 0, 7); g.fill(); g.fillStyle = pick(r, ['#b89c78', '#d8c4a0', '#8e7458', '#a8845e']); g.beginPath(); g.ellipse(X, Y, rad, rad * 0.8, 0, 0, 7); g.fill(); }); }
+    }, 23, 8);
+  }
   function grassTex() {
+    if (ST && ST.theme === 'desert') return sandTex();
     return artTex('grass', [512, 512], (g, W, H, S, r) => {
       g.fillStyle = '#d4d9c4'; g.fillRect(0, 0, W, H);
       for (let i = 0; i < 90; i++) { const x = r() * W, y = r() * H, rad = (25 + r() * 90) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, pick(r, ['50,90,30', '255,255,215', '130,100,50', '25,55,20']), 0.14 + r() * 0.12)); }

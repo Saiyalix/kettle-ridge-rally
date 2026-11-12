@@ -579,3 +579,11 @@ Package 2 "Phone first" (owner: "go on with package 2"). New `tests/phone.test.j
 - `tests/lib/game.js`: every page gets 120 s default timeout (goto, screenshot, click, waits; Playwright's default is 30 s). Startup wait is 180 s. All of these are multiplied by `SLOW` = the 1-minute load average divided by cores, between 1 and 4 (idle box: x1; override with env `SLOW=2`). `patience(ms)` scales a hand-written wait (used in `flow` and `gfx`).
 - `tests/run.js`: the browser is now `resilientBrowser()`: if Chromium died, the next page launches a fresh one; after a group that threw, the browser is killed and restarted so the next group starts clean. The run prints `busy machine: waiting Nx longer` when SLOW > 1.
 - Only waiting changed. No expected value, threshold or pass condition was touched; a real failure still fails (it just takes longer to give up).
+
+## 2026-11-12 · Art: SS5 Red Mesa Run gets its real look (display only)
+**Why:** the first SS5 look was a warmed copy of SS2: orange sky, ground, road and rock all blended, the rock banks were over-saturated, and the roadside tufts and bushes were green.
+- `look` block (`src/tracks/stages.js`): pale-gold low sun (not orange) with cool blue sky fill, so shadows are blue-grey and long (sun 13 degrees up); sky pale blue at the top to amber to pale cream at the horizon; far mesa layers in dusty rose-tan with more mist; grade saturation 1.02 (was 1.18, plus a warm tint). Pale sand and ochre ground colours, dirt road and shoulder dark red-brown, rock red-brown.
+- Ground texture on the desert theme is now sand and pebbles (`sandTex` in `src/art/textures.js`); the grass texture had green blots that tinted the sand olive. Same size and cost as the grass texture; the other stages are untouched.
+- Rock banks (`tint` in `src/tracks/scenery.js`) and boulders / far mesas (`themes.js`) are browner and less saturated so the layered strata read; this was the red streak at the left edge of the first screenshot: a rock bank face, lit side-on by the low sun at full saturation, not a sprite.
+- `buildNature` (`src/art/trees.js`): on the desert theme tufts and bushes are straw, khaki-sage or rust-brown, never green. Cacti are a duller sage. Same count and places.
+- No geometry, placement, collision or clock changed: bot times do not move. No new draw calls.

@@ -253,20 +253,22 @@ const STAGES = [
       ['R', 150, 20], ['S', 50], ['L', 45, 180], ['S', 70], ['R', 70, 90], ['S', 150], ['L', 60, 100], ['S', 40],
       ['R', 40, 240], ['S', 50], ['L', 100, 45], ['S', 40], ['R', 45, 160], ['S', 60], ['S', 150],
     ],
-    // look (art redoes this): golden hour. Low orange sun, warm haze, red rock, sand-coloured ground
+    // look: golden hour in a desert canyon. A pale-blue sky that warms to amber at the horizon (SS2 is purple, SS4 is dawn grey-gold),
+    // a low sun that is pale gold (not orange) so the pale sand stays sand, cool-blue sky fill in the shadows, red-brown banded rock,
+    // darker red-brown dirt road on pale ochre ground, dusty haze on the far mesas. Display only.
     look: {
-      skyTop: 0x2a2a70, skyMid: 0xc9604a, horizon: 0xf2a65a, fogNear: 120, fogFar: 520,
-      hemiSky: 0xf0b890, hemiGround: 0x8a4a30, hemi: 1.9, sun: 0xffa050, sunI: 7.4, exposure: 1.0, sunEl: 14, sunAz: -70,
-      ink: 0x3a1c18, env: [0xc88a70, 0xffb070, 0x6a3a28], shadowBias: -0.0006, shadowNormal: 0.05, dust: 1.0,
-      sky: { clouds: 'sunset', seed: 18, sunCol: 0xfff0b8, sunSize: 0.055, glowCol: 0xff8a30, glowAmt: 1.0, band: 0.9, shade: 0x6a3040, lit: 0xffa050, rim: 0xffe08a },
+      skyTop: 0x3f78c4, skyMid: 0xe6b27a, horizon: 0xf6d6a6, fogNear: 100, fogFar: 560,
+      hemiSky: 0x9cc0ee, hemiGround: 0xc09068, hemi: 1.55, sun: 0xffe0b0, sunI: 6.4, exposure: 1.0, sunEl: 13, sunAz: -70,
+      ink: 0x3a2018, env: [0x9ec0e8, 0xffd8a8, 0x9a6040], shadowBias: -0.0006, shadowNormal: 0.05, dust: 1.1,
+      sky: { clouds: 'sunset', seed: 18, sunCol: 0xfff4d0, sunSize: 0.05, glowCol: 0xffb060, glowAmt: 0.7, band: 0.55, shade: 0xb48aa0, lit: 0xffcf8c, rim: 0xfff0c0 },
       ridge: [
-        { col: 0xf0a070, base: 4, amp: 90, per: 5, oct: 4, jag: 1, mist: 0.5 },
-        { col: 0xc86a58, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.45 },
-        { col: 0x9a4a4a, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.35 },
+        { col: 0xe0b08a, base: 4, amp: 90, per: 5, oct: 4, jag: 1, mist: 0.6 },
+        { col: 0xb87060, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.5 },
+        { col: 0x8a4e44, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.38 },
       ],
       noPeaks: true,
-      grade: { tint: [1.08, 0.98, 0.9], lift: [0.016, 0.0, 0.02], sat: 1.18, con: 1.12, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.36 },
-      grassA: [0.74, 0.54, 0.34], grassB: [0.82, 0.62, 0.40], dirt: [0.76, 0.58, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.66, 0.30, 0.20],
+      grade: { tint: [1.03, 1.0, 0.96], lift: [0.008, 0.006, 0.02], sat: 1.02, con: 1.1, bloom: 0.4, thresh: 0.86, bloom2: 0.15, vig: 0.3 },
+      grassA: [0.86, 0.76, 0.60], grassB: [0.95, 0.87, 0.69], dirt: [0.50, 0.28, 0.20], snow: [0.95, 0.97, 1.0], rock: [0.47, 0.29, 0.22],
     },
   },
   {

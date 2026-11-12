@@ -1156,20 +1156,22 @@ const STAGES = [
       ['R', 150, 20], ['S', 50], ['L', 45, 180], ['S', 70], ['R', 70, 90], ['S', 150], ['L', 60, 100], ['S', 40],
       ['R', 40, 240], ['S', 50], ['L', 100, 45], ['S', 40], ['R', 45, 160], ['S', 60], ['S', 150],
     ],
-    // look (art redoes this): golden hour. Low orange sun, warm haze, red rock, sand-coloured ground
+    // look: golden hour in a desert canyon. A pale-blue sky that warms to amber at the horizon (SS2 is purple, SS4 is dawn grey-gold),
+    // a low sun that is pale gold (not orange) so the pale sand stays sand, cool-blue sky fill in the shadows, red-brown banded rock,
+    // darker red-brown dirt road on pale ochre ground, dusty haze on the far mesas. Display only.
     look: {
-      skyTop: 0x2a2a70, skyMid: 0xc9604a, horizon: 0xf2a65a, fogNear: 120, fogFar: 520,
-      hemiSky: 0xf0b890, hemiGround: 0x8a4a30, hemi: 1.9, sun: 0xffa050, sunI: 7.4, exposure: 1.0, sunEl: 14, sunAz: -70,
-      ink: 0x3a1c18, env: [0xc88a70, 0xffb070, 0x6a3a28], shadowBias: -0.0006, shadowNormal: 0.05, dust: 1.0,
-      sky: { clouds: 'sunset', seed: 18, sunCol: 0xfff0b8, sunSize: 0.055, glowCol: 0xff8a30, glowAmt: 1.0, band: 0.9, shade: 0x6a3040, lit: 0xffa050, rim: 0xffe08a },
+      skyTop: 0x3f78c4, skyMid: 0xe6b27a, horizon: 0xf6d6a6, fogNear: 100, fogFar: 560,
+      hemiSky: 0x9cc0ee, hemiGround: 0xc09068, hemi: 1.55, sun: 0xffe0b0, sunI: 6.4, exposure: 1.0, sunEl: 13, sunAz: -70,
+      ink: 0x3a2018, env: [0x9ec0e8, 0xffd8a8, 0x9a6040], shadowBias: -0.0006, shadowNormal: 0.05, dust: 1.1,
+      sky: { clouds: 'sunset', seed: 18, sunCol: 0xfff4d0, sunSize: 0.05, glowCol: 0xffb060, glowAmt: 0.7, band: 0.55, shade: 0xb48aa0, lit: 0xffcf8c, rim: 0xfff0c0 },
       ridge: [
-        { col: 0xf0a070, base: 4, amp: 90, per: 5, oct: 4, jag: 1, mist: 0.5 },
-        { col: 0xc86a58, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.45 },
-        { col: 0x9a4a4a, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.35 },
+        { col: 0xe0b08a, base: 4, amp: 90, per: 5, oct: 4, jag: 1, mist: 0.6 },
+        { col: 0xb87060, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.5 },
+        { col: 0x8a4e44, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.38 },
       ],
       noPeaks: true,
-      grade: { tint: [1.08, 0.98, 0.9], lift: [0.016, 0.0, 0.02], sat: 1.18, con: 1.12, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.36 },
-      grassA: [0.74, 0.54, 0.34], grassB: [0.82, 0.62, 0.40], dirt: [0.76, 0.58, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.66, 0.30, 0.20],
+      grade: { tint: [1.03, 1.0, 0.96], lift: [0.008, 0.006, 0.02], sat: 1.02, con: 1.1, bloom: 0.4, thresh: 0.86, bloom2: 0.15, vig: 0.3 },
+      grassA: [0.86, 0.76, 0.60], grassB: [0.95, 0.87, 0.69], dirt: [0.50, 0.28, 0.20], snow: [0.95, 0.97, 1.0], rock: [0.47, 0.29, 0.22],
     },
   },
   {
@@ -2724,7 +2726,21 @@ function boot() {
   }
 
   /* ---- ground: grass, plus a soil/pebble layer blended in by the ground shader on high quality ---- */
+  // desert ground: pale sand and hardpan with pebbles, wind ripples and dry scrub flecks (no green; the vertex colours carry the sand/ochre hue)
+  function sandTex() {
+    return artTex('sand', [512, 512], (g, W, H, S, r) => {
+      g.fillStyle = '#e2d6c0'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 90; i++) { const x = r() * W, y = r() * H, rad = (25 + r() * 90) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, pick(r, ['150,100,60', '255,250,230', '190,140,90', '120,84,56']), 0.12 + r() * 0.1)); }
+      for (let i = 0; i < 9000 * S * S; i++) {                                                           // wind-blown grain and ripples
+        const x = r() * W, y = r() * H, len = (2 + r() * 6) * S, ang = 1.45 + (r() - 0.5) * 0.4;
+        g.strokeStyle = pick(r, ['rgba(120,80,50,0.28)', 'rgba(255,248,225,0.4)', 'rgba(160,120,80,0.3)']); g.lineWidth = (0.8 + r() * 0.8) * S;
+        wrapXY(W, H, x, y, 8 * S, (X, Y) => { g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.sin(ang) * len, Y - Math.cos(ang) * len); g.stroke(); });
+      }
+      for (let i = 0; i < 220; i++) { const x = r() * W, y = r() * H, rad = (1 + r() * 2.4) * S; wrapXY(W, H, x, y, 8 * S, (X, Y) => { g.fillStyle = 'rgba(70,50,36,0.35)'; g.beginPath(); g.ellipse(X + S, Y + S, rad, rad * 0.8, 0, 0, 7); g.fill(); g.fillStyle = pick(r, ['#b89c78', '#d8c4a0', '#8e7458', '#a8845e']); g.beginPath(); g.ellipse(X, Y, rad, rad * 0.8, 0, 0, 7); g.fill(); }); }
+    }, 23, 8);
+  }
   function grassTex() {
+    if (ST && ST.theme === 'desert') return sandTex();
     return artTex('grass', [512, 512], (g, W, H, S, r) => {
       g.fillStyle = '#d4d9c4'; g.fillRect(0, 0, W, H);
       for (let i = 0; i < 90; i++) { const x = r() * W, y = r() * H, rad = (25 + r() * 90) * S; wrapXY(W, H, x, y, rad, (X, Y) => blot(g, X, Y, rad, pick(r, ['50,90,30', '255,255,215', '130,100,50', '25,55,20']), 0.14 + r() * 0.12)); }
@@ -3306,7 +3322,7 @@ function boot() {
       // red rock banks 9 m out from the road edge (look and a wall for anyone far off line); the mesas themselves are the ground (mesaHeight)
       for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, track.finishS - 80, 60, 130, 50, 140)) {
         if (rng() < 0.25) continue;
-        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.82, 0.46, 0.34] });
+        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.62, 0.44, 0.36] });
       }
     } else if (ST.id === 'test') {
       // practice stage: no walls, fences or houses
@@ -3763,7 +3779,7 @@ function boot() {
   };
   function buildNature() {
     if (!stageGroup || !track) return;
-    const nr = mulberry32(ST.seed * 131 + 7), L = ST.look, japan = ST.theme === 'japan', alpine = ST.theme === 'alpine';
+    const nr = mulberry32(ST.seed * 131 + 7), L = ST.look, japan = ST.theme === 'japan', alpine = ST.theme === 'alpine', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : 1e9, city = track.cityStart || 1e9;
     const edge = half * 1.14 + 0.9;
     const okSpot = (x, z, y, p, minD, s0) => {
@@ -3781,7 +3797,9 @@ function boot() {
       for (let k = 0, n = nr() < 0.55 ? 2 : 1; k < n; k++) {
         const off = edge + Math.pow(nr(), 1.8) * 12, [x, z] = sideXZ(sampleAt(s + nr() * 1.5), side * off), y = terrain.heightAt(x, z), sc = 0.7 + nr() * 0.8, rot = nr() * 6.28, pick = nr(), pick2 = nr();
         if (s > snowFrom - 20 || !okSpot(x, z, y, p, edge, s)) continue;
-        const c = pick2 < dry ? strawC.map(q => q * (0.9 + 0.15 * pick)) : gr(1.0);
+        // desert: dry scrub only (bleached straw, dusty khaki-sage, a few rust brown), never green
+        const c = desert ? (pick2 < 0.5 ? [0.74, 0.62, 0.38] : pick2 < 0.85 ? [0.52, 0.48, 0.30] : [0.50, 0.30, 0.20]).map(q => q * (0.85 + 0.25 * pick))
+          : pick2 < dry ? strawC.map(q => q * (0.9 + 0.15 * pick)) : gr(1.0);
         (pick < 0.3 ? tall : tufts).push({ x, y: y - 0.02, z, s: sc, r: rot, c });
       }
     }
@@ -3792,6 +3810,7 @@ function boot() {
       if (s > snowFrom - 40) c = [0.8, 0.88, 0.98];
       else if (alpine) c = [0.5 + pick * 0.2, 0.52 + pick * 0.1, 0.3];
       else if (japan) c = pick2 < 0.3 ? [1.0, 0.45 + pick * 0.2, 0.72] : [0.2 + pick * 0.1, 0.5, 0.3];
+      else if (desert) c = pick2 < 0.5 ? [0.50 + pick * 0.1, 0.46 + pick * 0.08, 0.28] : [0.60 + pick * 0.1, 0.46, 0.27];       // dry sage and straw scrub
       else if (pick2 < 0.08) c = [0.62, 0.46, 0.27];
       bushes.push({ x, y: y - 0.05, z, s: sc, r: rot, c });
     }
@@ -5390,7 +5409,7 @@ function boot() {
       if (cap) { const c = Pp.length / 3; Pp.push(p1[0] + ax[0] * r1 * 0.5, p1[1] + ax[1] * r1 * 0.5, p1[2] + ax[2] * r1 * 0.5); Cc.push(col[0], col[1], col[2]); for (let k = 0; k < sides; k++) Ii.push(base + k * 2 + 1, base + ((k + 1) % sides) * 2 + 1, c); }
     };
     if (kind === 'cactus') {
-      const g = [0.30, 0.46, 0.27];
+      const g = [0.36, 0.46, 0.30];
       tube([0, 0, 0], [0, 2.7, 0], 0.30, 0.24, g, true);
       tube([0.2, 1.1, 0], [0.95, 1.2, 0], 0.15, 0.15, g, false); tube([0.95, 1.2, 0], [0.95, 2.1, 0], 0.15, 0.12, g, true);
       tube([-0.2, 1.5, 0], [-0.8, 1.6, 0.1], 0.13, 0.13, g, false); tube([-0.8, 1.6, 0.1], [-0.8, 2.3, 0.1], 0.13, 0.1, g, true);
@@ -5418,8 +5437,8 @@ function boot() {
     for (const c of cacti) obstacles.push({ x: c.x, z: c.z, r: 0.32 * c.s });
     for (const c of dead) obstacles.push({ x: c.x, z: c.z, r: 0.22 * c.s });
     // red boulders; only the ones 8.6 m or more from the road edge are solid
-    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.62, 0.30, 0.20]);
-    distantPeaks(rng, 20, 0x9a4a4a, 0xf0a070, { dist: 1350, y: -60, hideRandom: true });
+    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.58, 0.34, 0.25]);
+    distantPeaks(rng, 20, 0x8a5048, 0xe0b090, { dist: 1350, y: -60, hideRandom: true });
   }
 
   /* ---------- theme: Japan (Sakura Touge) ---------- */

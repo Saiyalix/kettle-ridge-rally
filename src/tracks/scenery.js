@@ -253,7 +253,7 @@
       // red rock banks 9 m out from the road edge (look and a wall for anyone far off line); the mesas themselves are the ground (mesaHeight)
       for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, track.finishS - 80, 60, 130, 50, 140)) {
         if (rng() < 0.25) continue;
-        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.82, 0.46, 0.34] });
+        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.62, 0.44, 0.36] });
       }
     } else if (ST.id === 'test') {
       // practice stage: no walls, fences or houses

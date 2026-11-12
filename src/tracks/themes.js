@@ -90,7 +90,7 @@
       if (cap) { const c = Pp.length / 3; Pp.push(p1[0] + ax[0] * r1 * 0.5, p1[1] + ax[1] * r1 * 0.5, p1[2] + ax[2] * r1 * 0.5); Cc.push(col[0], col[1], col[2]); for (let k = 0; k < sides; k++) Ii.push(base + k * 2 + 1, base + ((k + 1) % sides) * 2 + 1, c); }
     };
     if (kind === 'cactus') {
-      const g = [0.30, 0.46, 0.27];
+      const g = [0.36, 0.46, 0.30];
       tube([0, 0, 0], [0, 2.7, 0], 0.30, 0.24, g, true);
       tube([0.2, 1.1, 0], [0.95, 1.2, 0], 0.15, 0.15, g, false); tube([0.95, 1.2, 0], [0.95, 2.1, 0], 0.15, 0.12, g, true);
       tube([-0.2, 1.5, 0], [-0.8, 1.6, 0.1], 0.13, 0.13, g, false); tube([-0.8, 1.6, 0.1], [-0.8, 2.3, 0.1], 0.13, 0.1, g, true);
@@ -118,8 +118,8 @@
     for (const c of cacti) obstacles.push({ x: c.x, z: c.z, r: 0.32 * c.s });
     for (const c of dead) obstacles.push({ x: c.x, z: c.z, r: 0.22 * c.s });
     // red boulders; only the ones 8.6 m or more from the road edge are solid
-    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.62, 0.30, 0.20]);
-    distantPeaks(rng, 20, 0x9a4a4a, 0xf0a070, { dist: 1350, y: -60, hideRandom: true });
+    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.58, 0.34, 0.25]);
+    distantPeaks(rng, 20, 0x8a5048, 0xe0b090, { dist: 1350, y: -60, hideRandom: true });
   }
 
   /* ---------- theme: Japan (Sakura Touge) ---------- */
