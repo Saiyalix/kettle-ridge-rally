@@ -36,14 +36,14 @@
 
 
   /* ---------- automatic fallback: high -> low once if the frame rate stays too low, and the FPS counter ---------- */
-  // Thresholds: smoothed frame time over AUTO_GFX.ms (under 25 fps) for AUTO_GFX.holdS seconds in a row, only while driving
+  // Thresholds: smoothed frame time over AUTO_GFX.ms (36 ms = under about 28 fps; the aim on phones is 30) for AUTO_GFX.holdS seconds in a row, only while driving
   // and after AUTO_GFX.warmS seconds of driving (loading, countdown, shader compile hitches never count).
   // Never switches back up by itself. Off with ?gfx=pc or ?autogfx=0.
-  const AUTO_GFX = { ms: 40, holdS: 3, warmS: 4, on: !GFX_PC && URLQ.get('autogfx') !== '0' };
+  const AUTO_GFX = { ms: 36, holdS: 3, warmS: 4, on: !GFX_PC && URLQ.get('autogfx') !== '0' };
   let agSmooth = 16.7, agSlowS = 0, agRunS = 0, agPrev = 0;
   function autoQualityTick(dtCapped, fakeMs) {
     const nowMs = performance.now(), wall = agPrev ? Math.min(1, (nowMs - agPrev) / 1000) : dtCapped; agPrev = nowMs;   // wall-clock: the game's own dt is capped at 0.1 s, which would stretch the timers when frames are very slow
-    const dtReal = wall, ms = fakeMs || wall * 1000;
+    const dtReal = wall, ms = fakeMs || Math.min(100, wall * 1000);   // one long hitch (shader build, tab switch) counts as at most 100 ms, so it cannot drag the average over the line on its own
     if (state !== 'running' || countdown > -0.6) { agSlowS = 0; agRunS = 0; return; }   // not driving (menu, loading, countdown, pause, replay)
     agRunS += dtReal;
     agSmooth += (ms - agSmooth) * 0.05;
