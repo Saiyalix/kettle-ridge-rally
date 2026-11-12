@@ -5,6 +5,19 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · Tracks: SS5 Red Mesa Run (desert canyon at sunset), drivable stage
+**Decision:**
+- New stage `redmesa` (theme `desert`, seed 59), between SS4 and the Test Track, so the championship is now 5 stages. About 2870 m with the run-out (finish at 2723 m).
+- Route: dirt opener with two fast sweepers (R35/260, L60/150, L40/220) and a 90 right (R60); tarmac mining road from 920 m (L25/300, R90/30, L50/70 + R50/70 chicane, L120/28); gravel canyon from 1465 m (R150/20 hairpin, L45/180, R70/90, a 150 m straight with the crest jump at 2000 m, L60/100); dirt finish from 2175 m (R40/240, L100/45, R45/160). No loose corner tighter than radius 20. No snow, no water.
+- Surfaces `[0 dirt, 920 tarmac, 1465 gravel, 2175 dirt]`. Checkpoints 640 / 1180 / 1730 / 2380. Crest jump 1.9 m at 2000 m. Bridge hump: a 0.6 m `bump` at 884 m where the dry wash crosses the road.
+- Ground: `terrain: 'blend'` with `mesaHeight` (rolling hardpan + terraced red mesas + a wide dry wash 4.6 m deep). The road follows `mesaBase` (no mesas, no wash), so the wash and the mesas are only beside the road, like the SS4 moat. Mesas are part of the ground: no extra meshes. The producer's idea of `terrain: 'cliff'` was not used: it puts a wall on one side and a drop on the other, which is the SS2 look, and this stage is meant to be open.
+- Scenery (`sceneryDesert`, themes.js): cacti and dead trees (two merged, instanced meshes of 6-sided prisms), red boulders, red rock-bank faces 9 m out (`rockFace`, tint) on 75% of stretches. Nothing solid within 8.6 m of the road edge. Distant ridges are painted by the sky as on SS2. Rock caps are `none` on this theme (no moss). Ground colour: red rock banded in layers where it is steep or high, sand elsewhere (stage-build.js `desert` branch).
+- Producer's route numbers were about 3370 m long (the opener alone was 1014 m): the plan said about 2300 m, so the straights were cut and the sections moved (see the list above) until the bot ran about 88 s, like SS1 to SS4.
+- Clock: `timeStart` 33, `timeExt` [24, 24, 22, 14] (total 117 s). `refTime` 104 (Kestrel bot 88.3 s, +17.7%).
+**Bot (Kestrel / Strada):** 88.33 s / 87.56 s, off road 0.0 s, 0 spins, 0 rescues. Clock margin at the checkpoints (before each bonus): 11.7 / 20.4 / 23.1 / 26.3 s, finish 28.7 s (tightest 11.7 s at checkpoint 1; Strada 11.9 s). Nightjar KR (cars/nightjar 07c00f1 with this stage patched in): 88.31 s, off road 0.0 s, 0 spins, 0 rescues, tightest margin 11.7 s, finish 28.7 s. The Nightjar row goes into `expected.json` after its PR is merged (only the Kestrel and Strada rows are recorded here).
+**Jump:** crest at 2000 m, bot at about 130 km/h, peak 1.9 m, airborne about 24 m, lands flat (up vector 0.99 on touchdown, no slide).
+**Not done:** the pace notes use the normal wording (no special note for the bridge hump); art redoes the `look` block (a first warm sunset copy of SS2); green bushes and tufts from `buildNature` (art/trees.js) still show on this stage and should be sand/scrub colours.
+
 ### 2026-11-12 · Tracks: earlier, louder warnings for tight corners
 **Decision:**
 - Hairpin, Square and Full circle calls now end ", brake!" (not where the call already says careful or the well). Sharp corners keep "don't cut".

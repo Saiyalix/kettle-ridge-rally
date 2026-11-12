@@ -68,6 +68,60 @@
     distantPeaks(rng, 20, ST.look.peak ? ST.look.peak[0] : 0x9aa6d0, ST.look.peak ? ST.look.peak[1] : 0xf4f7ff, { dist: 1350, y: -60, hideRandom: !!ST.look.noPeaks });
   }
 
+  /* ---------- theme: desert (Red Mesa Run) ----------
+     The mesas are part of the ground (mesaHeight in stages.js), so they cost no extra pieces. Here: red boulders, cacti and dead trees,
+     and a few red rock banks beside the road (visual rock faces 9 m out). Cacti and dead trees are two merged meshes drawn instanced.
+     Nothing solid within 8.6 m of the road edge; the racing line stays clear. */
+  function desertGeo(kind, sides) {
+    const Pp = [], Cc = [], Ii = [];
+    const tube = (p0, p1, r0, r1, col, cap) => {
+      const ax = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(ax[0], ax[1], ax[2]); ax[0] /= L; ax[1] /= L; ax[2] /= L;
+      const ref = Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      let u = [ax[1] * ref[2] - ax[2] * ref[1], ax[2] * ref[0] - ax[0] * ref[2], ax[0] * ref[1] - ax[1] * ref[0]]; const ul = Math.hypot(u[0], u[1], u[2]); u = u.map(q => q / ul);
+      const w = [ax[1] * u[2] - ax[2] * u[1], ax[2] * u[0] - ax[0] * u[2], ax[0] * u[1] - ax[1] * u[0]], base = Pp.length / 3;
+      for (let k = 0; k < sides; k++) {
+        const a = k / sides * 6.2832, c = Math.cos(a), s = Math.sin(a);
+        for (const [pt, r, sh] of [[p0, r0, 0.8], [p1, r1, 1]]) {
+          Pp.push(pt[0] + (u[0] * c + w[0] * s) * r, pt[1] + (u[1] * c + w[1] * s) * r, pt[2] + (u[2] * c + w[2] * s) * r);
+          Cc.push(col[0] * sh, col[1] * sh, col[2] * sh);
+        }
+      }
+      for (let k = 0; k < sides; k++) { const a = base + k * 2, b = base + ((k + 1) % sides) * 2; Ii.push(a, b, a + 1, b, b + 1, a + 1); }
+      if (cap) { const c = Pp.length / 3; Pp.push(p1[0] + ax[0] * r1 * 0.5, p1[1] + ax[1] * r1 * 0.5, p1[2] + ax[2] * r1 * 0.5); Cc.push(col[0], col[1], col[2]); for (let k = 0; k < sides; k++) Ii.push(base + k * 2 + 1, base + ((k + 1) % sides) * 2 + 1, c); }
+    };
+    if (kind === 'cactus') {
+      const g = [0.30, 0.46, 0.27];
+      tube([0, 0, 0], [0, 2.7, 0], 0.30, 0.24, g, true);
+      tube([0.2, 1.1, 0], [0.95, 1.2, 0], 0.15, 0.15, g, false); tube([0.95, 1.2, 0], [0.95, 2.1, 0], 0.15, 0.12, g, true);
+      tube([-0.2, 1.5, 0], [-0.8, 1.6, 0.1], 0.13, 0.13, g, false); tube([-0.8, 1.6, 0.1], [-0.8, 2.3, 0.1], 0.13, 0.1, g, true);
+    } else {
+      const d = [0.46, 0.40, 0.34];
+      tube([0, 0, 0], [0.1, 3.0, 0], 0.26, 0.09, d, true);
+      tube([0.04, 1.4, 0], [0.9, 2.3, 0.2], 0.1, 0.05, d, true); tube([0.07, 2.0, 0], [-0.8, 2.9, -0.2], 0.09, 0.04, d, true); tube([0.09, 2.6, 0], [0.5, 3.6, 0.3], 0.07, 0.03, d, true);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(Pp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); g.setIndex(Ii); g.computeVertexNormals();
+    return g;
+  }
+  function sceneryDesert(rng) {
+    const low = quality === 'low';
+    const gapOf = (x, z) => { const n = world.nearest(x, z); return n.i < 0 ? 99 : Math.sqrt(n.d2) - half; };
+    const keep = frameKeepOut();
+    const ok = (x, z, d, y, s0) => d > half + 8.8 && gapOf(x, z) > 8.6 && slopeAt(x, z) < 0.35 && !keep(s0, 1) && !nearHouse(x, z);
+    const cacti = scatter(rng, 200, 9000, (x, z, d, y, s0) => ok(x, z, d, y, s0) && rng() < (d < 40 ? 0.5 : 0.2) ? { s: 0.8 + rng() * 0.7 } : false);
+    const dead = scatter(rng, 110, 9000, (x, z, d, y, s0) => ok(x, z, d, y, s0) && rng() < (d < 40 ? 0.4 : 0.15) ? { s: 0.8 + rng() * 0.8 } : false);
+    const sides = low ? 4 : 6, place = (o, c) => { o.position.set(c.x, c.y - 0.05, c.z); o.rotation.set(0, c.r, 0); o.scale.setScalar(c.s); };
+    const lowCut = (list) => low ? list.filter((_, i) => i % 5 < 3) : list;       // phones: a third fewer (look only; trunks below stay solid)
+    // one instanced mesh per 300 m of road, so the graphics card skips the ones behind or far ahead (a single mesh would be drawn whole all the time)
+    const chunked = (list, kind) => { const by = {}, geo = desertGeo(kind, sides); for (const c of lowCut(list)) (by[Math.floor(c.s0 / 300)] || (by[Math.floor(c.s0 / 300)] = [])).push(c); for (const k in by) instanced(geo, structMat(), by[k], place); };
+    chunked(cacti, 'cactus'); chunked(dead, 'dead');
+    for (const c of cacti) obstacles.push({ x: c.x, z: c.z, r: 0.32 * c.s });
+    for (const c of dead) obstacles.push({ x: c.x, z: c.z, r: 0.22 * c.s });
+    // red boulders; only the ones 8.6 m or more from the road edge are solid
+    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.62, 0.30, 0.20]);
+    distantPeaks(rng, 20, 0x9a4a4a, 0xf0a070, { dist: 1350, y: -60, hideRandom: true });
+  }
+
   /* ---------- theme: Japan (Sakura Touge) ---------- */
   function sceneryJapan(rng) {
     const city0 = track.cityStart, tun = ST.toriiTunnel;

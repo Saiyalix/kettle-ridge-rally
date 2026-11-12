@@ -955,6 +955,31 @@ const THORN_POST = [
 ];
 const THORN_G1 = THORN_PRE.reduce((a, g) => a + segLen(g), 0), THORN_G2 = THORN_G1 + THORN_CASTLE.slice(0, 3).reduce((a, g) => a + segLen(g), 0);
 
+// SS5 Red Mesa Run: a desert canyon at sunset. The road runs over gently rolling hardpan (mesaBase); the ground beside it adds red mesas
+// (terraced plateaus with steep walls, 25 m or more from the road because the terrain eases down to the road level near it) and a wide dry wash
+// that crosses the road at MESA_WASH_S on a small bridge hump (a 'bump' jump entry).
+const MESA_WASH_S = 884;
+function mesaBase(x, z) {
+  return 5.5 * Math.sin(x * 0.0058 + 0.9) * Math.cos(z * 0.0049 - 0.3)
+    + 2.4 * Math.sin(x * 0.012 + z * 0.009 + 1.1)
+    + 0.7 * Math.sin(x * 0.037 - z * 0.029) * Math.cos(z * 0.041 + x * 0.013);
+}
+let _mesaWash = null;
+function mesaWash() {
+  if (!_mesaWash) {
+    const ST = STAGES.find(s => s.theme === 'desert'), tr = buildTrack(ST), p = tr.samples[Math.round(MESA_WASH_S / tr.step)];
+    _mesaWash = { x: p.x, z: p.z, sn: Math.sin(p.th), cs: Math.cos(p.th) };
+  }
+  return _mesaWash;
+}
+function mesaHeight(x, z) {
+  const W = mesaWash(), u = (x - W.x) * W.sn + (z - W.z) * W.cs, v = (x - W.x) * W.cs - (z - W.z) * W.sn;     // u along the road at the wash, v across it
+  const wash = 4.6 * (1 - smoothstep(clamp(Math.abs(u - 7 * Math.sin(v * 0.031)) / 38, 0, 1))) * (1 - smoothstep(clamp((Math.abs(v) - 160) / 140, 0, 1)));
+  const n = Math.sin(x * 0.0047 + 1.3) * Math.sin(z * 0.0041 + 0.2) + 0.6 * Math.sin(x * 0.0091 - z * 0.0073 + 2.0) + 0.3 * Math.sin(x * 0.019 + z * 0.017);
+  const mesa = 26 * smoothstep(clamp((n - 0.5) / 0.14, 0, 1)) + 15 * smoothstep(clamp((n - 0.95) / 0.12, 0, 1));
+  return mesaBase(x, z) - wash + mesa + 0.9 * Math.sin(x * 0.083 + 0.5) * Math.sin(z * 0.071);
+}
+
 // TEST track (practice stage, not part of the championship): wide, open, nearly flat country for trying the driving on every surface.
 function testHeight(x, z) {
   return 1.6 * Math.sin(x * 0.0045 + 0.7) * Math.cos(z * 0.004 - 0.4) + 0.5 * Math.sin(x * 0.012 + z * 0.009 + 1.3);
@@ -1114,6 +1139,37 @@ const STAGES = [
       ],
       grade: { tint: [1.06, 1.0, 0.93], lift: [0.0, 0.004, 0.014], sat: 1.24, con: 1.09, bloom: 0.55, thresh: 0.8, vig: 0.32 },
       grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
+    },
+  },
+  {
+    id: 'redmesa', code: 'SS5', name: 'Red Mesa Run', place: 'Desert canyon at sunset',
+    blurb: 'Red-rock mesas at golden hour. Long fast dirt sweepers made for sliding, a tarmac mining road, a gravel canyon with one big crest, and a dry wash to cross.',
+    bestKey: 'rallyBest_redmesa', seed: 59, theme: 'desert', terrain: 'blend', height: mesaHeight, roadHeight: mesaBase,
+    roadHalfWidth: 4.2, runoff: 150,
+    surfaceChanges: [[0, 'dirt'], [920, 'tarmac'], [1465, 'gravel'], [2175, 'dirt']],
+    checkpoints: [640, 1180, 1730, 2380],
+    timeStart: 33, timeExt: [24, 24, 22, 14], refTime: 104,
+    jumps: [[2000, 1.9], [MESA_WASH_S, 0.6, 'bump']],
+    segments: [
+      ['S', 90], ['R', 35, 260], ['S', 40], ['L', 60, 150], ['S', 50], ['R', 90, 60], ['S', 90], ['L', 40, 220], ['S', 100],
+      ['L', 25, 300], ['S', 60], ['R', 90, 30], ['S', 40], ['L', 50, 70], ['R', 50, 70], ['S', 50], ['L', 120, 28], ['S', 40],
+      ['R', 150, 20], ['S', 50], ['L', 45, 180], ['S', 70], ['R', 70, 90], ['S', 150], ['L', 60, 100], ['S', 40],
+      ['R', 40, 240], ['S', 50], ['L', 100, 45], ['S', 40], ['R', 45, 160], ['S', 60], ['S', 150],
+    ],
+    // look (art redoes this): golden hour. Low orange sun, warm haze, red rock, sand-coloured ground
+    look: {
+      skyTop: 0x2a2a70, skyMid: 0xc9604a, horizon: 0xf2a65a, fogNear: 120, fogFar: 520,
+      hemiSky: 0xf0b890, hemiGround: 0x8a4a30, hemi: 1.9, sun: 0xffa050, sunI: 7.4, exposure: 1.0, sunEl: 14, sunAz: -70,
+      ink: 0x3a1c18, env: [0xc88a70, 0xffb070, 0x6a3a28], shadowBias: -0.0006, shadowNormal: 0.05, dust: 1.0,
+      sky: { clouds: 'sunset', seed: 18, sunCol: 0xfff0b8, sunSize: 0.055, glowCol: 0xff8a30, glowAmt: 1.0, band: 0.9, shade: 0x6a3040, lit: 0xffa050, rim: 0xffe08a },
+      ridge: [
+        { col: 0xf0a070, base: 4, amp: 90, per: 5, oct: 4, jag: 1, mist: 0.5 },
+        { col: 0xc86a58, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.45 },
+        { col: 0x9a4a4a, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.35 },
+      ],
+      noPeaks: true,
+      grade: { tint: [1.08, 0.98, 0.9], lift: [0.016, 0.0, 0.02], sat: 1.18, con: 1.12, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.36 },
+      grassA: [0.74, 0.54, 0.34], grassB: [0.82, 0.62, 0.40], dirt: [0.76, 0.58, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.66, 0.30, 0.20],
     },
   },
   {
@@ -2868,7 +2924,7 @@ function boot() {
   /* ---------- ground ---------- */
   function buildGround(rng) {
     const { nx, nz, cell, minX, minZ, h, dist, nearS } = terrain;
-    const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan';
+    const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
     const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), soil = new Float32Array(nx * nz);
     for (let iz = 0, k = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++, k++) {
@@ -2883,6 +2939,11 @@ function boot() {
         const strata = 0.86 + 0.16 * Math.sign(Math.sin(h[k] * 0.55 + Math.sin(x * 0.02) * 1.5));   // layered rock bands
         c = mixc(c, [L.rock[0] * strata + n2, L.rock[1] * strata + n2, L.rock[2] * strata + n2], rockT);
         c = mixc(c, L.snow, smoothstep(clamp((h[k] - ST.snowLine) / 25, 0, 1)) * (1 - rockT * 0.5));
+      }
+      if (desert) {                                                         // red rock where the ground is steep or high, banded in layers; sand and hardpan elsewhere
+        const rockT = smoothstep(clamp((steep - 0.45) / 0.5, 0, 1)) * smoothstep(clamp((h[k] - 3) / 5, 0, 1)) + smoothstep(clamp((h[k] - 14) / 6, 0, 1)) * 0.6;
+        const strata = 0.82 + 0.2 * Math.sign(Math.sin(h[k] * 0.9 + Math.sin(x * 0.03) * 1.2)), rr = Math.min(1, rockT);
+        c = mixc(c, [L.rock[0] * strata + n2, L.rock[1] * strata + n2, L.rock[2] * strata + n2], rr);
       }
       let sb = 0;
       if (isFinite(snowFrom)) { sb = smoothstep(clamp((s0 - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, [L.snow[0] - n2 * 0.5, L.snow[1] - n2 * 0.5, L.snow[2]], sb); }
@@ -3058,7 +3119,7 @@ function boot() {
     // the random draws are the same as ever (3 for the turn, 3 for the colour, per rock); the shape is art/trees.js
     const items = list.map((r) => {
       const rot = [rng() * 3, rng() * 3, rng() * 3], col = [color[0] + rng() * 0.1, color[1] + rng() * 0.1, color[2] + rng() * 0.1];
-      const cap = ST.theme === 'alpine' ? (r.y > ST.snowLine - 8 ? 'snow' : 'moss') : (ST.snowFrom != null && terrain.sAt(r.x, r.z) > ST.snowFrom - 30 ? 'snow' : 'moss');
+      const cap = ST.theme === 'desert' ? 'none' : ST.theme === 'alpine' ? (r.y > ST.snowLine - 8 ? 'snow' : 'moss') : (ST.snowFrom != null && terrain.sAt(r.x, r.z) > ST.snowFrom - 30 ? 'snow' : 'moss');
       return { x: r.x, y: r.y, z: r.z, size: r.size, rot, col, cap };
     });
     rockStand(items);
@@ -3240,6 +3301,12 @@ function boot() {
           if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.8, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
+      }
+    } else if (ST.id === 'redmesa') {
+      // red rock banks 9 m out from the road edge (look and a wall for anyone far off line); the mesas themselves are the ground (mesaHeight)
+      for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, track.finishS - 80, 60, 130, 50, 140)) {
+        if (rng() < 0.25) continue;
+        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.82, 0.46, 0.34] });
       }
     } else if (ST.id === 'test') {
       // practice stage: no walls, fences or houses
@@ -5301,6 +5368,60 @@ function boot() {
     distantPeaks(rng, 20, ST.look.peak ? ST.look.peak[0] : 0x9aa6d0, ST.look.peak ? ST.look.peak[1] : 0xf4f7ff, { dist: 1350, y: -60, hideRandom: !!ST.look.noPeaks });
   }
 
+  /* ---------- theme: desert (Red Mesa Run) ----------
+     The mesas are part of the ground (mesaHeight in stages.js), so they cost no extra pieces. Here: red boulders, cacti and dead trees,
+     and a few red rock banks beside the road (visual rock faces 9 m out). Cacti and dead trees are two merged meshes drawn instanced.
+     Nothing solid within 8.6 m of the road edge; the racing line stays clear. */
+  function desertGeo(kind, sides) {
+    const Pp = [], Cc = [], Ii = [];
+    const tube = (p0, p1, r0, r1, col, cap) => {
+      const ax = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(ax[0], ax[1], ax[2]); ax[0] /= L; ax[1] /= L; ax[2] /= L;
+      const ref = Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      let u = [ax[1] * ref[2] - ax[2] * ref[1], ax[2] * ref[0] - ax[0] * ref[2], ax[0] * ref[1] - ax[1] * ref[0]]; const ul = Math.hypot(u[0], u[1], u[2]); u = u.map(q => q / ul);
+      const w = [ax[1] * u[2] - ax[2] * u[1], ax[2] * u[0] - ax[0] * u[2], ax[0] * u[1] - ax[1] * u[0]], base = Pp.length / 3;
+      for (let k = 0; k < sides; k++) {
+        const a = k / sides * 6.2832, c = Math.cos(a), s = Math.sin(a);
+        for (const [pt, r, sh] of [[p0, r0, 0.8], [p1, r1, 1]]) {
+          Pp.push(pt[0] + (u[0] * c + w[0] * s) * r, pt[1] + (u[1] * c + w[1] * s) * r, pt[2] + (u[2] * c + w[2] * s) * r);
+          Cc.push(col[0] * sh, col[1] * sh, col[2] * sh);
+        }
+      }
+      for (let k = 0; k < sides; k++) { const a = base + k * 2, b = base + ((k + 1) % sides) * 2; Ii.push(a, b, a + 1, b, b + 1, a + 1); }
+      if (cap) { const c = Pp.length / 3; Pp.push(p1[0] + ax[0] * r1 * 0.5, p1[1] + ax[1] * r1 * 0.5, p1[2] + ax[2] * r1 * 0.5); Cc.push(col[0], col[1], col[2]); for (let k = 0; k < sides; k++) Ii.push(base + k * 2 + 1, base + ((k + 1) % sides) * 2 + 1, c); }
+    };
+    if (kind === 'cactus') {
+      const g = [0.30, 0.46, 0.27];
+      tube([0, 0, 0], [0, 2.7, 0], 0.30, 0.24, g, true);
+      tube([0.2, 1.1, 0], [0.95, 1.2, 0], 0.15, 0.15, g, false); tube([0.95, 1.2, 0], [0.95, 2.1, 0], 0.15, 0.12, g, true);
+      tube([-0.2, 1.5, 0], [-0.8, 1.6, 0.1], 0.13, 0.13, g, false); tube([-0.8, 1.6, 0.1], [-0.8, 2.3, 0.1], 0.13, 0.1, g, true);
+    } else {
+      const d = [0.46, 0.40, 0.34];
+      tube([0, 0, 0], [0.1, 3.0, 0], 0.26, 0.09, d, true);
+      tube([0.04, 1.4, 0], [0.9, 2.3, 0.2], 0.1, 0.05, d, true); tube([0.07, 2.0, 0], [-0.8, 2.9, -0.2], 0.09, 0.04, d, true); tube([0.09, 2.6, 0], [0.5, 3.6, 0.3], 0.07, 0.03, d, true);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(Pp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); g.setIndex(Ii); g.computeVertexNormals();
+    return g;
+  }
+  function sceneryDesert(rng) {
+    const low = quality === 'low';
+    const gapOf = (x, z) => { const n = world.nearest(x, z); return n.i < 0 ? 99 : Math.sqrt(n.d2) - half; };
+    const keep = frameKeepOut();
+    const ok = (x, z, d, y, s0) => d > half + 8.8 && gapOf(x, z) > 8.6 && slopeAt(x, z) < 0.35 && !keep(s0, 1) && !nearHouse(x, z);
+    const cacti = scatter(rng, 200, 9000, (x, z, d, y, s0) => ok(x, z, d, y, s0) && rng() < (d < 40 ? 0.5 : 0.2) ? { s: 0.8 + rng() * 0.7 } : false);
+    const dead = scatter(rng, 110, 9000, (x, z, d, y, s0) => ok(x, z, d, y, s0) && rng() < (d < 40 ? 0.4 : 0.15) ? { s: 0.8 + rng() * 0.8 } : false);
+    const sides = low ? 4 : 6, place = (o, c) => { o.position.set(c.x, c.y - 0.05, c.z); o.rotation.set(0, c.r, 0); o.scale.setScalar(c.s); };
+    const lowCut = (list) => low ? list.filter((_, i) => i % 5 < 3) : list;       // phones: a third fewer (look only; trunks below stay solid)
+    // one instanced mesh per 300 m of road, so the graphics card skips the ones behind or far ahead (a single mesh would be drawn whole all the time)
+    const chunked = (list, kind) => { const by = {}, geo = desertGeo(kind, sides); for (const c of lowCut(list)) (by[Math.floor(c.s0 / 300)] || (by[Math.floor(c.s0 / 300)] = [])).push(c); for (const k in by) instanced(geo, structMat(), by[k], place); };
+    chunked(cacti, 'cactus'); chunked(dead, 'dead');
+    for (const c of cacti) obstacles.push({ x: c.x, z: c.z, r: 0.32 * c.s });
+    for (const c of dead) obstacles.push({ x: c.x, z: c.z, r: 0.22 * c.s });
+    // red boulders; only the ones 8.6 m or more from the road edge are solid
+    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.62, 0.30, 0.20]);
+    distantPeaks(rng, 20, 0x9a4a4a, 0xf0a070, { dist: 1350, y: -60, hideRandom: true });
+  }
+
   /* ---------- theme: Japan (Sakura Touge) ---------- */
   function sceneryJapan(rng) {
     const city0 = track.cityStart, tun = ST.toriiTunnel;
@@ -6507,7 +6628,7 @@ function boot() {
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     buildGround(rng); buildRoad(); planHouses(frng);
-    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else if (ST.theme === 'test') sceneryTest(rng); else sceneryForest(rng);
+    if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else if (ST.theme === 'desert') sceneryDesert(rng); else if (ST.theme === 'test') sceneryTest(rng); else sceneryForest(rng);
     trackside(rng); buildRoadside(frng); buildNature();
     for (const g of ST.signs || []) makeGate(g.s, g.text, g.bg, g.fg, false, { kind: 'arch', lights: 'cp' });      // practice stage: a big banner over the road at the start of each section
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });

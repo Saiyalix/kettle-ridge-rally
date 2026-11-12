@@ -52,6 +52,31 @@ const THORN_POST = [
 ];
 const THORN_G1 = THORN_PRE.reduce((a, g) => a + segLen(g), 0), THORN_G2 = THORN_G1 + THORN_CASTLE.slice(0, 3).reduce((a, g) => a + segLen(g), 0);
 
+// SS5 Red Mesa Run: a desert canyon at sunset. The road runs over gently rolling hardpan (mesaBase); the ground beside it adds red mesas
+// (terraced plateaus with steep walls, 25 m or more from the road because the terrain eases down to the road level near it) and a wide dry wash
+// that crosses the road at MESA_WASH_S on a small bridge hump (a 'bump' jump entry).
+const MESA_WASH_S = 884;
+function mesaBase(x, z) {
+  return 5.5 * Math.sin(x * 0.0058 + 0.9) * Math.cos(z * 0.0049 - 0.3)
+    + 2.4 * Math.sin(x * 0.012 + z * 0.009 + 1.1)
+    + 0.7 * Math.sin(x * 0.037 - z * 0.029) * Math.cos(z * 0.041 + x * 0.013);
+}
+let _mesaWash = null;
+function mesaWash() {
+  if (!_mesaWash) {
+    const ST = STAGES.find(s => s.theme === 'desert'), tr = buildTrack(ST), p = tr.samples[Math.round(MESA_WASH_S / tr.step)];
+    _mesaWash = { x: p.x, z: p.z, sn: Math.sin(p.th), cs: Math.cos(p.th) };
+  }
+  return _mesaWash;
+}
+function mesaHeight(x, z) {
+  const W = mesaWash(), u = (x - W.x) * W.sn + (z - W.z) * W.cs, v = (x - W.x) * W.cs - (z - W.z) * W.sn;     // u along the road at the wash, v across it
+  const wash = 4.6 * (1 - smoothstep(clamp(Math.abs(u - 7 * Math.sin(v * 0.031)) / 38, 0, 1))) * (1 - smoothstep(clamp((Math.abs(v) - 160) / 140, 0, 1)));
+  const n = Math.sin(x * 0.0047 + 1.3) * Math.sin(z * 0.0041 + 0.2) + 0.6 * Math.sin(x * 0.0091 - z * 0.0073 + 2.0) + 0.3 * Math.sin(x * 0.019 + z * 0.017);
+  const mesa = 26 * smoothstep(clamp((n - 0.5) / 0.14, 0, 1)) + 15 * smoothstep(clamp((n - 0.95) / 0.12, 0, 1));
+  return mesaBase(x, z) - wash + mesa + 0.9 * Math.sin(x * 0.083 + 0.5) * Math.sin(z * 0.071);
+}
+
 // TEST track (practice stage, not part of the championship): wide, open, nearly flat country for trying the driving on every surface.
 function testHeight(x, z) {
   return 1.6 * Math.sin(x * 0.0045 + 0.7) * Math.cos(z * 0.004 - 0.4) + 0.5 * Math.sin(x * 0.012 + z * 0.009 + 1.3);
@@ -211,6 +236,37 @@ const STAGES = [
       ],
       grade: { tint: [1.06, 1.0, 0.93], lift: [0.0, 0.004, 0.014], sat: 1.24, con: 1.09, bloom: 0.55, thresh: 0.8, vig: 0.32 },
       grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
+    },
+  },
+  {
+    id: 'redmesa', code: 'SS5', name: 'Red Mesa Run', place: 'Desert canyon at sunset',
+    blurb: 'Red-rock mesas at golden hour. Long fast dirt sweepers made for sliding, a tarmac mining road, a gravel canyon with one big crest, and a dry wash to cross.',
+    bestKey: 'rallyBest_redmesa', seed: 59, theme: 'desert', terrain: 'blend', height: mesaHeight, roadHeight: mesaBase,
+    roadHalfWidth: 4.2, runoff: 150,
+    surfaceChanges: [[0, 'dirt'], [920, 'tarmac'], [1465, 'gravel'], [2175, 'dirt']],
+    checkpoints: [640, 1180, 1730, 2380],
+    timeStart: 33, timeExt: [24, 24, 22, 14], refTime: 104,
+    jumps: [[2000, 1.9], [MESA_WASH_S, 0.6, 'bump']],
+    segments: [
+      ['S', 90], ['R', 35, 260], ['S', 40], ['L', 60, 150], ['S', 50], ['R', 90, 60], ['S', 90], ['L', 40, 220], ['S', 100],
+      ['L', 25, 300], ['S', 60], ['R', 90, 30], ['S', 40], ['L', 50, 70], ['R', 50, 70], ['S', 50], ['L', 120, 28], ['S', 40],
+      ['R', 150, 20], ['S', 50], ['L', 45, 180], ['S', 70], ['R', 70, 90], ['S', 150], ['L', 60, 100], ['S', 40],
+      ['R', 40, 240], ['S', 50], ['L', 100, 45], ['S', 40], ['R', 45, 160], ['S', 60], ['S', 150],
+    ],
+    // look (art redoes this): golden hour. Low orange sun, warm haze, red rock, sand-coloured ground
+    look: {
+      skyTop: 0x2a2a70, skyMid: 0xc9604a, horizon: 0xf2a65a, fogNear: 120, fogFar: 520,
+      hemiSky: 0xf0b890, hemiGround: 0x8a4a30, hemi: 1.9, sun: 0xffa050, sunI: 7.4, exposure: 1.0, sunEl: 14, sunAz: -70,
+      ink: 0x3a1c18, env: [0xc88a70, 0xffb070, 0x6a3a28], shadowBias: -0.0006, shadowNormal: 0.05, dust: 1.0,
+      sky: { clouds: 'sunset', seed: 18, sunCol: 0xfff0b8, sunSize: 0.055, glowCol: 0xff8a30, glowAmt: 1.0, band: 0.9, shade: 0x6a3040, lit: 0xffa050, rim: 0xffe08a },
+      ridge: [
+        { col: 0xf0a070, base: 4, amp: 90, per: 5, oct: 4, jag: 1, mist: 0.5 },
+        { col: 0xc86a58, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.45 },
+        { col: 0x9a4a4a, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.35 },
+      ],
+      noPeaks: true,
+      grade: { tint: [1.08, 0.98, 0.9], lift: [0.016, 0.0, 0.02], sat: 1.18, con: 1.12, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.36 },
+      grassA: [0.74, 0.54, 0.34], grassB: [0.82, 0.62, 0.40], dirt: [0.76, 0.58, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.66, 0.30, 0.20],
     },
   },
   {

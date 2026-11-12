@@ -66,7 +66,7 @@
     // the random draws are the same as ever (3 for the turn, 3 for the colour, per rock); the shape is art/trees.js
     const items = list.map((r) => {
       const rot = [rng() * 3, rng() * 3, rng() * 3], col = [color[0] + rng() * 0.1, color[1] + rng() * 0.1, color[2] + rng() * 0.1];
-      const cap = ST.theme === 'alpine' ? (r.y > ST.snowLine - 8 ? 'snow' : 'moss') : (ST.snowFrom != null && terrain.sAt(r.x, r.z) > ST.snowFrom - 30 ? 'snow' : 'moss');
+      const cap = ST.theme === 'desert' ? 'none' : ST.theme === 'alpine' ? (r.y > ST.snowLine - 8 ? 'snow' : 'moss') : (ST.snowFrom != null && terrain.sAt(r.x, r.z) > ST.snowFrom - 30 ? 'snow' : 'moss');
       return { x: r.x, y: r.y, z: r.z, size: r.size, rot, col, cap };
     });
     rockStand(items);
@@ -248,6 +248,12 @@
           if (r.kind === 'drop') stone(framePath(r.a, r.b, side, 1.8, keep, { any: true, follow: true, noDist: true, min: 2, step: 2 }), Object.assign(wallOpt(), { height: 0.95, sink: 1.8 }), 0.5);
           else for (const [a, b] of chunksOf(rng, r.a, r.b, 90, 150, 0, 0)) face(framePath(a, b + 6, side, 3.6, keep, { step: 6, any: true }), { side, height: 9 + rng() * 5, lean: 0.3 + rng() * 0.2, rough: 1.2, rows: 5, seed: seed(), tint: [1, 0.97, 0.97] });
         });
+      }
+    } else if (ST.id === 'redmesa') {
+      // red rock banks 9 m out from the road edge (look and a wall for anyone far off line); the mesas themselves are the ground (mesaHeight)
+      for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, track.finishS - 80, 60, 130, 50, 140)) {
+        if (rng() < 0.25) continue;
+        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.82, 0.46, 0.34] });
       }
     } else if (ST.id === 'test') {
       // practice stage: no walls, fences or houses
