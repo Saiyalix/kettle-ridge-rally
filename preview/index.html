@@ -293,7 +293,7 @@ body.autogas .tc-gas { display: none; }
 body.autogas .tc-brake { height: clamp(96px, 34vh, 150px); }
 .tc-top { position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
 #touch .tc-mini { width: 46px; height: 40px; border-radius: 10px; font-size: 14px; font-style: normal; }
-body.tilt .tc-left { display: none; }
+body.tilt:not(.tilt-off) .tc-left { display: none; }   /* .tilt-off: no sensor, so the steer buttons come back */
 #rotate { position: fixed; inset: 0; z-index: 20; display: none; place-items: center; text-align: center; padding: 24px; background: #0a1840; color: #fff; font-family: var(--f-arcade); font-size: 24px; }
 #rotate span { display: block; font-size: 64px; margin-bottom: 12px; animation: tilt 1.6s ease-in-out infinite; }
 @keyframes tilt { 50% { transform: rotate(90deg); } }
@@ -589,6 +589,8 @@ const CONFIG = {
   //     rotates into a slide. How easily depends on the surface (rear grip, peak), the car, speed, throttle,
   //     braking and weight transfer. The slide settles where front and rear balance, never in a spin.
   //  3. The handbrake takes most of the rear grip away (tight turns, hairpins).
+  //  The tyres decide where the car goes: in a slide the lost rear grip still bends the path towards the nose (slideCarry,
+  //  powerCarry), and a slide costs a little speed (slideKeep), so drifting is never faster than gripping.
   //  4. Spin guard: past guard.from degrees the car resists the slide growing, hard.
   // Weight (body roll, dive, squat, bounce) is drawn from the real accelerations: see `body` below.
   arcade: {
@@ -612,13 +614,17 @@ const CONFIG = {
                                   // Higher = bigger, longer slides from steering alone
     partHold: 1.0,                // part steering (phone tilt): a held part key settles the slide at (share ^ partHold) × the full
                                   // key's hold angle. 1 = in proportion; higher = small tilts slide even less. Keys are always full
-    slideCatch: 0.15,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
+    slideCatch: 0.18,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
     slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
     slideFull: 19,                // m/s (68 km/h): ...above this the surface's full rear looseness applies
-    slideCarry: 1.0,              // share of the rear grip lost to a loose surface that still bends your path (at the centre, so the
-                                  // tail still swings out). Higher = slides corner as hard as gripping: sliding is the fast way round
-    slideKeep: 0.6,               // share of the speed a slide scrubs that you keep. Higher = a held slide loses less speed (1 = none)
+    slideCarry: 1.0,              // share of the rear grip lost to a loose surface that still bends your path towards the nose (at the
+                                  // centre, so the tail still swings out). Higher = slides corner as hard as gripping
+    slideKeep: 0.75,              // share of the speed a slide scrubs (tyres and carried grip) that you keep. Higher = a held slide loses
+                                  // less speed (1 = none, sliding gets faster than gripping); lower = drifting costs more speed
+    powerCarry: 0.9,              // share of the rear side grip that throttle takes (power slide) which still pulls the car round towards
+                                  // the nose (fades in with slideFrom/slideFull). Higher = on the gas in a drift the car goes where the
+                                  // nose points; 0 = throttle only swings the tail and the car runs wide
     weightShift: 1.4,             // × the real load transfer between the axles. Higher = braking or lifting swings the tail more
     powerSlide: 1.0,              // share of the rear drive force that eats rear grip. Higher = throttle pushes the tail out more
     brakeRear: 0.35,              // share of braking done by the rear wheels
@@ -993,8 +999,8 @@ const STAGES = [
     ],
     // look: bright day. Big painted cumulus on deep blue, crisp sun. (sunEl / sunAz = degrees above the horizon / compass bearing, 0 = start direction)
     look: {
-      skyTop: 0x1a5fd8, skyMid: 0x4a9cf2, horizon: 0xcfe8ff, fogNear: 150, fogFar: 640,
-      hemiSky: 0xdcefff, hemiGround: 0x5c7050, hemi: 1.1, sun: 0xfff1d8, sunI: 3.6, exposure: 1.1, sunEl: 52, sunAz: -123,
+      skyTop: 0x0f55e0, skyMid: 0x3a95f5, horizon: 0xcfe8ff, fogNear: 150, fogFar: 640,
+      hemiSky: 0xcfe6ff, hemiGround: 0x5a6a58, hemi: 1.0, sun: 0xffeccc, sunI: 4.2, exposure: 1.1, sunEl: 52, sunAz: -123,
       ink: 0x1c2440, env: [0x7ab8ff, 0xeaf5ff, 0x5a6a3a],
       sky: { clouds: 'cumulus', seed: 5, sunCol: 0xfffbe8, sunSize: 0.03, glowCol: 0xfff0c0, glowAmt: 0.35, band: 0, shade: 0x9fb8e0, lit: 0xffffff, rim: 0xfff4cc },
       ridge: [
@@ -1002,7 +1008,7 @@ const STAGES = [
         { col: 0x86b2dc, base: -14, amp: 56, per: 7, oct: 4, jag: 0, mist: 0.45 },
         { col: 0x6fa6a6, base: -30, amp: 40, per: 9, oct: 3, jag: 0, mist: 0.4, trees: 1, treeCol: 0x4f8f8a },
       ],
-      grade: { tint: [1.02, 1.0, 0.97], sat: 1.2, con: 1.07, bloom: 0.4, thresh: 0.86, vig: 0.3 },
+      grade: { tint: [1.03, 1.0, 0.96], lift: [0.0, 0.004, 0.016], sat: 1.32, con: 1.1, bloom: 0.4, thresh: 0.86, vig: 0.3 },
       grassA: [0.34, 0.62, 0.30], grassB: [0.48, 0.72, 0.32], dirt: [0.74, 0.60, 0.40], snow: [0.90, 0.94, 1.0], rock: [0.62, 0.60, 0.66],
     },
   },
@@ -1031,7 +1037,7 @@ const STAGES = [
     // look: late-afternoon sunset. Low warm sun, long shadows, orange-purple sky, purple haze in the distance
     look: {
       skyTop: 0x241a68, skyMid: 0x9a4f9e, horizon: 0xb877a8, fogNear: 200, fogFar: 900,
-      hemiSky: 0xb8a4ec, hemiGround: 0x50407a, hemi: 2.2, sun: 0xffbf86, sunI: 6.2, exposure: 1.0, sunEl: 17, sunAz: -60,
+      hemiSky: 0xa898f0, hemiGround: 0x483580, hemi: 2.0, sun: 0xffb070, sunI: 7.0, exposure: 1.0, sunEl: 17, sunAz: -60,
       ink: 0x2a1c44, env: [0x6a4a9a, 0xff9a70, 0x4a3050], shadowBias: -0.0006, shadowNormal: 0.05, dust: 0.8,
       sky: { clouds: 'sunset', seed: 12, sunCol: 0xfff2c0, sunSize: 0.05, glowCol: 0xff9238, glowAmt: 0.9, band: 0.9, shade: 0x4a2a70, lit: 0xff9a52, rim: 0xffe08a },
       ridge: [
@@ -1041,7 +1047,7 @@ const STAGES = [
         { col: 0x5b3d7e, base: -36, amp: 46, per: 10, oct: 3, jag: 0, mist: 0.3, trees: 1 },
       ],
       noPeaks: true,
-      grade: { tint: [1.04, 0.98, 0.95], lift: [0.012, 0.0, 0.03], sat: 1.0, con: 1.1, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
+      grade: { tint: [1.05, 0.98, 0.94], lift: [0.014, 0.0, 0.036], sat: 1.14, con: 1.13, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
       grassA: [0.42, 0.62, 0.30], grassB: [0.56, 0.68, 0.34], dirt: [0.70, 0.56, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.50, 0.43, 0.47],
     },
   },
@@ -1076,7 +1082,7 @@ const STAGES = [
       ],
       noPeaks: true, peak: [0x0c1138, 0x4a528c],
       nightGlow: { road: 0x9aa4c8, roadI: 0.8, reach: 40, pool: 0.35 },
-      grade: { tint: [0.95, 0.98, 1.06], lift: [0.004, 0.008, 0.024], sat: 1.12, con: 1.1, bloom: 0.55, thresh: 0.78, bloom2: 0.4, vig: 0.42 },
+      grade: { tint: [0.95, 0.98, 1.06], lift: [0.006, 0.006, 0.028], sat: 1.26, con: 1.13, bloom: 0.6, thresh: 0.76, bloom2: 0.45, vig: 0.42 },
       grassA: [0.36, 0.60, 0.30], grassB: [0.50, 0.68, 0.30], dirt: [0.72, 0.58, 0.42], snow: [0.9, 0.94, 1.0], rock: [0.60, 0.56, 0.62],
       foliageTint: [1.0, 0.82, 0.86], rockCaps: { moss: { col: [0.14, 0.26, 0.16], amt: 0.5 }, snow: { col: [0.8, 0.85, 1.0], amt: 0.9 }, none: { col: [0, 0, 0], amt: 0 } },
     },
@@ -1096,7 +1102,7 @@ const STAGES = [
     // soft peach mist in the valleys (fog starts close, so far hills and the keep melt into it), cool blue shade, dew-bright meadows.
     look: {
       skyTop: 0x6c92c6, skyMid: 0xc9c9d6, horizon: 0xf2dcbc, fogNear: 38, fogFar: 330,
-      hemiSky: 0xd8e2f4, hemiGround: 0xa08a6a, hemi: 1.45, sun: 0xffc486, sunI: 3.4, exposure: 1.08, sunEl: 12, sunAz: 232,
+      hemiSky: 0xd0def6, hemiGround: 0x9c8466, hemi: 1.35, sun: 0xffb872, sunI: 4.0, exposure: 1.08, sunEl: 12, sunAz: 232,
       ink: 0x2a2a3c, env: [0x9ab4d6, 0xf6dcb4, 0x6a5e44],
       sky: { clouds: 'cumulus', seed: 14, sunCol: 0xffe0a8, sunSize: 0.05, glowCol: 0xffbe78, glowAmt: 0.95, band: 0.6, shade: 0xb6a8c4, lit: 0xfff0d6, rim: 0xffcf98 },
       ridge: [
@@ -1104,7 +1110,7 @@ const STAGES = [
         { col: 0xb2b4c4, base: -14, amp: 50, per: 7, oct: 4, jag: 0, mist: 0.58 },
         { col: 0x9aa8a4, base: -30, amp: 36, per: 9, oct: 3, jag: 0, mist: 0.52, trees: 1, treeCol: 0x6f8c80 },
       ],
-      grade: { tint: [1.05, 1.0, 0.93], sat: 1.1, con: 1.05, bloom: 0.55, thresh: 0.8, vig: 0.32 },
+      grade: { tint: [1.06, 1.0, 0.93], lift: [0.0, 0.004, 0.014], sat: 1.24, con: 1.09, bloom: 0.55, thresh: 0.8, vig: 0.32 },
       grassA: [0.30, 0.52, 0.26], grassB: [0.52, 0.66, 0.30], dirt: [0.66, 0.54, 0.38], snow: [0.90, 0.94, 1.0], rock: [0.66, 0.62, 0.62],
     },
   },
@@ -1717,8 +1723,10 @@ class Car {
        throttle (power slide), a brake tap or lifting off (weight forward) and the handbrake all make that happen.
      - As the slide grows, a held key asks for less front grip (`slideHold`), so the slide settles at an angle
        set by surface and car instead of spinning. The spin guard stops the rest.
-     - The engine pushes along the car's nose, so in a slide throttle drives the car round the corner and keeps
-       its speed. Brakes and drag act along the direction of travel. */
+     - The tyres decide where the car goes: in a slide the grip the rear lost is handed back as a side force that bends
+       the path towards where the nose points, and throttle doesn't take that away (`powerCarry`), so on the gas the car
+       drives out along its nose. Sliding costs a little speed (`slideKeep`): a drift is never faster than gripping.
+     - The engine pushes along the car's nose; brakes and drag act along the direction of travel. */
   arcadeForces(dt, inp, throttle, brake, fwd, up) {
     const A = CONFIG.arcade, D = A.drift, CAR = CONFIG.cars[CONFIG.carIndex] || CONFIG.cars[0], m = CONFIG.car.mass, g = CONFIG.gravity, R = CONFIG.wheels.radius;
     const a = CONFIG.wheels.frontZ, b = -CONFIG.wheels.rearZ, L = a + b, Iy = CONFIG.car.inertia.yaw / (CAR.turn || 1);
@@ -1797,6 +1805,8 @@ class Car {
     let capF = muF * Nf0 * lf, capR = muR * Nr0 * lr, capRfull = muF * Math.max(1, rearRatio) * Nr0 * lr;
     // engine force (along the nose), split between the axles; part of the rear's share uses up rear grip
     const topV = A.topSpeed * SS.top * CAR.top;
+    // (the push fades by the speed along the nose; the top-speed limit below uses the car's real speed, so a slide can't pass top speed)
+    const vRun = vF > 0 ? speed : 0;
     let aDrive = 0;
     if (this.gear > 0) aDrive = throttle * A.accel * CAR.accel * Math.max(0, 1 - Math.pow(Math.max(0, vF) / topV, 1.8));
     else aDrive = -throttle * A.accel * 0.6 * Math.max(0, 1 - Math.max(0, -vF) / A.reverseTop);
@@ -1811,7 +1821,9 @@ class Car {
     const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
     const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * A.brakeRear * m + aLift * m * 0.5;   // engine braking: half of it at the rear
     const circle = Math.sqrt(Math.max(0.04, 1 - (used / Math.max(capR, 1)) ** 2));
-    capR *= circle; capRfull *= circle;
+    // the rear's own side grip (which holds the tail) shrinks with throttle: the tail swings out. Part of what throttle takes
+    // stays in the carried grip below (powerCarry), so in a power slide the tyres still pull the car round towards the nose
+    capR *= circle; capRfull *= circle + (1 - circle) * A.powerCarry * loose;
     if (inp.handbrake) capR *= A.handbrakeGrip;
     const peakF = SS.peak * D2R, peakR = SS.peak * D2R * 1.1;           // the rears peak a little later: they let go progressively
 
@@ -1836,8 +1848,9 @@ class Car {
     };
     const alphaF = travF - delta, alphaR = travR;
     let Ff = capF * tyre(alphaF, peakF, A.falloff.front), Fr = capR * tyre(alphaR, peakR, A.falloff.rear);
-    // slide carry: the grip the rear lost to the surface's looseness is handed back as a side force at the centre
-    // of mass. The tail still swings out (no turning push from it), but the car keeps cornering in a slide.
+    // slide carry: the grip the rear lost to the surface's looseness (and most of what throttle took, powerCarry) is handed
+    // back as a side force at the centre of mass. The tail still swings out (no turning push from it), but the car keeps
+    // cornering in a slide, pulled round towards its nose. It scrubs speed like the tyres do (below).
     let Fc = A.slideCarry * (capRfull * tyre(alphaR, peakR, 0) - Fr * (inp.handbrake ? 1 / A.handbrakeGrip : 1));
     if (Fc * Fr < 0) Fc = 0;
     // ...and so is the front grip a held key gives up to hold the slide (aim < 1), so a held slide corners like gripping
@@ -1887,12 +1900,13 @@ class Car {
       _aF.copy(lG).multiplyScalar(Ff * ground); this.addForceAt(_aF, _aP);
       _aP.copy(this.pos).addScaledVector(fwd, -b).addScaledVector(up, -0.35);
       _aF.copy(lG).multiplyScalar(Fr * ground); this.addForceAt(_aF, _aP);
-      // the carried grip pushes square to the direction of travel, so it bends the path without scrubbing speed;
-      // slideKeep hands back part of the speed the sliding tyres scrub (their side force leaning against the travel)
-      const scrub = (Ff + Fr) * lG.dot(travel);                       // < 0 while sliding: pulls against the travel
+      // the carried grip pushes square to the direction of travel, bending the path towards where the nose points. It is
+      // tyre grip too, so in a slide it scrubs speed like the tyres do (as if it leaned across the car); slideKeep hands back part of it
+      const scrub = (Ff + Fr) * lG.dot(travel);                       // < 0 while sliding: the tyres pull against the travel
+      const scrubC = Math.abs(Fc * lG.dot(travel));                   // what the carried grip would scrub if it leaned across the car
       _aP.copy(this.pos).addScaledVector(up, -0.35);
       _aF.copy(left).multiplyScalar(Fc * Math.sign(lG.dot(left) || 1) * ground);
-      if (scrub < 0) _aF.addScaledVector(travel, -scrub * A.slideKeep * ground);
+      _aF.addScaledVector(travel, (Math.max(0, -scrub) * A.slideKeep - scrubC * (1 - A.slideKeep)) * ground);
       this.addForceAt(_aF, _aP);
       // engine along the nose (front and rear axle), so in a slide throttle drives the car round
       _aF.copy(fG).multiplyScalar(m * aDrive * (1 - rearShare) * ground * wv);
@@ -1904,7 +1918,7 @@ class Car {
       const vAlong = this.vel.dot(travel);
       if (Math.abs(vAlong) > 0.4) ac -= Math.sign(vAlong) * (brake * A.brakeDecel + aLift);
       if (inp.handbrake && speed > 1) ac -= Math.sign(vAlong) * D.handbrakeDecel;
-      ac -= vAlong * SS.drag + (vF > topV ? (vF - topV) * 0.5 : 0);
+      ac -= vAlong * SS.drag + (vRun > topV ? (vRun - topV) * 0.5 : 0);
       // walking pace and reverse: the car rolls where it points
       const dir = _aV.copy(fG).multiplyScalar(1 - wv).addScaledVector(travel, wv);
       if (dir.lengthSq() > 1e-6) dir.normalize(); else dir.copy(fG);
@@ -7616,8 +7630,8 @@ function boot() {
   /* ---------- dust particles (custom shader for per-particle fade) ---------- */
   const PMAX = 1000;
   const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3), pAlpha = new Float32Array(PMAX), pSize = new Float32Array(PMAX);
-  const pVel = new Float32Array(PMAX * 3), pLife = new Float32Array(PMAX), pMax = new Float32Array(PMAX), pKind = new Uint8Array(PMAX);   // 0 dust, 1 spark, 2 gravel chip
-  let pNext = 0, dustK = 1;                                  // dustK: dust and chips are dimmed at night (set by applyLook)
+  const pVel = new Float32Array(PMAX * 3), pLife = new Float32Array(PMAX), pMax = new Float32Array(PMAX), pKind = new Uint8Array(PMAX), pAmp = new Float32Array(PMAX).fill(1);   // 0 dust, 1 spark, 2 gravel chip
+  let pNext = 0, dustK = 1, pCap = PMAX;                      // pCap: how many particles may be alive (high 1000, low 360: low is ui-mobile's, kept small)                                  // dustK: dust and chips are dimmed at night (set by applyLook)
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute('aColor', new THREE.BufferAttribute(pCol, 3));
@@ -7635,8 +7649,8 @@ function boot() {
   const points = new THREE.Points(pGeo, pMat);
   points.frustumCulled = false;
   scene.add(points);
-  function emit(x, y, z, vx, vy, vz, col, size, life, kind = 0) {
-    const i = pNext; pNext = (pNext + 1) % PMAX; pKind[i] = kind;
+  function emit(x, y, z, vx, vy, vz, col, size, life, kind = 0, amp = 1) {
+    const i = pNext; pNext = (pNext + 1) % pCap; pKind[i] = kind; pAmp[i] = amp;
     pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
     pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
     const k = kind === 1 ? 1 : dustK;
@@ -7644,7 +7658,9 @@ function boot() {
     pSize[i] = size; pLife[i] = life; pMax[i] = life;
   }
   function updateParticles(dt) {
-    for (let i = 0; i < PMAX; i++) {
+    const cap = quality === 'low' ? 360 : PMAX;
+    if (cap !== pCap) { for (let i = 0; i < PMAX; i++) { pLife[i] = 0; pAlpha[i] = 0; } pCap = cap; pNext = 0; }
+    for (let i = 0; i < pCap; i++) {
       if (pLife[i] <= 0) { pAlpha[i] = 0; continue; }
       pLife[i] -= dt;
       const t = 1 - pLife[i] / pMax[i];
@@ -7652,18 +7668,100 @@ function boot() {
         // sparks and gravel chips: thrown, fall under gravity, stop at the ground
         pVel[i * 3 + 1] -= 16 * dt;
         pPos[i * 3] += pVel[i * 3] * dt; pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt; pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
-        pAlpha[i] = pKind[i] === 1 ? 1.4 * (1 - t) : 0.9 * Math.min(1, (1 - t) * 3);
+        pAlpha[i] = pKind[i] === 1 ? 1.8 * (1 - t) : 0.9 * Math.min(1, (1 - t) * 3);
         if (pKind[i] === 1) pSize[i] *= 1 - 2 * dt;
         continue;
       }
       pVel[i * 3] *= 1 - 2.2 * dt; pVel[i * 3 + 2] *= 1 - 2.2 * dt; pVel[i * 3 + 1] = pVel[i * 3 + 1] * (1 - 1.5 * dt) + 0.4 * dt;
       pPos[i * 3] += pVel[i * 3] * dt; pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt; pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
       pSize[i] += dt * 2.2;
-      pAlpha[i] = Math.max(0, 0.55 * (1 - t) * Math.min(1, t * 8));
+      pAlpha[i] = Math.max(0, 0.55 * pAmp[i] * (1 - t) * Math.min(1, t * 8));
     }
     pGeo.attributes.position.needsUpdate = pGeo.attributes.aColor.needsUpdate = pGeo.attributes.aAlpha.needsUpdate = pGeo.attributes.aSize.needsUpdate = true;
   }
   let emitAcc = [0, 0, 0, 0], chipAcc = [0, 0, 0, 0];
+  const GREY = [0.82, 0.82, 0.84], CLOD_G = [0.22, 0.42, 0.15], CLOD_B = [0.3, 0.22, 0.14], SNOWW = [1, 1, 1];
+
+  /* ---------- per-wheel trails (called once per wheel per frame from updateVisuals) ----------
+     gravel / dirt: tan or brown dust, grows with speed and slide; rear wheels throw chips
+     snow: white spray, lifted higher, white flakes from the rears
+     tarmac: thin grey tyre haze, only when the tyres really slide (hard slide or wheelspin)
+     grass: brown dust plus green and brown clods from all four wheels
+     the 'low' quality emits about half as much (particle cap 360) */
+  function wheelFx(dt, i, w) {
+    const surf = CONFIG.surfaces[w.surface], low = quality === 'low', rate = low ? 0.5 : 1;
+    const slide = Math.abs(Math.sin(car.beta)) * car.speed, tar = !surf.dust;
+    let intensity;
+    if (tar) intensity = Math.min(1, Math.max(0, (w.slipSpeed - 4.5) * 0.09 + (slide - 7) * 0.06)) * (w.surface === 'tarmac' ? 1 : 0);
+    else intensity = Math.min(1, Math.abs(w.vLong) * 0.022 + w.slipSpeed * 0.07 + slide * 0.04) * (car.drift ? 1.2 : 1);
+    if (intensity < 0.02) return;
+    const sideX = car.right.x * Math.sign(car.beta), sideZ = car.right.z * Math.sign(car.beta);   // the way the car is sliding
+    const snow = w.surface === 'snow', grass = w.surface === 'grass';
+    emitAcc[i] += dt * intensity * (tar ? 45 : snow ? 85 : 90) * rate;
+    while (emitAcc[i] > 1) {
+      emitAcc[i] -= 1;
+      const jx = (Math.random() - 0.5) * 0.4, jz = (Math.random() - 0.5) * 0.4, thr = slide * 0.18;
+      const c = tar ? GREY : surf.dust, k = tar ? 1 : 0.9 + Math.random() * 0.15;
+      emit(w.point.x + jx, w.point.y + 0.15, w.point.z + jz,
+        -car.vel.x * 0.15 + sideX * thr + (Math.random() - 0.5) * 1.5, (snow ? 1.2 : 0.6) + Math.random() * 1.2 + slide * 0.04, -car.vel.z * 0.15 + sideZ * thr + (Math.random() - 0.5) * 1.5,
+        [c[0] * k, c[1] * k, c[2] * k], (tar ? 0.5 : 0.6) + intensity * 0.8 + slide * 0.03, (tar ? 0.7 : 0.9) + Math.random() * 0.9 + slide * 0.04, 0, tar ? 0.45 : 1);
+    }
+    if (tar || (w.front && !grass)) return;
+    const roost = Math.max(0, w.slipSpeed - 2.5) + slide * 0.5;
+    chipAcc[i] += dt * Math.min(40, roost * (snow ? 2 : 3.2)) * rate * (w.front ? 0.5 : 1);
+    while (chipAcc[i] > 1) {
+      chipAcc[i] -= 1;
+      let c = surf.dust, k = 0.45 + Math.random() * 0.2;
+      if (grass) { c = Math.random() < 0.5 ? CLOD_G : CLOD_B; k = 0.85 + Math.random() * 0.3; }       // turf clods, green and brown
+      else if (snow) { c = SNOWW; k = 0.9; }
+      const back = 3 + Math.random() * 3 + roost * 0.25;
+      emit(w.point.x, w.point.y + 0.1, w.point.z,
+        car.vel.x * 0.55 - car.fwd.x * back + sideX * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
+        1.6 + Math.random() * 3.2,
+        car.vel.z * 0.55 - car.fwd.z * back + sideZ * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
+        [c[0] * k, c[1] * k, c[2] * k], (grass ? 0.22 : 0.1) + Math.random() * 0.08, 0.45 + Math.random() * 0.3, 2);
+    }
+  }
+
+  /* ---------- damage looks (drawn only, no physics): scuffs and scrapes at the spots that were hit, dirt on the paint ----------
+     One extra mesh (a pooled ring of 14 flat marks, one draw call, hidden until the first hit); dirt is a tint on the paint colour (no draw call).
+     Reset when a stage starts (countdown). A rescue keeps the marks: you did hit that wall. */
+  const SCUFF_N = 14, scPos = new Float32Array(SCUFF_N * 12), scCol = new Float32Array(SCUFF_N * 12);
+  const scGeo = new THREE.BufferGeometry();
+  scGeo.setAttribute('position', new THREE.BufferAttribute(scPos, 3));
+  scGeo.setAttribute('color', new THREE.BufferAttribute(scCol, 3));
+  { const idx = []; for (let q = 0; q < SCUFF_N; q++) idx.push(q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3); scGeo.setIndex(idx); }
+  const scMesh = new THREE.Mesh(scGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+  scMesh.frustumCulled = false; scMesh.visible = false; scMesh.renderOrder = 1; carGroup.add(scMesh);
+  let scNext = 0, damage = 0, dirt = 0, dirtApplied = -1, dirtMat = null;
+  const _v = new THREE.Vector3(), DIRT_COL = new THREE.Color(0x7a5a38), WHITE = new THREE.Color(1, 1, 1);
+  let scSeed = 7;
+  const scRnd = () => { scSeed = (scSeed * 16807) % 2147483647; return scSeed / 2147483647; };      // own random numbers: the bot's seeded Math.random must not change
+  function addScuff(wx, wz, big) {
+    _v.set(wx, car.pos.y, wz); carGroup.worldToLocal(_v);
+    const hl = carBuilt && carBuilt.ci === 0 ? 2.0 : 1.8;
+    const side = _v.x >= 0 ? 1 : -1, lz = clamp(_v.z, -hl, hl);
+    const y = -0.02 + scRnd() * 0.2, len = (big ? 0.5 : 0.25) + scRnd() * 0.3, hh = 0.03 + scRnd() * 0.05 * (big ? 2 : 1), x = side * 0.91, i = scNext * 12;
+    scNext = (scNext + 1) % SCUFF_N;
+    const tilt = (scRnd() - 0.5) * 0.12, dark = scRnd() < 0.6, cc = dark ? [0.08, 0.07, 0.07] : [0.78, 0.76, 0.7];     // scrape: dark scuff or bare-metal streak
+    const xs = [x, x, x, x], ys = [y - hh, y + hh + tilt, y + hh - tilt, y - hh], zs = [lz - len / 2, lz - len / 2, lz + len / 2, lz + len / 2];
+    for (let k = 0; k < 4; k++) { scPos[i + k * 3] = xs[k]; scPos[i + k * 3 + 1] = ys[k]; scPos[i + k * 3 + 2] = zs[k]; scCol[i + k * 3] = cc[0]; scCol[i + k * 3 + 1] = cc[1]; scCol[i + k * 3 + 2] = cc[2]; }
+    scGeo.attributes.position.needsUpdate = scGeo.attributes.color.needsUpdate = true; scMesh.visible = true;
+  }
+  function resetDamage() {
+    scPos.fill(0); scGeo.attributes.position.needsUpdate = true; scMesh.visible = false; scNext = 0; damage = 0; dirt = 0;
+  }
+  // per frame (cheap): dirt creeps up on loose surfaces, more at speed, and with every hit
+  function updateDamage(dt) {
+    if (state === 'countdown' && (damage > 0 || dirt > 0)) resetDamage();
+    if (state === 'running' && car.speed > 6) {
+      const w0 = car.wheels[2]; const sf = w0 && w0.contact ? CONFIG.surfaces[w0.surface] : null;
+      if (sf && sf.dust) dirt = Math.min(1, dirt + dt * car.speed * 0.0012 * (w0.surface === 'grass' ? 2 : 1));
+    }
+    const d = Math.round(dirt * 40) / 40;
+    const pm = carMatsLive.find(m => m.map === carTex) || null;
+    if (pm && (d !== dirtApplied || pm !== dirtMat)) { dirtApplied = d; dirtMat = pm; pm.color.copy(WHITE).lerp(DIRT_COL, d * 0.9); }     // also after the car is rebuilt (new paint material)
+  }
 
   /* ---------- hits: sound, camera shake, sparks or splinters ---------- */
   let shake = 0, landShakeCool = 0;
@@ -7672,11 +7770,13 @@ function boot() {
     if (fx.hit > 1.5) impacts.push(Math.min(1, fx.hit / 12));
     addShake(Math.min(1, fx.hit / 9));
     if (fx.seg) scrapeLevel = Math.max(scrapeLevel, clamp(fx.vt / 14, 0, 1));            // grinding along a wall or rail
-    const n = Math.min(14, Math.round(fx.hit * 1.6 + (fx.seg ? fx.vt * 0.35 : 0)));
+    damage += fx.hit; dirt = Math.min(1, dirt + fx.hit * 0.01);
+    if (fx.hit > 2.5 || (fx.seg && fx.vt > 3)) addScuff(fx.x, fx.z, fx.hit > 6);
+    const n = Math.min(quality === 'low' ? 6 : 14, Math.round(fx.hit * 1.6 + (fx.seg ? fx.vt * 0.35 : 0)));
     for (let k = 0; k < n; k++) {
-      const vx = car.vel.x * 0.6 + fx.nx * (1 + Math.random() * 3) + (Math.random() - 0.5) * 4;
-      const vz = car.vel.z * 0.6 + fx.nz * (1 + Math.random() * 3) + (Math.random() - 0.5) * 4;
-      if (fx.seg) emit(fx.x, car.pos.y - 0.1 + Math.random() * 0.4, fx.z, vx, 1 + Math.random() * 3, vz, [1, 0.78 + Math.random() * 0.2, 0.35], 0.16 + Math.random() * 0.1, 0.25 + Math.random() * 0.3, 1);
+      const vx = car.vel.x * (fx.seg ? 0.3 : 0.6) + fx.nx * (1 + Math.random() * 3) + (Math.random() - 0.5) * 4;
+      const vz = car.vel.z * (fx.seg ? 0.3 : 0.6) + fx.nz * (1 + Math.random() * 3) + (Math.random() - 0.5) * 4;
+      if (fx.seg) emit(fx.x, car.pos.y - 0.1 + Math.random() * 0.4, fx.z, vx, 1 + Math.random() * 3, vz, [1, 0.8 + Math.random() * 0.2, 0.4], 0.2 + Math.random() * 0.12, 0.2 + Math.random() * 0.25, 1);
       else emit(fx.x, car.pos.y + Math.random() * 0.8, fx.z, vx * 0.5, 1 + Math.random() * 2.5, vz * 0.5, [0.42, 0.33, 0.22], 0.14 + Math.random() * 0.08, 0.5 + Math.random() * 0.3, 2);
     }
   }
@@ -8454,9 +8554,21 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   function cycleTilt() {
     tiltMode = (tiltMode + 1) % 3; tiltZero = null;
     try { localStorage.setItem('rallyTilt', String(tiltMode)); } catch (e) { /* ignore */ }
-    if (tiltMode && window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission().catch(() => {});
+    tiltSeen = false; tiltWait = 0; document.body.classList.remove('tilt-off');
+    if (tiltMode && window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission().then(r => { if (r !== 'granted') tiltFail(); }).catch(tiltFail);
     touchLabels();
   }
+  // No working tilt sensor (none, or permission refused): show the steer buttons again and say so. The saved setting stays.
+  let tiltSeen = false, tiltWait = 0;
+  function tiltFail() {
+    if (!isTouch || !tiltMode || tiltSeen || document.body.classList.contains('tilt-off')) return;
+    document.body.classList.add('tilt-off');
+    banner('Tilt not available', '', 4.5); elBannerSub('using buttons');
+  }
+  setInterval(() => {                                   // 2 s of racing (countdown included) with no usable sensor reading
+    if (!isTouch || !tiltMode || tiltSeen) return;
+    if (state === 'countdown' || state === 'running') { tiltWait += 0.25; if (tiltWait >= 2) tiltFail(); }
+  }, 250);
   if (isTouch) {
     document.body.classList.add('touch');
     const pad = $('touch'), held = new Map();                // finger -> key it is holding
@@ -8492,7 +8604,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     // Measured against the screen's up-down axis too, so it reads the same whether the phone is held upright or
     // leaned back (until it is nearly flat). Dead zone, range and smoothing: CONFIG.arcade.phone, in physicsStep.
     window.addEventListener('devicemotion', e => {
-      const a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
+      const a = e.accelerationIncludingGravity; if (!a || a.x == null || a.y == null) return;
+      tiltSeen = true;
       const ang = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
       const sx = ang === 90 ? -a.y : (ang === 270 || ang === -90) ? a.y : ang === 180 ? -a.x : a.x;   // gravity along the screen's left-right axis
       const sy = ang === 90 ? a.x : (ang === 270 || ang === -90) ? -a.x : ang === 180 ? -a.y : a.y;   // ...and along its up-down axis
@@ -8520,7 +8633,14 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   let state = 'menu', raceTime = 0, countdown = 0, progIdx = 0, nextCp = 0, splits = [], lastCpS = 0, stuckTimer = 0, camMode = 0;
   let best = null, fallTimer = 0;
   const startS = 6;
-  const loadBest = (st) => { try { return JSON.parse(localStorage.getItem(st.bestKey) || 'null'); } catch (e) { return null; } };
+  // Best times live on the device, per stage AND per car: <bestKey>_<car id> = { time, splits, v }. v = the stage's times version
+  // (st.timesVer, default 1; tracks bumps it when a stage is re-timed, which retires older times). The old per-stage value
+  // (<bestKey>, from before cars were separate) still counts as the best for any car until a car beats it.
+  const bestVer = st => st.timesVer || 1;
+  const carKey = st => st.bestKey + '_' + CONFIG.cars[CONFIG.carIndex].id;
+  const readBest = (key, st) => { try { const b = JSON.parse(localStorage.getItem(key) || 'null'); return b && typeof b.time === 'number' && (b.v || 1) === bestVer(st) ? b : null; } catch (e) { return null; } };
+  const loadBest = st => readBest(carKey(st), st) || readBest(st.bestKey, st);
+  const saveBest = (st, b) => { try { localStorage.setItem(carKey(st), JSON.stringify({ time: b.time, splits: b.splits, v: bestVer(st) })); } catch (e) { /* storage unavailable */ } };
   // arcade state
   let lastBeep = 9, timeLeft = 0, raceOrder = null, finishPos = FIELD, lastClass = null, champ = null, bannerTimer = 0, lastWarn = 99, lastNote = null;
   const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
@@ -8574,6 +8694,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   }
   function startStage(order) {
     if (loading || !track) return;
+    best = loadBest(ST);                                  // the selected car's best (the car can change in the menu after the stage loaded)
     raceOrder = ST.practice ? ['You'] : order || defaultOrder();       // practice stage: no other crews
     initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume();
     $('menu').hidden = true; $('finishScreen').hidden = true; document.body.classList.remove('menu-mode');
@@ -8751,15 +8872,15 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     cue.goal(); say(finishPos === 1 ? 'Goal! Fastest time!' : 'Goal!', true);
     const isBest = !best || raceTime < best.time;
     const prev = best;
-    if (isBest) { best = { time: raceTime, splits: splits.slice() }; try { localStorage.setItem(ST.bestKey, JSON.stringify(best)); } catch (e) { /* storage unavailable */ } }
+    if (isBest) { best = { time: raceTime, splits: splits.slice() }; saveBest(ST, best); }
     const champDone = champ && champ.idx >= CHAMP_STAGES - 1;
     $('resEyebrow').textContent = champ ? (champDone ? `Final stage · ${ST.name}` : `Championship · stage ${champ.idx + 1} of ${CHAMP_STAGES} · ${ST.name}`) : ST.code + ' · ' + ST.name;
     $('resPos').textContent = ordinal(finishPos);
     $('resPos').className = 'big pos' + (finishPos === 1 ? ' p1' : '');
     const lead = lastClass[0];
-    $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
+    $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">NEW BEST' + (prev ? ' −' + (prev.time - raceTime).toFixed(2) + ' s' : '') + '</span>' : '') + `<span class="left">${finishPos === 1 ? 'fastest on the stage' : '+' + (raceTime - lead.time).toFixed(2) + ' s to ' + lead.name} · ${me.pts} pts</span>`;
     $('bestLine').textContent = prev ? (isBest ? `Your best time on this stage, ${(prev.time - raceTime).toFixed(2)} s quicker.` : `Your best here is ${fmtTime(best.time)}.`) : 'First time recorded on this stage.';
-    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">BEST</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
+    if (ST.practice) { $('resPos').textContent = 'Done'; $('resPos').className = 'big pos'; $('finalTime').innerHTML = fmtTime(raceTime) + (isBest ? '<span class="pb">NEW BEST' + (prev ? ' −' + (prev.time - raceTime).toFixed(2) + ' s' : '') + '</span>' : '') + '<span class="left">test track · practice only, no points</span>'; }
     showResults(lastClass, me);
     $('againBtn').textContent = ST.practice ? 'Drive again' : 'Race again';
     setTimeout(() => { if (state === 'finished') { $('finishScreen').hidden = false; ($('nextBtn').hidden ? $('againBtn') : $('nextBtn')).focus(); } }, 2400);
@@ -8791,6 +8912,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     if (bestD < 35 * 35) progIdx = bi;
     const s = P[progIdx].s;
     if (state === 'running') {
+      ghostRecord();
       if (nextCp < ST.checkpoints.length && s >= ST.checkpoints[nextCp]) {
         const ext = ST.timeExt[nextCp];
         timeLeft += ext;
@@ -8798,7 +8920,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
         const cpd = ST.checkpoints[nextCp - 1], sp = racePosition(cpd, raceTime), gap = splitGap(cpd, raceTime);
         banner('EXTENDED TIME  +' + ext, 'ext', 2.4); elBannerSub(`Split P${sp}  ${gap <= 0 ? 'fastest' : '+' + gap.toFixed(1) + ' s'}`);
         cue.checkpoint(); say('Extended time');
-      } else if (nextCp === ST.checkpoints.length && s >= track.finishS) finishStage();
+      } else if (nextCp === ST.checkpoints.length && s >= track.finishS) { ghostFinish(raceTime); finishStage(); }
     }
     return s;
   }
@@ -8829,6 +8951,149 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     }
   }
 
+  /* ---------- ghost: your best run per stage + car, and the time gap to it (and to the nearest rival) ---------- */
+  // Recording: 10 samples a second (x, y, z, yaw, pitch, roll), packed as 6 int16 per sample, base64, in localStorage
+  // ('rallyGhost1:<stage>:<car>', about 15-40 KB per stage, refused above GHOST_MAX_CHARS). Saved only when the run
+  // finishes and beats the saved ghost for that stage + car. The ghost is drawn as ONE translucent mesh (the car's
+  // triangles merged once), no shadow, no collision, and nothing here touches the physics, the random numbers or the rivals.
+  const GHOST_HZ = 10, GHOST_MAX = 6000, GHOST_MAX_CHARS = 90000, GHOST_NF = 6;
+  const gRec = new Float32Array(GHOST_MAX * GHOST_NF);
+  let gN = 0, gLastT = 1e9, gOverflow = false, gPlay = null, gPlayKey = null, gOn = true;
+  try { gOn = localStorage.getItem('rallyGhost') !== 'off'; } catch (e) { /* storage unavailable */ }
+  const gEuler = new THREE.Euler(0, 0, 0, 'YXZ'), gQ = new THREE.Quaternion();
+  const ghostKey = () => 'rallyGhost1:' + ST.bestKey + ':' + CONFIG.cars[CONFIG.carIndex].id;
+
+  function ghostEncode(t) {
+    const n = gN, q = new Int16Array(n * GHOST_NF);
+    let px = 0, py = 0, pz = 0;
+    for (let i = 0; i < n; i++) {
+      const o = i * GHOST_NF, x = Math.round(gRec[o] * 20), y = Math.round(gRec[o + 1] * 20), z = Math.round(gRec[o + 2] * 20);
+      q[o] = x - px; q[o + 1] = y - py; q[o + 2] = z - pz; px = x; py = y; pz = z;         // 5 cm steps, deltas (no drift: the running total is rounded)
+      q[o + 3] = Math.round(gRec[o + 3] * 1e4); q[o + 4] = Math.round(gRec[o + 4] * 1e4); q[o + 5] = Math.round(gRec[o + 5] * 1e4);
+    }
+    const u8 = new Uint8Array(q.buffer); let s = '';
+    for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    return JSON.stringify({ v: 1, t: Math.round(t * 1000) / 1000, n, d: btoa(s) });
+  }
+  function ghostDecode(str) {                       // -> { t, n, x, y, z, yaw, pitch, roll, s } or null
+    try {
+      const j = JSON.parse(str); if (!j || j.v !== 1 || !(j.n > 2) || !j.d) return null;
+      const bin = atob(j.d), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      const q = new Int16Array(u8.buffer), n = j.n; if (q.length < n * GHOST_NF) return null;
+      const g = { t: j.t, n, x: new Float32Array(n), y: new Float32Array(n), z: new Float32Array(n), yaw: new Float32Array(n), pitch: new Float32Array(n), roll: new Float32Array(n), s: new Float32Array(n) };
+      let px = 0, py = 0, pz = 0, k = 0;
+      for (let i = 0; i < n; i++) {
+        const o = i * GHOST_NF; px += q[o]; py += q[o + 1]; pz += q[o + 2];
+        g.x[i] = px / 20; g.y[i] = py / 20; g.z[i] = pz / 20; g.yaw[i] = q[o + 3] / 1e4; g.pitch[i] = q[o + 4] / 1e4; g.roll[i] = q[o + 5] / 1e4;
+        // distance along the road at each sample (so the gap can be read at any point): nearest road point, searching forward
+        let bd = 1e18, bi = k; for (let m = Math.max(0, k - 5); m < Math.min(P.length, k + 80); m++) { const dx = P[m].x - g.x[i], dz = P[m].z - g.z[i], d2 = dx * dx + dz * dz; if (d2 < bd) { bd = d2; bi = m; } }
+        if (bd < 40 * 40) k = bi; g.s[i] = Math.max(P[k].s, i ? g.s[i - 1] : 0);
+      }
+      return g;
+    } catch (e) { return null; }
+  }
+  function ghostLoadPlay() {                        // the ghost to race against: loaded once per stage + car (and again after a new best is saved)
+    const key = ghostKey(); if (gPlayKey === key) return;
+    gPlayKey = key; gPlay = null;
+    try { const str = localStorage.getItem(key); if (str) gPlay = ghostDecode(str); } catch (e) { /* storage unavailable */ }
+  }
+  function ghostSample(i) {
+    const o = i * GHOST_NF;
+    gRec[o] = car.pos.x; gRec[o + 1] = car.pos.y; gRec[o + 2] = car.pos.z;
+    gEuler.setFromQuaternion(car.q, 'YXZ'); gRec[o + 3] = gEuler.y; gRec[o + 4] = gEuler.x; gRec[o + 5] = gEuler.z;
+  }
+  // called every physics step while running (checkpoints.js updateProgress): starts a new recording when the clock goes back to the start
+  function ghostRecord() {
+    if (raceTime < gLastT) { gN = 0; gOverflow = false; ghostLoadPlay(); }
+    gLastT = raceTime;
+    if (gOverflow) return;
+    while (raceTime >= gN / GHOST_HZ) { if (gN >= GHOST_MAX) { gOverflow = true; return; } ghostSample(gN++); }
+  }
+  // called once when the finish line is crossed
+  function ghostFinish(t) {
+    gLastT = 1e9;                                    // the next step is a new run
+    if (gOverflow || gN < 3) return;
+    if (gPlay && !(t < gPlay.t)) return;             // not faster than the saved ghost
+    try { const str = ghostEncode(t); if (str.length <= GHOST_MAX_CHARS) { localStorage.setItem(ghostKey(), str); gPlayKey = null; } } catch (e) { /* storage full or unavailable */ }
+  }
+
+  /* the ghost car: the player car's triangles merged into one translucent mesh (rebuilt when the car or livery changes) */
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.34, depthWrite: false });
+  const ghostMesh = new THREE.Mesh(new THREE.BufferGeometry(), ghostMat);
+  ghostMesh.visible = false; ghostMesh.castShadow = false; ghostMesh.receiveShadow = false; ghostMesh.rotation.order = 'YXZ'; ghostMesh.frustumCulled = false; ghostMesh.renderOrder = 5;
+  scene.add(ghostMesh);
+  let ghostBuiltFor = null;
+  function ghostBuild() {
+    const parts = [], m4 = new THREE.Matrix4(), add = (geo, mat) => {
+      const g = geo.clone(); if (mat) g.applyMatrix4(mat);
+      const pos = g.getAttribute('position'), idx = g.index, cnt = idx ? idx.count : pos.count, arr = new Float32Array(cnt * 3);
+      for (let i = 0; i < cnt; i++) { const v = idx ? idx.getX(i) : i; arr[i * 3] = pos.getX(v); arr[i * 3 + 1] = pos.getY(v); arr[i * 3 + 2] = pos.getZ(v); }
+      parts.push(arr); g.dispose();
+    };
+    for (const c of bodyRoot.children) if (c.geometry && !(c.userData && c.userData.own)) { c.updateMatrix(); add(c.geometry, c.matrix); }
+    car.wheels.forEach((w, i) => {
+      const fl = wheelMeshes[i].flip, wm = fl && fl.children[0]; if (!wm) return;
+      m4.makeRotationY(fl.rotation.y).setPosition(w.local.x, w.local.y, w.local.z); add(wm.geometry, m4);
+    });
+    let total = 0; for (const a of parts) total += a.length;
+    const all = new Float32Array(total); let o = 0; for (const a of parts) { all.set(a, o); o += a.length; }
+    ghostMesh.geometry.dispose(); ghostMesh.geometry = new THREE.BufferGeometry(); ghostMesh.geometry.setAttribute('position', new THREE.BufferAttribute(all, 3));
+    ghostBuiltFor = carBuilt;
+  }
+  // ghost time at a distance along the road (binary search over the recorded samples); -1 when the ghost has not got that far
+  function ghostTimeAt(g, d) {
+    if (d > g.s[g.n - 1] || d < g.s[0]) return -1;
+    let lo = 0, hi = g.n - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (g.s[m] <= d) lo = m; else hi = m; }
+    const ds = g.s[hi] - g.s[lo], u = ds > 1e-6 ? (d - g.s[lo]) / ds : 0;
+    return (lo + u) / GHOST_HZ;
+  }
+
+  /* gap line under the clock: "GHOST -1.2" (green = ahead of your best) and the nearest rival "NAME +0.8" (red = behind) */
+  const gapBox = document.createElement('div'), gapG = document.createElement('div'), gapR = document.createElement('div');
+  gapBox.id = 'gapBox'; gapBox.className = 'hud'; gapBox.hidden = true;
+  gapBox.style.cssText = 'position:static;margin-top:2px;font-family:var(--f-arcade);font-size:calc(var(--d-lbl) + 2px);line-height:1.15;white-space:nowrap';
+  gapBox.append(gapG, gapR); $('timing').insertBefore(gapBox, elSplits);
+  const gapTxt = { g: '', r: '' };
+  let gapNext = 0;
+  const fmtGapT = d => (d > 0.005 ? '+' : d < -0.005 ? '−' : '±') + Math.abs(d).toFixed(1);
+  function setGap(el, key, txt, d) {
+    if (gapTxt[key] === txt) return; gapTxt[key] = txt; el.textContent = txt; el.style.color = d > 0.005 ? '#ff6b5b' : '#6dff8a';
+  }
+  // pause-menu button, made here so the page files stay untouched
+  const ghostBtn = document.createElement('button'); ghostBtn.className = 'ghost'; ghostBtn.id = 'ghostBtn';
+  $('debugBtn').parentNode.insertBefore(ghostBtn, $('debugBtn'));
+  ghostBtn.addEventListener('click', () => { gOn = !gOn; try { localStorage.setItem('rallyGhost', gOn ? 'on' : 'off'); } catch (e) { /* ignore */ } });
+  let ghostLbl = '';
+
+  // once per frame (hook in ui/visuals-hud.js updateVisuals)
+  function ghostFrame() {
+    const lbl = 'Ghost: ' + (gOn ? 'On' : 'Off'); if (lbl !== ghostLbl) { ghostLbl = lbl; ghostBtn.textContent = lbl; }
+    const live = state === 'running' || state === 'countdown' || state === 'paused';     // not in the menu, replays or after the finish
+    if (!live) { ghostMesh.visible = false; gapBox.hidden = true; return; }
+    if (state === 'countdown') ghostLoadPlay();
+    const g = gPlay;
+    if (g && gOn) {
+      if (ghostBuiltFor !== carBuilt) ghostBuild();
+      const f = clamp(raceTime * GHOST_HZ, 0, g.n - 1.001), i = f | 0, u = f - i, j = i + 1;
+      let dy = g.yaw[j] - g.yaw[i]; if (dy > Math.PI) dy -= 2 * Math.PI; else if (dy < -Math.PI) dy += 2 * Math.PI;
+      ghostMesh.position.set(g.x[i] + (g.x[j] - g.x[i]) * u, g.y[i] + (g.y[j] - g.y[i]) * u, g.z[i] + (g.z[j] - g.z[i]) * u);
+      ghostMesh.rotation.set(g.pitch[i] + (g.pitch[j] - g.pitch[i]) * u, g.yaw[i] + dy * u, g.roll[i] + (g.roll[j] - g.roll[i]) * u);
+      ghostMesh.visible = true;
+    } else ghostMesh.visible = false;
+    // gaps: four times a second, only once the stage is under way
+    if (state === 'paused') return;
+    const now = performance.now(); if (now < gapNext) return; gapNext = now + 250;
+    const s = P[progIdx].s;
+    if (state !== 'running' || s < startS + 20) { gapBox.hidden = true; return; }
+    let any = false;
+    const tg = g ? ghostTimeAt(g, s) : -1;
+    if (tg >= 0) { const d = raceTime - tg; setGap(gapG, 'g', 'GHOST ' + fmtGapT(d), d); gapG.hidden = false; any = true; } else gapG.hidden = true;
+    let bn = null, bd = 1e9;                         // the rival closest to you in time at this spot
+    if (!ST.practice) for (const r of rivals) if (r.tab) { const d = raceTime - timeAtDist(r.tab, s); if (Math.abs(d) < Math.abs(bd)) { bd = d; bn = r.name; } }
+    if (bn && Math.abs(bd) < 30) { setGap(gapR, 'r', bn.split(' ').pop().slice(0, 9).toUpperCase() + ' ' + fmtGapT(bd), bd); gapR.hidden = false; any = true; } else gapR.hidden = true;
+    gapBox.hidden = !any;
+  }
   /* ---------- debug overlay (F1): frame timing and what the car is doing ---------- */
   let quality = 'high';
   let debugOn = false; try { debugOn = localStorage.getItem('rallyDebug') === 'on'; } catch (e) { /* ignore */ }
@@ -9151,38 +9416,9 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       wm.steerG.position.set(w.local.x, w.local.y - w.susp, w.local.z);
       wm.steerG.rotation.y = w.front ? -car.steer : 0;
       wm.spinG.rotation.x = w.spin;
-      // dust from loose surfaces
-      if (!w.contact) return;
-      const surf = CONFIG.surfaces[w.surface];
-      if (!surf.dust) return;
-      // dust grows with the slide; the rears also throw gravel chips out behind and to the outside of the slide
-      const slide = Math.abs(Math.sin(car.beta)) * car.speed;
-      const intensity = Math.min(1, Math.abs(w.vLong) * 0.022 + w.slipSpeed * 0.07 + slide * 0.04);
-      const sideX = car.right.x * Math.sign(car.beta), sideZ = car.right.z * Math.sign(car.beta);   // the way the car is sliding
-      emitAcc[i] += dt * intensity * 70;
-      while (emitAcc[i] > 1) {
-        emitAcc[i] -= 1;
-        const jx = (Math.random() - 0.5) * 0.4, jz = (Math.random() - 0.5) * 0.4, thr = slide * 0.18;
-        const c = surf.dust, k = 0.9 + Math.random() * 0.15;
-        emit(w.point.x + jx, w.point.y + 0.15, w.point.z + jz,
-          -car.vel.x * 0.15 + sideX * thr + (Math.random() - 0.5) * 1.5, 0.6 + Math.random() * 1.2 + slide * 0.04, -car.vel.z * 0.15 + sideZ * thr + (Math.random() - 0.5) * 1.5,
-          [c[0] * k, c[1] * k, c[2] * k], 0.6 + intensity * 0.8 + slide * 0.03, 0.9 + Math.random() * 0.9 + slide * 0.04);
-      }
-      if (!w.front && w.surface !== 'snow' && quality !== 'low') {
-        const roost = Math.max(0, w.slipSpeed - 2.5) + slide * 0.5;
-        chipAcc[i] += dt * Math.min(40, roost * 3.2);
-        while (chipAcc[i] > 1) {
-          chipAcc[i] -= 1;
-          const c = surf.dust, k = 0.45 + Math.random() * 0.2, back = 3 + Math.random() * 3 + roost * 0.25;
-          emit(w.point.x, w.point.y + 0.1, w.point.z,
-            car.vel.x * 0.55 - car.fwd.x * back + sideX * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
-            1.6 + Math.random() * 3.2,
-            car.vel.z * 0.55 - car.fwd.z * back + sideZ * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
-            [c[0] * k, c[1] * k, c[2] * k], 0.1 + Math.random() * 0.08, 0.45 + Math.random() * 0.3, 2);
-        }
-      }
+      if (w.contact) wheelFx(dt, i, w);                  // trails per surface (art/effects.js)
     });
-    updateParticles(dt);
+    updateParticles(dt); updateDamage(dt);
 
     sun.position.copy(car.pos).add(sunOffset); sun.target.position.copy(car.pos);
     updateFlare();
@@ -9200,6 +9436,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       elClockBox.classList.toggle('low', state === 'running' && tl < 10);
       if (state === 'running' && tl < 10 && Math.ceil(tl) !== lastWarn) { lastWarn = Math.ceil(tl); cue.warn(); }
     }
+    ghostFrame();   // tracks/ghost.js: ghost car + gap line
     if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0 && state !== 'gameover') elBanner.hidden = true; }
     setText(elSpeed, 'v', String(Math.round(Math.abs(car.vForward) * 3.6)));
     setText(elGear, 'g', car.gear < 0 ? 'R' : String(car.gear));
@@ -9272,7 +9509,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
   /* ---------- post-process, console style ----------
      The scene renders at a lower internal resolution and is scaled up, with a soft bloom on bright areas,
      a little extra saturation and contrast, a vignette, and radial motion blur at high speed. */
-  const RENDER_SCALE = 0.72;
+  const RENDER_SCALE = 0.72;   // (high: see resize)
   // the scene is drawn here in linear light (half float, so bright highlights are not clipped before the tone mapping); a plain 8-bit target if the phone can't
   const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: hdrOk ? THREE.HalfFloatType : THREE.UnsignedByteType });
   const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -9281,11 +9518,11 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       tColor: { value: rtColor.texture }, res: { value: new THREE.Vector2(1, 1) }, blur: { value: 0 },
       // colour grade per stage look (applyGrade): tint multiplies, lift adds to the shadows, bloom = glow on bright areas above `thresh`
       tint: { value: new THREE.Vector3(1, 1, 1) }, lift: { value: new THREE.Vector3(0, 0, 0) }, sat: { value: 1.14 }, con: { value: 1.05 },
-      bloom: { value: 0.4 }, bloom2: { value: 0 }, thresh: { value: 0.86 }, vig: { value: 0.32 },
+      bloom: { value: 0.4 }, bloom2: { value: 0 }, sharp: { value: 0 }, thresh: { value: 0.86 }, vig: { value: 0.32 },
     },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tColor; uniform vec2 res; uniform float blur; uniform vec3 tint; uniform vec3 lift; uniform float sat; uniform float con; uniform float bloom; uniform float bloom2; uniform float thresh; uniform float vig; varying vec2 vUv;
+      uniform sampler2D tColor; uniform vec2 res; uniform float blur; uniform vec3 tint; uniform vec3 lift; uniform float sat; uniform float con; uniform float bloom; uniform float bloom2; uniform float sharp; uniform float thresh; uniform float vig; varying vec2 vUv;
       void main(){
         vec2 dir = vUv - 0.5;
         vec3 c = texture2D(tColor, vUv).rgb;
@@ -9293,6 +9530,12 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
           vec3 acc = c;
           for (int i = 1; i < 7; i++) acc += texture2D(tColor, vUv - dir * (float(i) / 7.0) * blur * 0.07).rgb;
           c = mix(c, acc / 7.0, smoothstep(0.12, 0.5, length(dir)));
+        }
+        if (sharp > 0.0) {                                     // high quality: crisp edges (unsharp mask on 4 neighbours, limited so bright spots do not halo)
+          vec2 s1 = 1.0 / res;
+          vec3 n = texture2D(tColor, vUv + vec2(s1.x, 0.0)).rgb + texture2D(tColor, vUv - vec2(s1.x, 0.0)).rgb + texture2D(tColor, vUv + vec2(0.0, s1.y)).rgb + texture2D(tColor, vUv - vec2(0.0, s1.y)).rgb;
+          c += clamp((c - n * 0.25) * sharp, vec3(-0.12), vec3(0.12));
+          c = max(c, vec3(0.0));
         }
         vec2 o = 2.5 / res; vec3 b = vec3(0.0);
         b += max(texture2D(tColor, vUv + vec2(o.x, o.y)).rgb - thresh, 0.0);
@@ -9346,6 +9589,7 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     if (stageGroup && (prewarmFor !== stageGroup || prewarmQ !== quality)) { prewarmFor = stageGroup; prewarmQ = quality; prewarm(); }
     updateTrees(dt); updateCrowd(); updateCastleFx(dt); updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
     if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
+    postMat.uniforms.sharp.value = quality === 'low' ? 0 : 0.5;
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;
     const kmh = car.speed * 3.6;
@@ -9358,7 +9602,10 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     const w = window.innerWidth, h = window.innerHeight;
     if (isTouch && h > w && state === 'running') togglePause();          // turned to portrait mid-stage
     renderer.setSize(w, h, false);
-    const sc = (quality === 'low' ? 0.55 : RENDER_SCALE) * Math.min(window.devicePixelRatio || 1, 1.5), W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
+    // high: 0.72 x dpr as before (the 4x multisampling does the smoothing)
+    const dprc = Math.min(window.devicePixelRatio || 1, 1.5), sc = quality === 'low' ? 0.55 * dprc : RENDER_SCALE * dprc, W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
+    const ms = quality === 'low' || !hdrOk ? 0 : 4;                    // high: 4x multisampled scene (smooth road edges, car and fences)
+    if (rtColor.samples !== ms) { rtColor.samples = ms; rtColor.dispose(); }
     rtColor.setSize(W, Hh);
     postMat.uniforms.res.value.set(W, Hh);
     camera.aspect = w / h; camera.updateProjectionMatrix();
