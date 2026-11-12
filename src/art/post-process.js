@@ -94,8 +94,8 @@
     const w = window.innerWidth, h = window.innerHeight;
     if (isTouch && h > w && state === 'running') togglePause();          // turned to portrait mid-stage
     renderer.setSize(w, h, false);
-    // high: at least one drawn pixel per screen pixel (phones with a dense screen already got that: 0.72 x 1.5), so a desktop is drawn 1:1 instead of upscaled
-    const dprc = Math.min(window.devicePixelRatio || 1, 1.5), sc = quality === 'low' ? 0.55 * dprc : Math.max(RENDER_SCALE * dprc, 1), W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
+    // high: 0.72 x dpr as before (the 4x multisampling does the smoothing)
+    const dprc = Math.min(window.devicePixelRatio || 1, 1.5), sc = quality === 'low' ? 0.55 * dprc : RENDER_SCALE * dprc, W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
     const ms = quality === 'low' || !hdrOk ? 0 : 4;                    // high: 4x multisampled scene (smooth road edges, car and fences)
     if (rtColor.samples !== ms) { rtColor.samples = ms; rtColor.dispose(); }
     rtColor.setSize(W, Hh);
