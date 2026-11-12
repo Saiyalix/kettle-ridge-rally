@@ -139,11 +139,11 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   // only cars 1 and 2 are touched here, so it holds for any number of cars (the legacy time belongs to car 2)
   await pickCar(0); const k0 = await card(); await pickCar(1); const k1 = await card();
   checks.push({ name: 'best times: the card shows the selected car\'s best (other car keeps the old time)', pass: k0 !== k1 && /Best/.test(k0) && /Best/.test(k1) && !/16:39/.test(k0) && /16:39/.test(k1), detail: `car 1 ${k0} | car 2 ${k1}` });
-  // slower run with the other car must not overwrite that car's better time: Strada (the second car) has 16:39 saved, the first car is chosen at load, then switch to the second; further cars do not matter
-  await gb.page.evaluate(() => { const k = Object.keys(localStorage).find(k => k.startsWith('kettleRidgeBest_v1_')); localStorage.setItem(k.replace(/_[a-z]+$/, '_strada'), JSON.stringify({ time: 90, splits: [], v: 1 })); });
+  // slower run with the other car must not overwrite that car's better time: Strada (the second car) has 16:39 saved (the test then seeds a 60 s best, safely faster than any bot run, so a handling change never flips it), the first car is chosen at load, then switch to the second; further cars do not matter
+  await gb.page.evaluate(() => { const k = Object.keys(localStorage).find(k => k.startsWith('kettleRidgeBest_v1_')); localStorage.setItem(k.replace(/_[a-z]+$/, '_strada'), JSON.stringify({ time: 60, splits: [], v: 1 })); });
   await pickCar(0); await pickCar(1);
   const slow = await gb.page.evaluate(() => { const b = __probe.driveStage(1); return { t: b.time, saved: JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /kettleRidgeBest_v1_(?!kestrel)[a-z]+$/.test(k)))).time, fin: document.getElementById('finalTime').textContent }; });
-  checks.push({ name: 'best times: a slower run with the switched-to car does not overwrite its better time', pass: slow.t > 90 && slow.saved === 90 && !/NEW BEST/.test(slow.fin), detail: `run ${slow.t.toFixed(1)} s, saved ${slow.saved}, ${slow.fin}` });
+  checks.push({ name: 'best times: a slower run with the switched-to car does not overwrite its better time', pass: slow.t > 60 && slow.saved === 60 && !/NEW BEST/.test(slow.fin), detail: `run ${slow.t.toFixed(1)} s, saved ${slow.saved}, ${slow.fin}` });
   await pickCar(0);
   await shot(gb.page, 'mobile-best-menu.png');
   await gb.page.evaluate(() => { document.getElementById('finishScreen').hidden = false; });
