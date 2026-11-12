@@ -5,6 +5,14 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · UI/mobile: phone performance pass (High costs more since #34/#36)
+**Decision:**
+- Low particle numbers from #34 confirmed: cap **360**, emission **half**, hit sparks **6**. Reason: a full trail on High makes about 360 dust particles a second (4 wheels x 90) living 1 to 2 s, so High needs the 1000 cap; on Low half the rate gives about 180 a second, which is 250 to 300 alive, inside 360, so the ring buffer never overwrites a live puff in normal driving. Low draws the same trail, thinner. Not changed.
+- Auto-drop to Low: threshold **40 ms -> 36 ms** smoothed frame time (under 25 fps -> under about 28 fps), still 3 s in a row after 4 s of driving. The aim is 30 fps; a phone locked at 30 shows 33 ms and is safe, one stuck at 25 to 28 fps now drops instead of staying on High. One frame counts as at most 100 ms in the average, so a single hitch (shader build, tab switch) cannot trigger it. Still one-way (never goes back up by itself), saved, so it cannot flip back and forth. Dropping to Low calls `resize()`, which sets MSAA to 0 and `sharp`/`bloom2` are 0 on Low, so the drop also removes them.
+- Ground is now square tiles of 64 x 64 cells (was one mesh of up to 750 000 triangles that was drawn whole every frame). Same vertices, same normals, same look; three.js skips tiles outside the view and `cullFar` skips tiles beyond the fog. In the test browser at 800x360: triangles drawn per frame SS1 730 000 -> 380 000 (High) and 645 000 -> 300 000 (Low); SS3 465 000 -> 215 000 (High). Draw calls +9.
+- Particles: when none are alive (most of a tarmac stage) the update loop, the 32 KB buffer upload and the draw call are skipped.
+**Touched outside ui-mobile:** `src/tracks/stage-build.js` `buildGround` (how the ground is cut up, not where or what it looks like) and `src/art/effects.js` `updateParticles`/`emit` (skip when idle); both keep the High look pixel-for-pixel.
+
 ### 2026-11-12 · Art: sharper modern-retro look (High quality only)
 **Decision:**
 - Sharper: on High the scene is drawn into a 4x multisampled target (smooth road edges, car, fences) and the post pass adds a limited 4-tap sharpen. Render scale stays 0.72 x dpr (a 1.0 scale with MSAA made the software test browser time out). Low is untouched.
