@@ -46,10 +46,13 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   await g.page.waitForTimeout(5000);
   await shot(g.page, 'mobile-race.png');
   const touch = await rectsOf(g.page, ['.tc-steer', '.tc-brake', '.tc-hb', '.tc-gas', '.tc-mini']);
-  const need = ['.tc-steer#1', '.tc-steer#2', '.tc-brake', '.tc-hb'];
+  const need = ['.tc-steer#1', '.tc-steer#2', '.tc-brake', '.tc-hb', '.tc-gas'];     // auto gas is off by default, so the GAS button is there
   const missing = need.filter(n => !touch.find(r => r.name === n));
   checks.push({ name: 'race: touch controls present', pass: missing.length === 0 && touch.filter(r => r.name.startsWith('.tc-mini')).length === 3,
     detail: missing.length ? 'missing ' + missing.join(', ') : touch.map(r => r.name).join(', ') });
+  const gasR = touch.find(r => r.name === '.tc-gas'), brR = touch.find(r => r.name === '.tc-brake');
+  checks.push({ name: 'race: GAS button (auto gas off by default) is big (≥ 40 px) and on the right, beside BRAKE', pass: !!gasR && !!brR && Math.min(gasR.w, gasR.h) >= expected.mobile.minTouchPx && gasR.x > brR.x && gasR.x + gasR.w <= V.width,
+    detail: gasR ? `GAS ${gasR.w.toFixed(0)}x${gasR.h.toFixed(0)} at ${gasR.x.toFixed(0)},${gasR.y.toFixed(0)}` : 'missing' });
   const off = touch.filter(r => !inside(r)).map(r => r.name);
   checks.push({ name: 'race: touch controls on screen', pass: off.length === 0, detail: off.length ? off.join(', ') : 'ok' });
   const small = touch.filter(r => Math.min(r.w, r.h) < expected.mobile.minTouchPx).map(r => `${r.name} ${r.w.toFixed(0)}x${r.h.toFixed(0)}`);
@@ -81,6 +84,31 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
     detail: bandBad.length ? bandBad.join(', ') : 'centre covered: ' + Object.entries(band).map(([k, v]) => `#${k} ${v}%`).join(', ') });
   const errs = g.errors();
   await g.ctx.close();      // free the software renderer before the next pages
+
+  // ---- tilt steering + GAS button: steer buttons hidden, GAS and the other pedals stay on screen, clear of the HUD
+  const gg = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyTilt: '1' } });
+  await gg.page.tap('#startBtn');
+  await gg.page.waitForSelector('body.race-on:not(.menu-mode) #touch .tc-brake', { state: 'visible' });
+  await gg.page.evaluate(() => { const fire = () => window.dispatchEvent(new DeviceMotionEvent('devicemotion', { accelerationIncludingGravity: { x: 9.81, y: 0, z: 0 } })); fire(); setInterval(fire, 200); });   // a working tilt sensor, so the steer buttons stay hidden
+  await gg.page.waitForTimeout(500);
+  const tg = await rectsOf(gg.page, ['.tc-steer', '.tc-brake', '.tc-hb', '.tc-gas', '.tc-mini']);
+  const tgHud = await rectsOf(gg.page, ['#timing', '#clock', '#mapwrap', '#dash']);
+  const tgBad = [...pairs(tg), ...tg.flatMap(a => tgHud.filter(b => overlap(a, b)).map(b => `${a.name} × ${b.name}`)), ...tg.filter(r => !inside(r)).map(r => r.name + ' off screen'), ...tg.filter(r => Math.min(r.w, r.h) < expected.mobile.minTouchPx).map(r => r.name + ' too small')];
+  checks.push({ name: 'tilt + GAS: steer buttons hidden, GAS / BRAKE / HB on screen, ≥ 40 px, no overlaps with each other or the HUD', pass: !tg.some(r => r.name.startsWith('.tc-steer')) && ['.tc-gas', '.tc-brake', '.tc-hb'].every(n => tg.find(r => r.name === n)) && tgBad.length === 0,
+    detail: tgBad.length ? tgBad.join(', ') : tg.map(r => r.name).join(', ') });
+  await shot(gg.page, 'mobile-race-tilt-gas.png');
+  await gg.ctx.close();
+
+  // ---- auto gas switched back on (saved setting): the GAS button is hidden, BRAKE and HB stay big and clear
+  const ga = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyAutoGas: 'on' } });
+  await ga.page.tap('#startBtn');
+  await ga.page.waitForSelector('body.race-on:not(.menu-mode) #touch .tc-brake', { state: 'visible' });
+  await ga.page.waitForTimeout(500);
+  const ta = await rectsOf(ga.page, ['.tc-steer', '.tc-brake', '.tc-hb', '.tc-gas', '.tc-mini']);
+  const taBad = [...pairs(ta), ...ta.filter(r => !inside(r)).map(r => r.name + ' off screen'), ...ta.filter(r => Math.min(r.w, r.h) < expected.mobile.minTouchPx).map(r => r.name + ' too small')];
+  checks.push({ name: 'auto gas on (saved): GAS button hidden, BRAKE / HB / steer buttons still on screen and big', pass: !ta.some(r => r.name === '.tc-gas') && ta.some(r => r.name === '.tc-brake') && ta.some(r => r.name === '.tc-hb') && taBad.length === 0,
+    detail: taBad.length ? taBad.join(', ') : ta.map(r => r.name).join(', ') });
+  await ga.ctx.close();
 
   // ---- tilt fallback: tilt steering saved, but no sensor events arrive (headless has no sensor) -> steer buttons come back after ~2 s
   const gt = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyTilt: '1' } });

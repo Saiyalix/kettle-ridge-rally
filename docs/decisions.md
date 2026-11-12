@@ -82,6 +82,16 @@ behaviour under the same seeds: one Thornwick run 28 s off road with a rescue).
 > 4. The car never spins by itself: past 42° of slide it resists the slide growing, a caught or released slide does not swing
 >    back the other way, and neither full gas nor lifting in a held slide swings it past 45°.
 
+### 2026-11-12 · UI: GAS button is the phone default, auto gas becomes an option
+**Decision:** on touch, auto gas is off by default. The GAS button (right thumb, tall, next to BRAKE and HB) is full throttle while held and lift when let go.
+Auto gas stays as "Auto gas: On/Off" in the pause menu and the menu help, saved as `rallyAutoGas`; when on, the GAS button is hidden and everything works as before
+(`keepGasSlide`, brake tap, handbrake lift). Keyboard unchanged. Works with button steering and tilt (gas is a key, steering is separate); thumbs can slide GAS to BRAKE.
+**Why:** owner, 2026-11-12: with auto gas they cannot choose how much gas to give, so they brake mid-turn. Choice offered: "Gas button on screen".
+**Saved settings:** the old code only wrote `rallyAutoGas` when the player pressed the toggle (`'on'` or `'off'`); the default was never saved. So no saved value means
+"never touched it" and now gives the new default (button). A saved `'on'` or `'off'` is a real choice and is kept. Nobody is moved by force, and nobody who chose is overridden.
+**Tests:** `mobile` (GAS present, ≥ 40 px, right of BRAKE, no overlaps, also with tilt, and hidden with auto gas on), `phone` (GAS is the default path: steer + gas + handbrake,
+throttle 1 held / 0 lifted, light, thumb slide to BRAKE; auto gas checks now switch the option on first and check the saved value). `handling.test.js` skid pad auto gas checks unchanged.
+
 ---
 
 ### 2026-11-12 · QA: the test kit checks the Nightjar KR against its own targets
