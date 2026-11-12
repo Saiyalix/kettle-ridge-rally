@@ -5,6 +5,12 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · Art: sharper modern-retro look (High quality only)
+**Decision:**
+- Sharper: on High the scene is drawn into a 4x multisampled target (smooth road edges, car, fences) and the post pass adds a limited 4-tap sharpen. Render scale stays 0.72 x dpr (a 1.0 scale with MSAA made the software test browser time out). Low is untouched.
+- Punchier stage looks (stages.js `look`): stronger saturation (SS1 1.2 -> 1.32, SS2 1.0 -> 1.14, SS3 1.12 -> 1.26, SS4 1.1 -> 1.24), a little more contrast, warmer and stronger sun, cooler shadow lift. Each stage keeps its time of day.
+- Cost on High: no extra scene passes or draw calls; +4 texture taps in the post pass, 4x MSAA on the scene target, no change in pixel count.
+
 ### 2026-11-12 · Art: surface trails, sparks, damage looks (package 4)
 **Decision:** each surface has its own trail (tan dust gravel/dirt, white spray and flakes on snow, grey tyre haze on tarmac only in a hard slide or wheelspin, brown dust plus green/brown clods on grass), scaling with speed and slide.
 Sparks on scrapes are brighter and shorter. After hits the car shows dark scuffs and bare-metal streaks (one pooled mesh, 14 marks, one draw call) and dirt builds up as a tint on the paint (no draw call); both reset when a stage starts.
@@ -530,8 +536,3 @@ Package 2 "Phone first" (owner: "go on with package 2"). New `tests/phone.test.j
 - **Gap line** under the clock: "GHOST -0.1" (green = ahead of your best, red = behind) and the rival closest to you in time at this spot ("TANAKA +0.8"). Live, updated four times a second, only once past 20 m of the stage. Same time basis as the split gaps.
 - Hooks outside tracks files, one line each: `ghostFrame();` in `ui/visuals-hud.js` `updateVisuals`; the line is the only change there. The Pause button and gap line are created from `ghost.js`, so page files are untouched. Looks (colour, opacity) are placeholders for art.
 - New test `tests/ghost.test.js` (and `ghostInfo` in `tests/lib/probe.js`); `expected.json` unchanged.
-
-## 2026-11-12: modern-retro look pass (art, high quality only)
-- Sharper: on High the scene is drawn into a 4x multisampled target (smooth road edges, car, fences) and the post pass adds a limited 4-tap sharpen. Render scale stays 0.72 x dpr (a 1.0 scale with MSAA made the software test browser time out). Low is untouched.
-- Punchier stage looks (stages.js `look`): stronger saturation (SS1 1.2 -> 1.32, SS2 1.0 -> 1.14, SS3 1.12 -> 1.26, SS4 1.1 -> 1.24), a little more contrast, warmer and stronger sun, cooler shadow lift. Each stage keeps its time of day.
-- Cost on High: no extra scene passes or draw calls; +4 texture taps in the post pass, 4x MSAA on the scene target, no change in pixel count.
