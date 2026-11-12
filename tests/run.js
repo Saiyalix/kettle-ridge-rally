@@ -13,7 +13,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { startServer, launch } = require('./lib/game');
+const { startServer, resilientBrowser, SLOW } = require('./lib/game');
 
 const ALL = ['build', 'load', 'bot', 'handling', 'mobile', 'phone', 'gfx', 'ghost', 'flow'];
 const args = process.argv.slice(2);
@@ -28,7 +28,8 @@ const expected = JSON.parse(fs.readFileSync(EXPECTED_FILE, 'utf8'));
   fs.mkdirSync(OUT, { recursive: true });
   for (const f of fs.readdirSync(OUT)) fs.rmSync(path.join(OUT, f), { force: true });
   const { server, base } = await startServer();
-  const browser = await launch();
+  const browser = resilientBrowser();
+  if (SLOW > 1) process.stdout.write(`busy machine: waiting ${SLOW.toFixed(1)}x longer (set SLOW=n to override)\n`);
   const shot = (page, name) => page.screenshot({ path: path.join(OUT, name) });
   const sections = [], data = {};
   const t0 = Date.now();
@@ -42,6 +43,7 @@ const expected = JSON.parse(fs.readFileSync(EXPECTED_FILE, 'utf8'));
       if (!Array.isArray(res)) data[name] = res.data;
     } catch (e) {
       checks = [{ name: `${name} test ran`, pass: false, detail: String(e && e.message || e).split('\n')[0] }];
+      await browser.restart();   // the browser may be hung or dead: the next group gets a fresh one
     }
     for (const c of checks) {
       const known = expected.knownIssues && expected.knownIssues[c.name];

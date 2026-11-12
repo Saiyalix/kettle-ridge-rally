@@ -544,3 +544,9 @@ Package 2 "Phone first" (owner: "go on with package 2"). New `tests/phone.test.j
 - **No expected values in `expected.json`**: the checks are yes/no (state reached, screen shown, car on the road within half a road width, upright, race time and time left moving). The only numbers are loose: "moving" is > 15 km/h, rescue lands within 30 m of where the car was.
 - Runs at 640x360 with Low graphics so the real-time countdown still finishes on a slow test machine. The game clock only moves when frames are drawn, so the test waits for game time, not wall time (timeouts up to 60-90 s per step; a normal run is a few minutes on a busy machine, shorter on a quiet one).
 - The replay bar's Back / Play buttons exist only for touch screens (`body.touch .rp-btns`); the desktop test leaves the replay with Esc.
+
+## 2026-11-12 · QA: the test kit waits longer on a busy machine (no check loosened)
+**Why:** the cloud box has 4 cores and several agents run software-GL (swiftshader) browsers at once, load average 12-20. `load`, `mobile` and the full run failed with `page.goto: Timeout 30000ms` / `page.screenshot: Timeout 30000ms`, even on plain main, and one dead browser failed every later group.
+- `tests/lib/game.js`: every page gets 120 s default timeout (goto, screenshot, click, waits; Playwright's default is 30 s). Startup wait is 180 s. All of these are multiplied by `SLOW` = the 1-minute load average divided by cores, between 1 and 4 (idle box: x1; override with env `SLOW=2`). `patience(ms)` scales a hand-written wait (used in `flow` and `gfx`).
+- `tests/run.js`: the browser is now `resilientBrowser()`: if Chromium died, the next page launches a fresh one; after a group that threw, the browser is killed and restarted so the next group starts clean. The run prints `busy machine: waiting Nx longer` when SLOW > 1.
+- Only waiting changed. No expected value, threshold or pass condition was touched; a real failure still fails (it just takes longer to give up).

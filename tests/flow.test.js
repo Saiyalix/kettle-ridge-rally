@@ -5,7 +5,7 @@
 // Real clicks and real key presses are used for everything a player does. The probe (tests/lib/probe.js, `flow`) is used only to
 // read the game's state and to drive the long stretch of a stage quickly with the autopilot.
 'use strict';
-const { openGame } = require('./lib/game');
+const { openGame, patience } = require('./lib/game');
 
 module.exports = async function flowTest({ browser, base, shot: realShot }) {
   const checks = [];
@@ -30,7 +30,7 @@ module.exports = async function flowTest({ browser, base, shot: realShot }) {
     const cards = await page.locator('.stage-card').count(), chips = await page.locator('#carPick .car-chip').count();
     add('menu lists the stages and both cars', cards >= 5 && chips >= 2, `${cards} stage cards, ${chips} cars`);
     await page.locator('.stage-card').nth(1).click();                                   // SS2
-    await page.waitForFunction(() => { const b = document.getElementById('startBtn'); return b && !b.disabled; }, null, { timeout: 60000 });
+    await page.waitForFunction(() => { const b = document.getElementById('startBtn'); return b && !b.disabled; }, null, { timeout: patience(60000) });
     await page.locator('#carPick .car-chip').nth(1).click();                            // Strada HF
     i = await info(page);
     const lbl = await page.textContent('#stageLbl');
@@ -177,7 +177,7 @@ module.exports = async function flowTest({ browser, base, shot: realShot }) {
     const g = await fresh(), page = g.page;
     const n = await page.locator('.stage-card').count();
     await page.locator('.stage-card').nth(n - 1).click();
-    await page.waitForFunction(() => { const b = document.getElementById('startBtn'); return b && !b.disabled; }, null, { timeout: 60000 });
+    await page.waitForFunction(() => { const b = document.getElementById('startBtn'); return b && !b.disabled; }, null, { timeout: patience(60000) });
     let i = await info(page);
     add('Test Track: can be picked from the menu', i.practice, `stage "${i.stageName}"`);
     await page.click('#startBtn');
