@@ -5,6 +5,12 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · Art: surface trails, sparks, damage looks (package 4)
+**Decision:** each surface has its own trail (tan dust gravel/dirt, white spray and flakes on snow, grey tyre haze on tarmac only in a hard slide or wheelspin, brown dust plus green/brown clods on grass), scaling with speed and slide.
+Sparks on scrapes are brighter and shorter. After hits the car shows dark scuffs and bare-metal streaks (one pooled mesh, 14 marks, one draw call) and dirt builds up as a tint on the paint (no draw call); both reset when a stage starts.
+Particle cap: 1000 on High, 360 on Low (Low emits about half as much; ui-mobile owns the Low path and should confirm). Drawn only: no physics change, handling rules and targets untouched.
+**Touched outside art:** `src/ui/visuals-hud.js` per-wheel dust block replaced by one call, `wheelFx(dt, i, w)` in `src/art/effects.js` (no behaviour change for the HUD).
+
 ### 2026-11-11 · Handling: in a drift the tyres decide where the car goes, and drifting is never the faster way
 **Request (owner):** "as soon as you drift the car goes alot quicker ... its like the wheels on the ground dont dictate
 where the car goes ... in a drift the car will keep going in a straight line when accelerating, instead of going where
