@@ -116,6 +116,7 @@ Prints PASS / FAIL per check and writes `tests/results/report.md` plus screensho
 | `bot` | Autopilot (aims by the direction of travel) drives each race stage with each car: finishes, time inside ±3% of the recorded time, clock holds at every checkpoint, off-road ≤ 8 s, no spins, no rescues. The practice Test Track is not bot-tested |
 | `handling` | Flat skid pad per surface, both cars, 50–140 km/h: held-key slide, first swing-out, spin test, letting go, steering wind-on (equal across surfaces), Strada vs Kestrel, handbrake turn |
 | `mobile` | 800×360 touch screen: menu items don't overlap and Start is reachable; touch controls present, on screen, ≥ 40 px, not overlapping each other or the HUD |
+| `flow` | Clicks through the game like a player: menu → pick stage + car → countdown → drive → finish screen → replay → back to menu; championship stage 1 → standings → stage 2; pause / resume / restart / quit; rescue (off the road, upside down, fell) with the clock still running; the Test Track; no console errors. Runs at 640×360, Low graphics |
 
 The tests never change `index.html`: `tests/lib/game.js` adds a probe to a temporary copy just before the line
 `loadStage(0).then(() => requestAnimationFrame(frame));` (in `src/core/main-loop.js`). If that line changes, the `load` test says so; update `PROBE_ANCHOR`.

@@ -1,14 +1,14 @@
 // (e) Graphics quality on phones: default High, saved choice wins, automatic drop to Low when the frame rate stays low.
 // The container has no GPU, so slow frames are faked: window.__fakeFrameMs (read by autoQualityTick in src/ui/pause.js) replaces the measured frame time.
 'use strict';
-const { openGame } = require('./lib/game');
+const { openGame, patience } = require('./lib/game');
 
 module.exports = async function gfxTest({ browser, base, expected }) {
   const checks = [], V = expected.mobile.viewport;
   const phone = (extra) => openGame(browser, base, Object.assign({ viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, extra));
   const q = (g) => g.page.evaluate(() => { const b = document.getElementById('qualityBtn'); return { label: b.textContent, saved: localStorage.getItem('rallyQualityV2'), banner: document.getElementById('banner').hidden ? '' : document.getElementById('banner').textContent }; });
   // start and wait until the countdown is over (the message shows GO, then clears); the software renderer is slow, so wait on the game, not on a clock
-  const startRace = async (g) => { await g.page.tap('#startBtn'); await g.page.waitForFunction(() => document.getElementById('msg').textContent === 'GO', null, { timeout: 90000, polling: 100 }); await g.page.waitForFunction(() => document.getElementById('msg').hidden, null, { timeout: 30000, polling: 100 }); };
+  const startRace = async (g) => { await g.page.tap('#startBtn'); await g.page.waitForFunction(() => document.getElementById('msg').textContent === 'GO', null, { timeout: patience(90000), polling: 100 }); await g.page.waitForFunction(() => document.getElementById('msg').hidden, null, { timeout: patience(30000), polling: 100 }); };
   const pauseLabel = async (g) => { await g.page.keyboard.press('Escape'); const r = await q(g); await g.page.keyboard.press('Escape'); return r; };
 
   // 1. default on a phone = High; fast frames never drop it
@@ -24,7 +24,7 @@ module.exports = async function gfxTest({ browser, base, expected }) {
   await g.page.waitForTimeout(2000);
   r = await q(g);
   checks.push({ name: 'auto-drop waits (no drop after 2 s of slow frames)', pass: r.label.endsWith('High') && !r.saved, detail: r.label });
-  await g.page.waitForFunction(() => localStorage.getItem('rallyQualityV2') === 'low', null, { timeout: 40000, polling: 200 }).catch(() => {});   // 4 s warm-up after the last pause + 3 s of slow frames
+  await g.page.waitForFunction(() => localStorage.getItem('rallyQualityV2') === 'low', null, { timeout: patience(40000), polling: 200 }).catch(() => {});   // 4 s warm-up after the last pause + 3 s of slow frames
   r = await q(g);
   checks.push({ name: 'auto-drop: slow frames for 3+ s switch to Low, saved, toast shown', pass: r.saved === 'low' && /Graphics set to Low/.test(r.banner), detail: `saved=${r.saved}, banner="${r.banner}"` });
   r = await pauseLabel(g);
