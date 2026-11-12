@@ -2907,12 +2907,6 @@ function boot() {
       col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
       soil[k] = city ? 0 : shoulder;                                    // how much soil texture to blend in (art/textures.js)
     }
-    const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
-    let q = 0;
-    for (let iz = 0; iz < nz - 1; iz++) for (let ix = 0; ix < nx - 1; ix++) {
-      const a = iz * nx + ix, b = a + 1, c = a + nx, d = c + 1;
-      idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d;
-    }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -2920,12 +2914,39 @@ function boot() {
     const uvs = new Float32Array(nx * nz * 2);
     for (let k = 0; k < nx * nz; k++) { uvs[k * 2] = pos[k * 3] / 11; uvs[k * 2 + 1] = pos[k * 3 + 2] / 11; }
     geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    // normals from the whole grid first, so the tiles below meet without seams
+    const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
+    let q = 0;
+    for (let iz = 0; iz < nz - 1; iz++) for (let ix = 0; ix < nx - 1; ix++) {
+      const a = iz * nx + ix, b = a + 1, c = a + nx, d = c + 1;
+      idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d;
+    }
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, groundMaterial(true));
-    mesh.position.y = -0.07;
-    mesh.receiveShadow = true;
-    add(mesh);
+    // Phone performance: the ground used to be ONE mesh of up to ~750 000 triangles that the GPU had to chew through every frame
+    // even when only a tenth of it is on screen. Now it is square tiles of TILE x TILE cells sharing the same vertex data
+    // (same picture, same normals), each with its own index list and bounding sphere: three.js skips tiles outside the view, and
+    // cullFar (art/sky.js) skips tiles beyond the fog.
+    const TILE = 64, mat = groundMaterial(true), Y0 = -0.07;
+    for (let tz = 0; tz < nz - 1; tz += TILE) for (let tx = 0; tx < nx - 1; tx += TILE) {
+      const x1 = Math.min(tx + TILE, nx - 1), z1 = Math.min(tz + TILE, nz - 1);
+      const ti = new Uint32Array((x1 - tx) * (z1 - tz) * 6);
+      let n = 0, lo = 1e9, hi = -1e9;
+      for (let iz = tz; iz <= z1; iz++) for (let ix = tx; ix <= x1; ix++) { const hv = h[iz * nx + ix]; if (hv < lo) lo = hv; if (hv > hi) hi = hv; }
+      for (let iz = tz; iz < z1; iz++) for (let ix = tx; ix < x1; ix++) {
+        const a = iz * nx + ix, b = a + 1, c = a + nx, d = c + 1;
+        ti[n++] = a; ti[n++] = c; ti[n++] = b; ti[n++] = b; ti[n++] = c; ti[n++] = d;
+      }
+      const tg = new THREE.BufferGeometry();
+      tg.attributes = geo.attributes;                                     // shared vertex data, not copied
+      tg.setIndex(new THREE.BufferAttribute(ti, 1));
+      const cx = minX + (tx + x1) / 2 * cell, cz = minZ + (tz + z1) / 2 * cell, cy = (lo + hi) / 2;
+      tg.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy, cz), Math.hypot((x1 - tx) / 2 * cell, (hi - lo) / 2, (z1 - tz) / 2 * cell) + 1);
+      const mesh = new THREE.Mesh(tg, mat);
+      mesh.position.y = Y0;
+      mesh.receiveShadow = true;
+      add(mesh);
+    }
   }
 
   /* ---------- road ribbon: one texture per surface (art/textures.js), loose spill past the edge ---------- */
@@ -7642,7 +7663,7 @@ function boot() {
   const PMAX = 1000;
   const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3), pAlpha = new Float32Array(PMAX), pSize = new Float32Array(PMAX);
   const pVel = new Float32Array(PMAX * 3), pLife = new Float32Array(PMAX), pMax = new Float32Array(PMAX), pKind = new Uint8Array(PMAX), pAmp = new Float32Array(PMAX).fill(1);   // 0 dust, 1 spark, 2 gravel chip
-  let pNext = 0, dustK = 1, pCap = PMAX;                      // pCap: how many particles may be alive (high 1000, low 360: low is ui-mobile's, kept small)                                  // dustK: dust and chips are dimmed at night (set by applyLook)
+  let pNext = 0, dustK = 1, pCap = PMAX, pAny = false;                      // pCap: how many particles may be alive (high 1000, low 360: low is ui-mobile's, kept small)                                  // dustK: dust and chips are dimmed at night (set by applyLook)
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute('aColor', new THREE.BufferAttribute(pCol, 3));
@@ -7661,6 +7682,7 @@ function boot() {
   points.frustumCulled = false;
   scene.add(points);
   function emit(x, y, z, vx, vy, vz, col, size, life, kind = 0, amp = 1) {
+    pAny = true; points.visible = true;
     const i = pNext; pNext = (pNext + 1) % pCap; pKind[i] = kind; pAmp[i] = amp;
     pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
     pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
@@ -7670,9 +7692,12 @@ function boot() {
   }
   function updateParticles(dt) {
     const cap = quality === 'low' ? 360 : PMAX;
-    if (cap !== pCap) { for (let i = 0; i < PMAX; i++) { pLife[i] = 0; pAlpha[i] = 0; } pCap = cap; pNext = 0; }
+    if (cap !== pCap) { for (let i = 0; i < PMAX; i++) { pLife[i] = 0; pAlpha[i] = 0; } pCap = cap; pNext = 0; pAny = true; }
+    if (!pAny) return;                                   // nothing alive (most of a tarmac stage): skip the loop, the 32 KB upload and the draw call
+    let live = 0;
     for (let i = 0; i < pCap; i++) {
       if (pLife[i] <= 0) { pAlpha[i] = 0; continue; }
+      live++;
       pLife[i] -= dt;
       const t = 1 - pLife[i] / pMax[i];
       if (pKind[i]) {
@@ -7689,6 +7714,7 @@ function boot() {
       pAlpha[i] = Math.max(0, 0.55 * pAmp[i] * (1 - t) * Math.min(1, t * 8));
     }
     pGeo.attributes.position.needsUpdate = pGeo.attributes.aColor.needsUpdate = pGeo.attributes.aAlpha.needsUpdate = pGeo.attributes.aSize.needsUpdate = true;
+    if (live === 0) { pAny = false; points.visible = false; }   // this pass zeroed every alpha and uploaded it; from the next frame on there is nothing to do
   }
   let emitAcc = [0, 0, 0, 0], chipAcc = [0, 0, 0, 0];
   const GREY = [0.82, 0.82, 0.84], CLOD_G = [0.22, 0.42, 0.15], CLOD_B = [0.3, 0.22, 0.14], SNOWW = [1, 1, 1];
@@ -9230,14 +9256,14 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
 
 
   /* ---------- automatic fallback: high -> low once if the frame rate stays too low, and the FPS counter ---------- */
-  // Thresholds: smoothed frame time over AUTO_GFX.ms (under 25 fps) for AUTO_GFX.holdS seconds in a row, only while driving
+  // Thresholds: smoothed frame time over AUTO_GFX.ms (36 ms = under about 28 fps; the aim on phones is 30) for AUTO_GFX.holdS seconds in a row, only while driving
   // and after AUTO_GFX.warmS seconds of driving (loading, countdown, shader compile hitches never count).
   // Never switches back up by itself. Off with ?gfx=pc or ?autogfx=0.
-  const AUTO_GFX = { ms: 40, holdS: 3, warmS: 4, on: !GFX_PC && URLQ.get('autogfx') !== '0' };
+  const AUTO_GFX = { ms: 36, holdS: 3, warmS: 4, on: !GFX_PC && URLQ.get('autogfx') !== '0' };
   let agSmooth = 16.7, agSlowS = 0, agRunS = 0, agPrev = 0;
   function autoQualityTick(dtCapped, fakeMs) {
     const nowMs = performance.now(), wall = agPrev ? Math.min(1, (nowMs - agPrev) / 1000) : dtCapped; agPrev = nowMs;   // wall-clock: the game's own dt is capped at 0.1 s, which would stretch the timers when frames are very slow
-    const dtReal = wall, ms = fakeMs || wall * 1000;
+    const dtReal = wall, ms = fakeMs || Math.min(100, wall * 1000);   // one long hitch (shader build, tab switch) counts as at most 100 ms, so it cannot drag the average over the line on its own
     if (state !== 'running' || countdown > -0.6) { agSlowS = 0; agRunS = 0; return; }   // not driving (menu, loading, countdown, pause, replay)
     agRunS += dtReal;
     agSmooth += (ms - agSmooth) * 0.05;

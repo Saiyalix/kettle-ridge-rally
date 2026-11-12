@@ -3,6 +3,19 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **Sharper look** (2026-11-12, #35 test page, #36 live): 4x MSAA, light sharpen, punchier stage colours, smoother edges. Render scale stays 0.72 x dpr on High (1.0 with 4x MSAA timed out the test browser). Owner tried it on the phone: "good".
+- **Drift fix** (2026-11-12, #33): in a drift the car follows its nose on the gas, and drifting costs a little speed. Handling rule 5 reworded at the owner's request. Owner tried it on the phone: "good".
+- **Effects** (2026-11-12, #34): dust, spray and sparks per surface, scuffs and dirt on the car after hits.
+- **Best times and NEW BEST** (2026-11-11, #32): top time per stage and car saved on the device; tilt falls back to buttons when the phone has no sensor.
+- **Ghost car** (2026-11-11, #31): ghost of your best run per stage and car, plus a time-gap line (ghost and nearest rival).
+- **Phone tests** (2026-11-11, #30): new `phone` test on an emulated Android phone (tilt, multi-touch, rotation, auto gas).
+- **Tilt and auto gas** (2026-11-11, #28): proportional tilt steering; auto gas lifts on handbrake and brake tap.
+- **PC graphics by default on phones** (2026-11-11, #25): drops to Low by itself when frames stay slow. Test pages #26 and #29 let the owner try it before merging.
+- **Chase camera** (2026-11-11, #23, tweak #27): new low, close camera with speed feel, raised a little. All older cameras kept.
+- **Stage rough spots** (2026-11-11, #24): SS4 courtyard corner gentler, SS4 gates wider (passage 11.2 m), hay bales solid and soft, SS2 drop-side wall clearance.
+- **New sound** (2026-11-11, #22): retuned sound, Modelled engine by default.
+- **Menu fits short phones** (2026-11-11, #21): Start and the SS4 card reachable.
+- **Dashboard kept live** (2026-11-11, #20): the main session updates it at every step.
 - **New arcade driving live** (2026-11-10, branch `live/arcade-driving`): 90s-style arcade slides, weight shown on the body. Owner: "Driving is fine for now." `CLAUDE.md` handling rules and targets updated (owner approved). Tests rewritten for the new driving; the bot aims by direction of travel; new clock-holds check.
 - **Test Track** (2026-11-10): practice stage with every surface, for judging the driving.
 - **Stages adjusted for the new driving** (2026-11-10): Vulture hairpin wall moved, tarmac "Easy" pace-note radius fixed, Sakura trunks near the road are looks only, Vulture and Sakura clocks +1 s / +2 s, Vulture refTime 104, bot times re-recorded.
@@ -19,22 +32,23 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - Co-driver pace notes with voice, replays, rescue/respawn, championship mode, 15-car field with rivals on time.
 
 ## Waiting on the owner
-- **New sound** (branch `audio/rally-sound`): pick modelled or recorded engine, then it can go to review. (audio)
+- Nothing is waiting right now. Questions below need a yes before work starts (see Ideas): a 3rd car, light car damage.
 
 ## Next (in this order unless the owner says otherwise)
-1. **New low, close chase camera**: keep all existing cameras. (art)
-2. **SS2 drop wall clearance**: keep the drop-side wall at least 1 m clear of stacked road sections on hairpins. (tracks)
-3. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. (ui-mobile, art)
-4. **Best times leaderboard on the device**: top times per stage and car, saved locally. (ui-mobile)
-5. ~~**SS4 tuning**~~ done 2026-11-11 (courtyard corner gentler, wider gates, solid soft hay, Vulture wall clearance): see `docs/decisions.md`.
-6. **Menu fit on short phones**: Start button and the SS4 card sit below the fold. (ui-mobile)
+1. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. Confirm the Low-quality particle counts and the automatic fallback on a real phone. (ui-mobile, art)
+2. **Brighter dust and clearer grass clods**: the dust is modest, and green clods are hard to see on grass. (art)
+3. **Co-driver call for tight corners at speed**: make the note earlier or sharper where full gas into a tight corner still runs wide. Handling rules stay as they are. (tracks pace-note text; audio if the voice changes)
+4. **Fifth stage**: new route, theme and clock; needs bot times recorded. Route and theme to be picked by the producer plan. (tracks, art)
+
+## Settled, no longer open
+- Hay bales you can drive through: solved 2026-11-11, hay is solid and soft (#24).
+- SS4 castle gates a bit wider: solved 2026-11-11, gate passage 11.2 m (#24).
 
 ## Ideas (not planned yet)
-- Engine and surface audio: richer engine, distinct gravel / snow / tarmac sounds. (audio)
+- Richer surface audio: more distinct gravel / snow / tarmac sounds. (audio)
 - More stages. (tracks, art)
-- More cars. (handling, art)
+- A 3rd car (needs a new Strada-vs-Kestrel-style target; owner approval). (handling, art)
 - Weather and time of day variants of existing stages.
-- Ghost car of your best run.
 - Daily challenge stage with a fixed seed.
 - Car damage that affects handling a little (would need owner approval: touches the handling rules).
 - Branch preview link so PRs can be tested on the phone before merging.

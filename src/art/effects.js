@@ -2,7 +2,7 @@
   const PMAX = 1000;
   const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3), pAlpha = new Float32Array(PMAX), pSize = new Float32Array(PMAX);
   const pVel = new Float32Array(PMAX * 3), pLife = new Float32Array(PMAX), pMax = new Float32Array(PMAX), pKind = new Uint8Array(PMAX), pAmp = new Float32Array(PMAX).fill(1);   // 0 dust, 1 spark, 2 gravel chip
-  let pNext = 0, dustK = 1, pCap = PMAX;                      // pCap: how many particles may be alive (high 1000, low 360: low is ui-mobile's, kept small)                                  // dustK: dust and chips are dimmed at night (set by applyLook)
+  let pNext = 0, dustK = 1, pCap = PMAX, pAny = false;                      // pCap: how many particles may be alive (high 1000, low 360: low is ui-mobile's, kept small)                                  // dustK: dust and chips are dimmed at night (set by applyLook)
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute('aColor', new THREE.BufferAttribute(pCol, 3));
@@ -21,6 +21,7 @@
   points.frustumCulled = false;
   scene.add(points);
   function emit(x, y, z, vx, vy, vz, col, size, life, kind = 0, amp = 1) {
+    pAny = true; points.visible = true;
     const i = pNext; pNext = (pNext + 1) % pCap; pKind[i] = kind; pAmp[i] = amp;
     pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
     pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
@@ -30,9 +31,12 @@
   }
   function updateParticles(dt) {
     const cap = quality === 'low' ? 360 : PMAX;
-    if (cap !== pCap) { for (let i = 0; i < PMAX; i++) { pLife[i] = 0; pAlpha[i] = 0; } pCap = cap; pNext = 0; }
+    if (cap !== pCap) { for (let i = 0; i < PMAX; i++) { pLife[i] = 0; pAlpha[i] = 0; } pCap = cap; pNext = 0; pAny = true; }
+    if (!pAny) return;                                   // nothing alive (most of a tarmac stage): skip the loop, the 32 KB upload and the draw call
+    let live = 0;
     for (let i = 0; i < pCap; i++) {
       if (pLife[i] <= 0) { pAlpha[i] = 0; continue; }
+      live++;
       pLife[i] -= dt;
       const t = 1 - pLife[i] / pMax[i];
       if (pKind[i]) {
@@ -49,6 +53,7 @@
       pAlpha[i] = Math.max(0, 0.55 * pAmp[i] * (1 - t) * Math.min(1, t * 8));
     }
     pGeo.attributes.position.needsUpdate = pGeo.attributes.aColor.needsUpdate = pGeo.attributes.aAlpha.needsUpdate = pGeo.attributes.aSize.needsUpdate = true;
+    if (live === 0) { pAny = false; points.visible = false; }   // this pass zeroed every alpha and uploaded it; from the next frame on there is nothing to do
   }
   let emitAcc = [0, 0, 0, 0], chipAcc = [0, 0, 0, 0];
   const GREY = [0.82, 0.82, 0.84], CLOD_G = [0.22, 0.42, 0.15], CLOD_B = [0.3, 0.22, 0.14], SNOWW = [1, 1, 1];
