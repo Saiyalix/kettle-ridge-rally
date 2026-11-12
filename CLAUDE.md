@@ -29,6 +29,7 @@ Every department (subagent) follows this file. If a department file and this fil
 ## Handling rules (do not break without the owner's approval)
 
 Approved by the owner 2026-11-10 ("Driving is fine for now. Make that live"). Details: `docs/decisions.md`, 2026-11-07.
+Rule 5 changed 2026-11-11 at the owner's request ("as soon as you drift the car goes a lot quicker … adjust that"); see `docs/decisions.md`, 2026-11-11 ("Handling: in a drift the tyres decide where the car goes").
 
 1. Steering asks the front tyres for grip towards the key, measured from where the car is going. With no key the front
    wheels follow the slide (automatic countersteer), so letting go always straightens the car.
@@ -37,7 +38,8 @@ Approved by the owner 2026-11-10 ("Driving is fine for now. Make that live"). De
 3. Surfaces change grip and how easily the rear lets go, never how fast the steering winds on.
 4. The car never spins by itself: past 42° of slide it resists the slide growing, and a caught or released slide does
    not swing back the other way.
-5. A held slide is the fast way round a loose corner: it corners almost as hard as gripping and keeps its speed.
+5. A held slide corners almost as hard as gripping and is the stylish way round a loose corner, but it costs a little
+   speed: it is never faster than a clean line. On the throttle the tyres pull the car where the nose points.
 6. The body shows weight (lean, dive, squat, bounce) from the car's real accelerations; it is drawn only and never changes the physics.
 
 Measured targets (flat skid pad per surface, both cars, 50–140 km/h; checked by `tests/handling.test.js` and `tests/bot.test.js`):
