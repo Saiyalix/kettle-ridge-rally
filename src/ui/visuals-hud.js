@@ -12,38 +12,9 @@
       wm.steerG.position.set(w.local.x, w.local.y - w.susp, w.local.z);
       wm.steerG.rotation.y = w.front ? -car.steer : 0;
       wm.spinG.rotation.x = w.spin;
-      // dust from loose surfaces
-      if (!w.contact) return;
-      const surf = CONFIG.surfaces[w.surface];
-      if (!surf.dust) return;
-      // dust grows with the slide; the rears also throw gravel chips out behind and to the outside of the slide
-      const slide = Math.abs(Math.sin(car.beta)) * car.speed;
-      const intensity = Math.min(1, Math.abs(w.vLong) * 0.022 + w.slipSpeed * 0.07 + slide * 0.04);
-      const sideX = car.right.x * Math.sign(car.beta), sideZ = car.right.z * Math.sign(car.beta);   // the way the car is sliding
-      emitAcc[i] += dt * intensity * 70;
-      while (emitAcc[i] > 1) {
-        emitAcc[i] -= 1;
-        const jx = (Math.random() - 0.5) * 0.4, jz = (Math.random() - 0.5) * 0.4, thr = slide * 0.18;
-        const c = surf.dust, k = 0.9 + Math.random() * 0.15;
-        emit(w.point.x + jx, w.point.y + 0.15, w.point.z + jz,
-          -car.vel.x * 0.15 + sideX * thr + (Math.random() - 0.5) * 1.5, 0.6 + Math.random() * 1.2 + slide * 0.04, -car.vel.z * 0.15 + sideZ * thr + (Math.random() - 0.5) * 1.5,
-          [c[0] * k, c[1] * k, c[2] * k], 0.6 + intensity * 0.8 + slide * 0.03, 0.9 + Math.random() * 0.9 + slide * 0.04);
-      }
-      if (!w.front && w.surface !== 'snow' && quality !== 'low') {
-        const roost = Math.max(0, w.slipSpeed - 2.5) + slide * 0.5;
-        chipAcc[i] += dt * Math.min(40, roost * 3.2);
-        while (chipAcc[i] > 1) {
-          chipAcc[i] -= 1;
-          const c = surf.dust, k = 0.45 + Math.random() * 0.2, back = 3 + Math.random() * 3 + roost * 0.25;
-          emit(w.point.x, w.point.y + 0.1, w.point.z,
-            car.vel.x * 0.55 - car.fwd.x * back + sideX * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
-            1.6 + Math.random() * 3.2,
-            car.vel.z * 0.55 - car.fwd.z * back + sideZ * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
-            [c[0] * k, c[1] * k, c[2] * k], 0.1 + Math.random() * 0.08, 0.45 + Math.random() * 0.3, 2);
-        }
-      }
+      if (w.contact) wheelFx(dt, i, w);                  // trails per surface (art/effects.js)
     });
-    updateParticles(dt);
+    updateParticles(dt); updateDamage(dt);
 
     sun.position.copy(car.pos).add(sunOffset); sun.target.position.copy(car.pos);
     updateFlare();
