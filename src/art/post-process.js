@@ -1,7 +1,7 @@
   /* ---------- post-process, console style ----------
      The scene renders at a lower internal resolution and is scaled up, with a soft bloom on bright areas,
      a little extra saturation and contrast, a vignette, and radial motion blur at high speed. */
-  const RENDER_SCALE = 0.72;
+  const RENDER_SCALE = 0.72;   // (high: see resize)
   // the scene is drawn here in linear light (half float, so bright highlights are not clipped before the tone mapping); a plain 8-bit target if the phone can't
   const rtColor = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: hdrOk ? THREE.HalfFloatType : THREE.UnsignedByteType });
   const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -10,11 +10,11 @@
       tColor: { value: rtColor.texture }, res: { value: new THREE.Vector2(1, 1) }, blur: { value: 0 },
       // colour grade per stage look (applyGrade): tint multiplies, lift adds to the shadows, bloom = glow on bright areas above `thresh`
       tint: { value: new THREE.Vector3(1, 1, 1) }, lift: { value: new THREE.Vector3(0, 0, 0) }, sat: { value: 1.14 }, con: { value: 1.05 },
-      bloom: { value: 0.4 }, bloom2: { value: 0 }, thresh: { value: 0.86 }, vig: { value: 0.32 },
+      bloom: { value: 0.4 }, bloom2: { value: 0 }, sharp: { value: 0 }, thresh: { value: 0.86 }, vig: { value: 0.32 },
     },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tColor; uniform vec2 res; uniform float blur; uniform vec3 tint; uniform vec3 lift; uniform float sat; uniform float con; uniform float bloom; uniform float bloom2; uniform float thresh; uniform float vig; varying vec2 vUv;
+      uniform sampler2D tColor; uniform vec2 res; uniform float blur; uniform vec3 tint; uniform vec3 lift; uniform float sat; uniform float con; uniform float bloom; uniform float bloom2; uniform float sharp; uniform float thresh; uniform float vig; varying vec2 vUv;
       void main(){
         vec2 dir = vUv - 0.5;
         vec3 c = texture2D(tColor, vUv).rgb;
@@ -22,6 +22,12 @@
           vec3 acc = c;
           for (int i = 1; i < 7; i++) acc += texture2D(tColor, vUv - dir * (float(i) / 7.0) * blur * 0.07).rgb;
           c = mix(c, acc / 7.0, smoothstep(0.12, 0.5, length(dir)));
+        }
+        if (sharp > 0.0) {                                     // high quality: crisp edges (unsharp mask on 4 neighbours, limited so bright spots do not halo)
+          vec2 s1 = 1.0 / res;
+          vec3 n = texture2D(tColor, vUv + vec2(s1.x, 0.0)).rgb + texture2D(tColor, vUv - vec2(s1.x, 0.0)).rgb + texture2D(tColor, vUv + vec2(0.0, s1.y)).rgb + texture2D(tColor, vUv - vec2(0.0, s1.y)).rgb;
+          c += clamp((c - n * 0.25) * sharp, vec3(-0.12), vec3(0.12));
+          c = max(c, vec3(0.0));
         }
         vec2 o = 2.5 / res; vec3 b = vec3(0.0);
         b += max(texture2D(tColor, vUv + vec2(o.x, o.y)).rgb - thresh, 0.0);
@@ -75,6 +81,7 @@
     if (stageGroup && (prewarmFor !== stageGroup || prewarmQ !== quality)) { prewarmFor = stageGroup; prewarmQ = quality; prewarm(); }
     updateTrees(dt); updateCrowd(); updateCastleFx(dt); updateSky(dt); updateNight(); cullFar(); updateRivalLOD();
     if (envDirty && envPM && quality === 'high') envPMREM();                 // new stage: refresh the car paint's reflection of the sky
+    postMat.uniforms.sharp.value = quality === 'low' ? 0 : 0.5;
     postMat.uniforms.bloom2.value = quality === 'low' ? 0 : gradeWide;      // the wide glow costs 4 more taps: high quality only
     glowPointMat.uniforms.uScale.value = rtColor.height * 0.5;
     const kmh = car.speed * 3.6;
@@ -87,7 +94,10 @@
     const w = window.innerWidth, h = window.innerHeight;
     if (isTouch && h > w && state === 'running') togglePause();          // turned to portrait mid-stage
     renderer.setSize(w, h, false);
-    const sc = (quality === 'low' ? 0.55 : RENDER_SCALE) * Math.min(window.devicePixelRatio || 1, 1.5), W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
+    // high: 0.72 x dpr as before (the 4x multisampling does the smoothing)
+    const dprc = Math.min(window.devicePixelRatio || 1, 1.5), sc = quality === 'low' ? 0.55 * dprc : RENDER_SCALE * dprc, W = Math.max(320, Math.floor(w * sc)), Hh = Math.max(240, Math.floor(h * sc));
+    const ms = quality === 'low' || !hdrOk ? 0 : 4;                    // high: 4x multisampled scene (smooth road edges, car and fences)
+    if (rtColor.samples !== ms) { rtColor.samples = ms; rtColor.dispose(); }
     rtColor.setSize(W, Hh);
     postMat.uniforms.res.value.set(W, Hh);
     camera.aspect = w / h; camera.updateProjectionMatrix();
