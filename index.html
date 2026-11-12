@@ -101,6 +101,8 @@ html, body { height: 100%; margin: 0; overflow: hidden; background: var(--ink); 
   background: rgba(8, 14, 34, .74); border-left: 3px solid #ffd21f; font-family: var(--f-display); font-weight: 800; font-style: italic; text-transform: uppercase; }
 #pace svg { width: calc(var(--d-note) * 1.5); height: calc(var(--d-note) * 1.5); }
 #paceText { font-size: var(--d-note); letter-spacing: .02em; white-space: nowrap; }
+#pace.tight { border-left-color: #ff6a2b; }
+#pace.tight #paceText { color: #ffb070; }          /* tight corner (hairpin, square, sharp): warning colour */
 #paceSub { font-size: var(--d-note); color: #ffd21f; white-space: nowrap; }
 #paceThen { grid-column: 2 / 4; font-size: calc(var(--d-note) * .72); font-weight: 600; color: #bcd4ff; white-space: nowrap; margin-top: -2px; }
 #paceThen:empty { display: none; }
@@ -1262,6 +1264,15 @@ function buildTrack(ST = CONFIG.stage) {
     const before = notes.filter(nt => nt.kind !== 'jump' && nt.s1 <= ST.castle.gate1).pop();
     if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate, brake for the well';      // early warning: the courtyard corner comes 40 m after the gate
     for (const nt of notes) if (nt.kind !== 'jump' && nt.s >= ST.castle.gate1 && nt.s1 <= ST.castle.gate2) nt.text = nt.text.replace(", don't cut", '') + ', around the well';
+  }
+  // Tight corners are the ones that punish full gas: the call says "brake" (hairpin, square, full circle) and the HUD shows
+  // it earlier (note.lead = extra metres of warning), in a warning colour (note.tight). Sharp corners already say "don't cut".
+  for (const nt of notes) {
+    if (nt.kind === 'jump') continue;
+    const hard = /^(Hairpin|Square|Full circle)/.test(nt.text), sharp = /sharp/i.test(nt.text);
+    nt.tight = hard || sharp;
+    nt.lead = hard ? 60 : sharp ? 30 : 0;
+    if (hard && !/careful|brake|well/.test(nt.text)) nt.text += ', brake!';
   }
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
   for (const t of turns) { const nt = turnNote.get(Math.round(t.s0)); t.blind = !!(nt && nt.blind); t.note = nt ? nt.text : ''; }
@@ -9484,8 +9495,8 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
     if (state === 'running') {
       for (let i = 0; i < track.notes.length; i++) {
         const n = track.notes[i];
-        if (n.s > s - 4 && n.s - s < showAhead) { note = n; then = track.notes[i + 1]; break; }
-        if (n.s - s >= showAhead) break;
+        if (n.s > s - 4 && n.s - s < showAhead + (n.lead || 0)) { note = n; then = track.notes[i + 1]; break; }   // n.lead: tight corners are called earlier (tracks)
+        if (n.s - s >= showAhead + 60) break;
       }
     }
     if (note) {
@@ -9493,11 +9504,12 @@ const ENGINE_SAMPLES = { sr: 12000, loops: [
       setText(elPaceText, 'pt', note.text);
       const dist = Math.max(0, Math.round((note.s - s) / 10) * 10);
       setText(elPaceSub, 'ps', dist > 0 ? dist + ' m' : 'now');
-      const thenText = then && then.s - note.s < 70 ? 'into ' + then.text.toLowerCase() : '';
+      const thenText = then && then.s - note.s < 70 + (then.lead || 0) ? 'into ' + then.text.toLowerCase() : '';
       setText(elPaceThen, 'pth', thenText);
+      elPace.classList.toggle('tight', !!note.tight);
       const ak = note.kind === 'jump' ? 'jump' : note.kind === 'hairpin' ? 'h' + note.dir : note.dir;
       if (lastHud.ak !== ak) { lastHud.ak = ak; elArrow.setAttribute('d', ARROWS[ak]); $('paceArrowBack').setAttribute('d', ARROWS[ak]); }
-      if (state === 'running' && note !== lastNote && note.s - s < callAhead) { lastNote = note; say(note.text.replace(', careful!', '. Careful!')); }
+      if (state === 'running' && note !== lastNote && note.s - s < callAhead + (note.lead || 0)) { lastNote = note; say(note.text.replace(', careful!', '. Careful!')); }
     } else elPace.hidden = true;
 
     // minimap

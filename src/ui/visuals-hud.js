@@ -54,8 +54,8 @@
     if (state === 'running') {
       for (let i = 0; i < track.notes.length; i++) {
         const n = track.notes[i];
-        if (n.s > s - 4 && n.s - s < showAhead) { note = n; then = track.notes[i + 1]; break; }
-        if (n.s - s >= showAhead) break;
+        if (n.s > s - 4 && n.s - s < showAhead + (n.lead || 0)) { note = n; then = track.notes[i + 1]; break; }   // n.lead: tight corners are called earlier (tracks)
+        if (n.s - s >= showAhead + 60) break;
       }
     }
     if (note) {
@@ -63,11 +63,12 @@
       setText(elPaceText, 'pt', note.text);
       const dist = Math.max(0, Math.round((note.s - s) / 10) * 10);
       setText(elPaceSub, 'ps', dist > 0 ? dist + ' m' : 'now');
-      const thenText = then && then.s - note.s < 70 ? 'into ' + then.text.toLowerCase() : '';
+      const thenText = then && then.s - note.s < 70 + (then.lead || 0) ? 'into ' + then.text.toLowerCase() : '';
       setText(elPaceThen, 'pth', thenText);
+      elPace.classList.toggle('tight', !!note.tight);
       const ak = note.kind === 'jump' ? 'jump' : note.kind === 'hairpin' ? 'h' + note.dir : note.dir;
       if (lastHud.ak !== ak) { lastHud.ak = ak; elArrow.setAttribute('d', ARROWS[ak]); $('paceArrowBack').setAttribute('d', ARROWS[ak]); }
-      if (state === 'running' && note !== lastNote && note.s - s < callAhead) { lastNote = note; say(note.text.replace(', careful!', '. Careful!')); }
+      if (state === 'running' && note !== lastNote && note.s - s < callAhead + (note.lead || 0)) { lastNote = note; say(note.text.replace(', careful!', '. Careful!')); }
     } else elPace.hidden = true;
 
     // minimap
