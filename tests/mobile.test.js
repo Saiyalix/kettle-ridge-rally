@@ -17,7 +17,7 @@ const pairs = list => { const o = []; for (let i = 0; i < list.length; i++) for 
 
 module.exports = async function mobileTest({ browser, base, expected, shot }) {
   const V = expected.mobile.viewport, checks = [];
-  const g = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const g = await openGame(browser, base, { probe: true, viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const vw = V.width, vh = V.height;
   const inside = r => r.x >= -1 && r.y >= -1 && r.x + r.w <= vw + 1 && r.y + r.h <= vh + 1;
 
@@ -29,9 +29,10 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   const wide = menu.filter(r => r.x < -1 || r.x + r.w > vw + 1).map(r => r.name);
   checks.push({ name: 'menu: nothing cut off left or right', pass: wide.length === 0, detail: wide.length ? wide.join(', ') : 'ok' });
   const cards = menu.filter(r => r.name.startsWith('.stage-card'));
+  const nStages = await g.page.evaluate(() => window.__probe.stageCount + 1);   // race stages from the game, plus the practice Test Track (last card)
   const offCards = cards.filter(r => !inside(r)).map(r => r.name);
-  checks.push({ name: 'menu: all stage cards (SS1-SS4 + Test Track) on screen without scrolling', pass: cards.length === 5 && offCards.length === 0,
-    detail: cards.length !== 5 ? `found ${cards.length} cards, expected 5` : offCards.length ? 'off screen: ' + offCards.join(', ') : 'all 5 visible' });
+  checks.push({ name: 'menu: all stage cards (every race stage + Test Track) on screen without scrolling', pass: cards.length === nStages && offCards.length === 0,
+    detail: cards.length !== nStages ? `found ${cards.length} cards, expected ${nStages}` : offCards.length ? 'off screen: ' + offCards.join(', ') : `all ${nStages} visible` });
   const startBefore = menu.find(r => r.name === '#startBtn');
   await g.page.evaluate(() => document.getElementById('startBtn').scrollIntoView({ block: 'nearest' }));
   const [start] = await rectsOf(g.page, ['#startBtn']);
@@ -80,7 +81,7 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   await g.ctx.close();      // free the software renderer before the next pages
 
   // ---- tilt fallback: tilt steering saved, but no sensor events arrive (headless has no sensor) -> steer buttons come back after ~2 s
-  const gt = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyTilt: '1' } });
+  const gt = await openGame(browser, base, { probe: true, viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, storage: { rallyTilt: '1' } });
   await gt.page.tap('#startBtn');
   await gt.page.waitForTimeout(800);
   const before = await rectsOf(gt.page, ['.tc-steer']);
@@ -93,7 +94,7 @@ module.exports = async function mobileTest({ browser, base, expected, shot }) {
   await gt.ctx.close();
 
   // ---- best times: per stage and per car, shown on the card, NEW BEST on the finish screen
-  const gb = await openGame(browser, base, { viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, probe: true, storage: { kettleRidgeBest_v1: JSON.stringify({ time: 999, splits: [] }) } });
+  const gb = await openGame(browser, base, { probe: true, viewport: V, isMobile: true, hasTouch: true, deviceScaleFactor: 2, probe: true, storage: { kettleRidgeBest_v1: JSON.stringify({ time: 999, splits: [] }) } });
   const card = () => gb.page.evaluate(() => document.querySelector('.stage-card .sc-best').textContent);
   const pickCar = i => gb.page.evaluate(i => document.querySelectorAll('#carPick .car-chip')[i].click(), i);
   const c0 = await card();
