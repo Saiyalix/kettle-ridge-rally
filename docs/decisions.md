@@ -5,6 +5,10 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · Audio: a bad number can no longer throw inside the sound code
+**Decision:** every value written to an AudioParam now goes through `audFin(x, fallback)` (non-finite becomes the fallback), and `updateAudio` clamps `dt` to 0..0.25 s and resets `boost` / surface weights if they ever turn non-finite.
+**Why:** QA's flow test once logged "Failed to set the 'value' property on 'AudioParam': The provided float value is non-finite" during pause and rescue. It did not repeat, so the exact source was not caught. Suspects: a NaN rpm/speed on the frame after a rescue teleport, or a bad dt after resume. No sound design or volume changed.
+
 ### 2026-11-12 · QA: the test kit checks the Nightjar KR against its own targets
 **Decision:** the Nightjar's targets are in `CLAUDE.md` (owner approved a slidey third car); the tests now check them. No target value was
 invented here: every number below is the one in `CLAUDE.md`, and Kestrel and Strada keep exactly their old values.
