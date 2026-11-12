@@ -5,6 +5,19 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · QA: the test kit checks the Nightjar KR against its own targets
+**Decision:** the Nightjar's targets are in `CLAUDE.md` (owner approved a slidey third car); the tests now check them. No target value was
+invented here: every number below is the one in `CLAUDE.md`, and Kestrel and Strada keep exactly their old values.
+- `expected.json` → `handling.perCar["Nightjar KR"]`: its own held-key slide ranges (keys and full phone tilt use the same ones: tarmac 8–24°
+  and at least 10° from 80 km/h up, gravel/dirt/snow 26–38°), grass at most 42°, letting go 1.0 s (grass 1.8 s). Cars not listed there use the shared values.
+- `handling.slideMorePairs` replaces `stradaExtraDeg` and the hard-coded car order: Strada over Kestrel by 4°, Nightjar over Strada by 7° (gravel, dirt, average over the speeds).
+- New skid pad mode `long` and check "long drift": gravel, 80 km/h, key held 4 s, gas off; angle within ±4° of its average from 1.5 s, and the Nightjar keeps
+  at least 4 points more speed than the better of Kestrel and Strada. The spread is the biggest distance from the average (as in handling's own measurement).
+  Measured on this branch: Nightjar 32.3° ±1.9, 66.5% kept; Kestrel 60.4%; Strada 58.5% (+6.0 points).
+- `bot.neverFasterThan`: on every stage the Nightjar's bot time must not beat the faster of Kestrel and Strada (smallest gap Thornwick, +0.19 s).
+- `mobile.carCount` (3): the menu must show one chip per car, all on screen and at least 30 px high/wide; the best-times check only touches cars 1 and 2, so it holds for any car count.
+- Bot times for the Nightjar were recorded by handling in the entry below; Kestrel and Strada times are unchanged.
+
 ### 2026-11-12 · Handling: third car, Nightjar KR, tuned for long drifts
 **Request (owner):** "Yes make a third car. Make it slidey, distinctly different handling than the other two. The car should
 be really built to handle long drifts. Keep damage for looks only." The owner's yes covers this car having its own slide
