@@ -72,12 +72,6 @@
       col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
       soil[k] = city ? 0 : shoulder;                                    // how much soil texture to blend in (art/textures.js)
     }
-    const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
-    let q = 0;
-    for (let iz = 0; iz < nz - 1; iz++) for (let ix = 0; ix < nx - 1; ix++) {
-      const a = iz * nx + ix, b = a + 1, c = a + nx, d = c + 1;
-      idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d;
-    }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -85,12 +79,39 @@
     const uvs = new Float32Array(nx * nz * 2);
     for (let k = 0; k < nx * nz; k++) { uvs[k * 2] = pos[k * 3] / 11; uvs[k * 2 + 1] = pos[k * 3 + 2] / 11; }
     geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    // normals from the whole grid first, so the tiles below meet without seams
+    const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
+    let q = 0;
+    for (let iz = 0; iz < nz - 1; iz++) for (let ix = 0; ix < nx - 1; ix++) {
+      const a = iz * nx + ix, b = a + 1, c = a + nx, d = c + 1;
+      idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d;
+    }
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, groundMaterial(true));
-    mesh.position.y = -0.07;
-    mesh.receiveShadow = true;
-    add(mesh);
+    // Phone performance: the ground used to be ONE mesh of up to ~750 000 triangles that the GPU had to chew through every frame
+    // even when only a tenth of it is on screen. Now it is square tiles of TILE x TILE cells sharing the same vertex data
+    // (same picture, same normals), each with its own index list and bounding sphere: three.js skips tiles outside the view, and
+    // cullFar (art/sky.js) skips tiles beyond the fog.
+    const TILE = 64, mat = groundMaterial(true), Y0 = -0.07;
+    for (let tz = 0; tz < nz - 1; tz += TILE) for (let tx = 0; tx < nx - 1; tx += TILE) {
+      const x1 = Math.min(tx + TILE, nx - 1), z1 = Math.min(tz + TILE, nz - 1);
+      const ti = new Uint32Array((x1 - tx) * (z1 - tz) * 6);
+      let n = 0, lo = 1e9, hi = -1e9;
+      for (let iz = tz; iz <= z1; iz++) for (let ix = tx; ix <= x1; ix++) { const hv = h[iz * nx + ix]; if (hv < lo) lo = hv; if (hv > hi) hi = hv; }
+      for (let iz = tz; iz < z1; iz++) for (let ix = tx; ix < x1; ix++) {
+        const a = iz * nx + ix, b = a + 1, c = a + nx, d = c + 1;
+        ti[n++] = a; ti[n++] = c; ti[n++] = b; ti[n++] = b; ti[n++] = c; ti[n++] = d;
+      }
+      const tg = new THREE.BufferGeometry();
+      tg.attributes = geo.attributes;                                     // shared vertex data, not copied
+      tg.setIndex(new THREE.BufferAttribute(ti, 1));
+      const cx = minX + (tx + x1) / 2 * cell, cz = minZ + (tz + z1) / 2 * cell, cy = (lo + hi) / 2;
+      tg.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy, cz), Math.hypot((x1 - tx) / 2 * cell, (hi - lo) / 2, (z1 - tz) / 2 * cell) + 1);
+      const mesh = new THREE.Mesh(tg, mat);
+      mesh.position.y = Y0;
+      mesh.receiveShadow = true;
+      add(mesh);
+    }
   }
 
   /* ---------- road ribbon: one texture per surface (art/textures.js), loose spill past the edge ---------- */

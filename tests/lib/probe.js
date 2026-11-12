@@ -88,5 +88,26 @@
       setKeys: o => { for (const k in o) keys[k] = o[k]; },
       resetCar: kmh => { car.vel.set(car.fwd.x * kmh / 3.6, car.vel.y, car.fwd.z * kmh / 3.6); },
     };
-    return { Car, ghostInfo, CONFIG, phone, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
+    // Full-game flow test (tests/flow.test.js): read the game's state, and drive on in the real game (no goMenu at the end)
+    const flow = {
+      info: () => ({ state, loading, stageIdx, stageName: ST.name, practice: !!ST.practice, champ: champ ? { idx: champ.idx, points: { ...champ.points }, results: champ.results.length } : null,
+        raceTime, countdown, timeLeft, progIdx, finishS: track.finishS, s: P[progIdx].s, kmh: car.speed * 3.6, upY: car.up.y, y: car.pos.y, roadY: P[progIdx].y,
+        lateral: lateral(), half, carIndex: CONFIG.carIndex, rescuePending: !!rescueAt, lastGoodS, recLen: rec.length, replayF: replay ? replay.f : null, paused: pausedFrom }),
+      // drive with the autopilot until the stage ends or maxS seconds of game time pass; returns the state it stopped in
+      botUntil: (maxS, stopAtS) => {
+        const t0 = raceTime;
+        while (state === 'running' && raceTime - t0 < maxS && (stopAtS == null || P[progIdx].s < stopAtS)) { botKeys(); physicsStep(); }
+        for (const k in keys) keys[k] = false;
+        return state;
+      },
+      replayToEnd: () => { if (replay) replay.f = replay.n - 2; },
+      // put the car somewhere bad (the way a crash would): 'flip' = upside down on the road, 'off' = on the grass 40 m beside the road, 'drop' = far below the road
+      wreck: how => {
+        const p = P[progIdx], nx = Math.cos(p.th), nz = -Math.sin(p.th);
+        if (how === 'off') { const x = p.x + nx * 40, z = p.z + nz * 40; car.reset(x, terrain.heightAt(x, z) + 0.75, z, p.th); car.vel.set(0, 0, 0); }
+        else if (how === 'drop') { car.pos.y = p.y - 30; car.vel.set(0, -5, 0); }
+        else if (how === 'flip') { car.q.set(0, 0, 1, 0); car.q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.th)); car.vel.set(0, 0, 0); }
+      },
+    };
+    return { flow, Car, ghostInfo, CONFIG, phone, tiltToSteer, autoGasOn, gasStep, /* phone controls (src/handling/physics-step.js), for the skid pad */ driveStage, loadStage: loadStageAndWait, stageCount: STAGES.filter(s => !s.practice).length,   /* practice stages (Test Track) are last and are not bot-tested */ carCount: CONFIG.cars.length };
   })();
