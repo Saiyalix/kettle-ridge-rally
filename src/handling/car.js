@@ -35,7 +35,7 @@ class Car {
     this.speed = 0; this.vForward = 0; this.throttleOut = 0; this.frontPeak = 8 * D2R;
     this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0; this.keyHeld = 0; this.keySide = 0;
+    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0; this.keyHeld = 0; this.keySide = 0; this.gasS = 0; this.kickS = 9;
     this.lastVel = new THREE.Vector3(); this.vis = { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false };   // visual body attitude
     this.dbg = { gripUse: 0, traction: 1, yawT: 0, yawNow: 0, drift: false };
     this.prevPos = new THREE.Vector3(); this.prevQ = new THREE.Quaternion();      // for smooth rendering between physics steps
@@ -48,7 +48,7 @@ class Car {
     for (const w of this.wheels) { w.omega = 0; w.comp = w.prevComp = w.compVel = 0; }
     this.gear = 1; this.steer = 0; this.shiftTimer = 0; this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0; this.keyHeld = 0; this.keySide = 0;
+    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0; this.keyHeld = 0; this.keySide = 0; this.gasS = 0; this.kickS = 9;
     this.lastVel.set(0, 0, 0); Object.assign(this.vis, { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false });
   }
 
@@ -332,6 +332,7 @@ class Car {
        throttle (power slide), a brake tap or lifting off (weight forward) and the handbrake all make that happen.
      - As the slide grows, a held key asks for less front grip (`slideHold`), so the slide settles at an angle
        set by surface and car instead of spinning. The spin guard stops the rest.
+     - The gas steers a held slide: full gas settles it wider, lifting tucks the nose in (`gasWide`, `gasTuck`, car `gasDrift`).
      - The tyres decide where the car goes: in a slide the grip the rear lost is handed back as a side force that bends
        the path towards where the nose points, and throttle doesn't take that away (`powerCarry`), so on the gas the car
        drives out along its nose. Sliding costs a little speed (`slideKeep`): a drift is never faster than gripping.
@@ -347,19 +348,19 @@ class Car {
     const slideBite = pc('slideBite', 1);   // see CONFIG.cars
 
     // --- Ground contact and surface. Smoothed so a bump or a wheel on the verge doesn't make the grip flicker.
-    let nC = 0, maxG = 0, top = 0, drag = 0, rear = 0, peak = 0, slide = 0, bite = 0;
+    let nC = 0, maxG = 0, top = 0, drag = 0, rear = 0, peak = 0, slide = 0, bite = 0, gasS = 0;
     _ag.set(0, 0, 0);
     for (const w of w0) if (w.contact) {
       nC++; _ag.add(w.normal);
       const sp = A.surfaces[w.surface] || A.surfaces.gravel;
-      maxG += sp.maxG; top += sp.top; drag += sp.drag; rear += sp.rear; peak += sp.peak; slide += sp.slide; bite += sp.bite != null ? sp.bite : 1;
+      maxG += sp.maxG; top += sp.top; drag += sp.drag; rear += sp.rear; peak += sp.peak; slide += sp.slide; bite += sp.bite != null ? sp.bite : 1; gasS += sp.gas != null ? sp.gas : 1;
     }
-    if (!this.surfS) { const s0 = A.surfaces.gravel; this.surfS = { maxG: s0.maxG, top: s0.top, drag: s0.drag, rear: s0.rear, peak: s0.peak, slide: s0.slide, bite: 1 }; }
+    if (!this.surfS) { const s0 = A.surfaces.gravel; this.surfS = { maxG: s0.maxG, top: s0.top, drag: s0.drag, rear: s0.rear, peak: s0.peak, slide: s0.slide, bite: 1, gas: 1 }; }
     const SS = this.surfS;
     if (nC) {
       const k = Math.min(1, dt * 10);
       SS.maxG += (maxG / nC - SS.maxG) * k; SS.top += (top / nC - SS.top) * k; SS.drag += (drag / nC - SS.drag) * k;
-      SS.rear += (rear / nC - SS.rear) * k; SS.peak += (peak / nC - SS.peak) * k; SS.slide += (slide / nC - SS.slide) * k; SS.bite += (bite / nC - SS.bite) * k;
+      SS.rear += (rear / nC - SS.rear) * k; SS.peak += (peak / nC - SS.peak) * k; SS.slide += (slide / nC - SS.slide) * k; SS.bite += (bite / nC - SS.bite) * k; SS.gas += (gasS / nC - SS.gas) * k;
       _ag.normalize();
     } else _ag.copy(up);
     const contact = nC >= 2 ? 1 : nC === 1 ? 0.5 : 0;
@@ -413,6 +414,7 @@ class Car {
     const brakeTap = inp.brake > 0.3 && !(this.prevBrakeKey > 0.3) && Math.abs(this.steerIn) > 0.5;
     this.prevBrakeKey = inp.brake;
     if (nC >= 2 && speed > D.minSpeed && Math.abs(this.steerIn) > 0.35 && (inp.handbrake || brakeTap)) { this.driftBoost = 1; this.driftNeutral = 0; this.driftSide = Math.sign(sc); }
+    this.kickS = inp.handbrake || brakeTap ? 0 : this.kickS + dt;      // time since the last handbrake pull or brake tap
     if (this.driftBoost > 0) {
       this.driftNeutral = Math.abs(this.steerIn) < 0.15 || sc * this.driftSide < -0.3 ? this.driftNeutral + dt : 0;
       if (this.driftNeutral > D.release || speed < D.minSpeed - 3 || (!inp.handbrake && Math.abs(beta) < D.off * D2R && this.betaRate * beta <= 0)) this.driftBoost = Math.max(0, this.driftBoost - dt * 4);
@@ -440,6 +442,16 @@ class Car {
     // Keys are always 0 or full, so this never changes keyboard driving.
     const part = Math.abs(inp.steer) > 0 && Math.abs(inp.steer) < 1 ? Math.abs(inp.steer) : 1;
     const holdA = part < 1 ? Math.max(4 * D2R, holdFull * Math.pow(part, A.partHold)) : holdFull;
+    // the gas steers a held slide: it moves the angle where the key stops adding rotation (holdKey). Full gas = a bigger angle (gasWide),
+    // gas off = a smaller one, so the nose tucks in (gasTuck); around half gas it stays as it is. The gas is smoothed (gasLag), so on/off
+    // keys and part throttle both work. × the car's gasDrift, the surface's gas share (0 on grass) and the rear's looseness (fades in with speed)
+    this.gasS += ((this.gear > 0 ? throttle : 0) - this.gasS) * Math.min(1, dt / A.gasLag);
+    const gasAmt = pc('gasDrift', 1) * SS.gas * loose, gs = this.gasS;
+    // right after a handbrake pull or brake tap (the gas is usually off then) neither lifting nor overHold below fights the swing
+    const liftOK = smoothstep(clamp((this.kickS - A.gasKick) / A.gasKick, 0, 1));
+    const gasK = 1 + gasAmt * (A.gasWide * smoothstep(clamp((gs - A.gasHigh) / (1 - A.gasHigh), 0, 1))
+      - A.gasTuck * smoothstep(clamp((A.gasLow - gs) / A.gasLow, 0, 1)) * liftOK);
+    const holdKey = Math.min(holdA * gasK, Math.max(holdA, (A.guard.from - 6) * D2R));   // full gas never asks past the usual cap (guard.from - 6)
     // throttle eats rear grip (power slide) up to about the hold angle; past it, it just drives the car forwards
     const powerFade = clamp(1 - (Math.abs(beta) - holdA * 0.8) / (holdA * 0.4), 0, 1);
     const used = A.powerSlide * Math.abs(aDrive) * rearShare * m * powerFade + A.brakeSlide * brake * A.brakeDecel * A.brakeRear * m + aLift * m * 0.5;   // engine braking: half of it at the rear
@@ -458,7 +470,7 @@ class Car {
     this.betaRate += ((beta - this.prevBeta) / dt - this.betaRate) * Math.min(1, dt * 30); this.prevBeta = beta;
     // + = already rotated towards the key (looking slideCatch s ahead, so a fast swing is caught early)
     const into = (beta + clamp(this.betaRate, -3, 3) * catchNow) * Math.sign(sc);
-    const aim = into > 0 ? clamp(1 - into / holdA, -0.6, 1) : 1;      // past the hold angle the key even countersteers a little
+    const aim = into > 0 ? clamp(1 - into / holdKey, -0.6, 1) : 1;      // past the hold angle the key even countersteers a little
     const deltaHigh = travF * A.selfAlign + sc * peakF * A.frontAim * (aim > 0 ? Math.min(1, biteK * aim) : aim);
     const maxLock = 0.62;                                              // rad (35°): the wheels' real lock
     const delta = clamp(sc * lockLow * (1 - sf) + deltaHigh * sf, -maxLock, maxLock);
@@ -471,6 +483,10 @@ class Car {
     };
     const alphaF = travF - delta, alphaR = travR;
     let Ff = capF * tyre(alphaF, peakF, A.falloff.front), Fr = capR * tyre(alphaR, peakR, A.falloff.rear);
+    // past the hold angle the key asks the fronts to countersteer (aim < 0). Where the wheels' lock can't reach that (a big slide, or
+    // weight thrown forward by a lift), they at least stop pulling the nose further in (fully by aim = -overHold). Not right after a
+    // handbrake pull or brake tap (liftOK): there the swing is wanted
+    if (aim < 0 && Ff * sc > 0) Ff *= 1 - (1 - clamp(1 + aim / A.overHold, 0, 1)) * liftOK;
     // slide carry: the grip the rear lost to the surface's looseness (and most of what throttle took, powerCarry) is handed
     // back as a side force at the centre of mass. The tail still swings out (no turning push from it), but the car keeps
     // cornering in a slide, pulled round towards its nose. It scrubs speed like the tyres do (below).

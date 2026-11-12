@@ -5,6 +5,85 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · Handling: the gas steers the drift (more gas = wider, lifting tucks the nose in)
+**Request (owner):** "I want to control the drift based on how much gas I give, right now I have to use the brakes mid turn."
+Answers to the follow-up questions: more gas = wider, easing off tucks the nose in and tightens the line; on the phone a GAS
+button (ui-mobile, other branch) so on/off must work; all three cars, Kestrel least, Strada more, Nightjar most, Nightjar's feel
+otherwise unchanged; "clear but forgiving", rule 4, the 42° guard, the spin test and letting go stay.
+
+**Cause (measured, flat skid pad, key held, full gas 1.5 s to set up the drift, then 2 s full gas or gas off):** the gas did not
+steer the angle, and often worked backwards. On the gas the weight goes to the rear (more rear grip, less front grip), so the
+Kestrel slid *less* on full gas than lifted (gravel 80 km/h: 14.8° vs 18.3°); the Nightjar held 32–33° either way; only the Strada
+went 4–6° wider on the gas. Lifting threw weight forward and on snow at speed swung the Strada to 48° (a lift after a handbrake pull
+on gravel: Strada 54°, Nightjar 56°). The only reliable way to change the angle mid-corner was the brake.
+
+**Change (`src/handling/`):**
+- The gas moves the angle where a held key stops adding rotation (`CONFIG.arcade.gasWide` 0.3, `gasTuck` 0.3): full gas ×1.3
+  (never past the existing cap, guard.from − 6 = 36°), gas off ×0.7, between `gasLow` 0.3 and `gasHigh` 0.7 unchanged, smooth in
+  between. The gas reaches the drift through a 0.1 s smoothing (`gasLag`), so on/off keys, a GAS button and part throttle all work.
+  It fades in with speed like the rear's looseness and is off on grass (`surfaces.grass.gas: 0`). No key = no change (letting go
+  and countersteer are untouched).
+- Per car `gasDrift` (× both): Kestrel 1.0, Strada 0.6, Nightjar 1.2. The Kestrel's own grip already holds it in on the gas, so
+  at 1.0 it still reacts the least.
+- `overHold` 0.3: past the hold angle the front tyres stop pulling the nose further in when the wheel lock can't countersteer
+  enough. This is what makes a lift in a big slide safe.
+- For 0.4 s after a handbrake pull or brake tap (`gasKick`), lifting and `overHold` don't fight the swing (the handbrake turn stays
+  as fast as before).
+
+**Measured (key held, 80 km/h; full gas / gas off, angle in the last 0.5 s of 2 s; before → after):**
+
+| | Kestrel GT4 | Strada HF | Nightjar KR |
+|---|---|---|---|
+| Gravel: full / lifted (difference) | 14.8 / 18.3 (−3.6) → 18.1 / 13.2 (+4.9) | 27.4 / 23.4 (+3.9) → 27.4 / 19.7 (+7.7) | 32.0 / 32.7 (−0.7) → 32.0 / 21.4 (+10.6) |
+| Dirt | 17.7 / 20.1 (−2.4) → 20.6 / 14.4 (+6.2) | 30.2 / 24.3 (+5.9) → 30.2 / 20.2 (+10.0) | 32.6 / 33.0 (−0.4) → 32.6 / 21.6 (+11.0) |
+| Snow | 22.4 / 22.7 (−0.3) → 24.6 / 16.0 (+8.6) | 30.9 / 26.7 (+4.2) → 30.8 / 21.4 (+9.4) | 33.5 / 33.3 (+0.2) → 33.5 / 21.8 (+11.7) |
+| Tarmac | 2.5 / 3.8 → 2.5 / 3.4 | 2.9 / 4.7 → 2.9 / 4.4 | 3.8 / 15.5 → 3.8 / 10.1 |
+| Lift on gravel: slide smaller after 0.5 s (half the change done in) | −0.3° → 6.9° (0.33 s) | 3.2° → 4.7° (0.16 s) | −0.6° → 5.2° (0.52 s) |
+| Speed after 2 s, full / lifted (gravel, km/h) | 129 / 88 → 128 / 89 | 129 / 87 → 129 / 88 | 132 / 91 → 131 / 92 |
+| Path radius full / lifted (gravel, m) | 76 / 57 → 74 / 56 | 76 / 62 → 76 / 62 | 75 / 66 → 75 / 67 |
+| Biggest slide after a lift, 60–120 km/h, gravel/dirt/snow | 25° → 27° | 54° (snow, 100–120 km/h) → 34° | 34° → 34° |
+| Full gas 4 s from a held drift, 60/90/120 km/h, max | 25° → 27° | 44° → 34° | 34° → 34° |
+| Lift right after a 0.3 s handbrake pull, gravel 80, max | 39° → 39° | 54° → 40° | 56° → 54° (in the pull itself) |
+
+The line: lifting tightens it about as much as before (it is mostly the speed you lose), but now the nose comes in with it instead
+of the car staying (or getting more) sideways. At 120 km/h on gravel the Strada's difference drops to 4.2° (Kestrel 5.8°).
+On tarmac Kestrel and Strada barely slide (by design); the Nightjar on tarmac still grips on full gas unless a handbrake pull or
+brake tap starts the drift, after which the gas steers it as on gravel.
+
+**Existing targets (`node tests/run.js`: 362 pass, 0 fail):** all hold. The skid pad's held-key test uses "cruise" (gas on below the
+target speed, off above), which in a slide means long full-gas and no-gas stretches, so some held-key numbers moved:
+Kestrel gravel 14.3–18.0 → 13.5–18.0°, snow 17.9–24.0 → 15.7–21.2°; Strada gravel 18.3–27.9 → 16.7–26.9°, snow 19.2–26.3 →
+16.8–29.1°; Nightjar gravel 31.9–32.7 → 28.5–32.7°; tarmac Nightjar 12.3–15.1 → 11.6–14.1°. Pairs: Strada over Kestrel +6.1 / +5.6°
+(gravel/dirt, need 4), Nightjar over Strada +8.8 / +8.4° (need 7). Spin test improved (Strada grass 46° / 0.24 s → 38° / 0 s,
+Nightjar grass 46° / 0.27 s → 36° / 0 s). Letting go ≤ 0.67 s (grass 1.05 s), no overshoot. Wind-on unchanged. Handbrake turns
+unchanged (1.10 / 1.03 / 0.91 s; auto gas 1.09 / 1.13 / 0.97 s). Long drift with the gas off: the Nightjar now settles at 20.8° ±1.4
+(was 32.3° ±1.9, gas off now tucks it in) and keeps 69.2% of its speed (+5.3 points over the Strada's 60.6%, need 4).
+Phone (auto gas + brake tap): within 1° of before except Strada snow (turns 29.4° → 36.4° with the tap, peak 39.5° → 34.9°).
+
+**Bot** (`node tests/run.js bot --record`): 0 spins, 0 rescues, 0.0 s off road on every run (the Nightjar had 1.5 s on Kettle Ridge).
+Kestrel and Strada within 0.4%. Nightjar: Kettle Ridge 95.00 → 91.38 s (−3.8%: the old run had a 1.5 s trip off the road, now
+clean; still 1.44 s slower than the Strada), Vulture Ledge 87.76 → 89.38 (+1.8%), Sakura 88.48 → 88.43, Thornwick 93.94 → 93.95.
+Clock margins unchanged (tightest 8.9 s). The Nightjar is never faster than the faster of Kestrel and Strada (smallest gap
+Thornwick, +0.21 s). Robustness: the Nightjar's bot run on Kettle Ridge is seed-sensitive (91–102 s for small value changes, as
+before this change); with its stats under the Kestrel's and Strada's seeds, 8 runs stay ≤ 6.7 s off road with no rescue (the old
+behaviour under the same seeds: one Thornwick run 28 s off road with a rescue).
+
+**Proposed new measured targets** (main session writes `CLAUDE.md` after the owner's yes; QA to add the checks):
+- Gas control (gravel and dirt, 80 km/h, key held, full gas 1.5 s, then 2 s full gas vs gas off, angle over the last 0.5 s):
+  full gas slides at least Kestrel 4°, Strada 6°, Nightjar 9° more than lifted, and Kestrel < Strada < Nightjar.
+- Lifting tucks in: 0.5 s after lifting the slide is at least 4° smaller.
+- Lifting in a held drift (gravel, dirt, snow, 60–120 km/h) never swings it past 45°; full gas for 4 s in a held drift: never past 90°, at most 0.5 s past 45°.
+- The Nightjar's long drift (gas off) only keeps its ±4° and speed-kept lines; its angle is now set by the gas.
+
+**Proposed rule wording:**
+> 2. The rear can let go before the front. On loose surfaces at speed the tail swings out by itself; throttle, a brake tap,
+>    lifting off on the way into a corner and the handbrake swing it out more. Holding a key settles the slide at an angle set by
+>    surface, car and gas: more gas holds it wider, lifting tucks the nose in.
+> 4. The car never spins by itself: past 42° of slide it resists the slide growing, a caught or released slide does not swing
+>    back the other way, and neither full gas nor lifting in a held slide swings it past 45°.
+
+---
+
 ### 2026-11-12 · QA: the test kit checks the Nightjar KR against its own targets
 **Decision:** the Nightjar's targets are in `CLAUDE.md` (owner approved a slidey third car); the tests now check them. No target value was
 invented here: every number below is the one in `CLAUDE.md`, and Kestrel and Strada keep exactly their old values.
