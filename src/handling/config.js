@@ -218,6 +218,7 @@ const CONFIG = {
         { id: 'arctic',  name: 'Silver Shard', design: 'arctic', base: 0xc9ced6, a: 0x0f6b5e, b: 0xff3d8a, c: 0x0f6b5e, wheel: 0xff3d8a, numBg: 0xff3d8a, numFg: 0xf4f6f8, plate: 'SS 19-IC', wing: 0x0f6b5e, spons: ['NORTHGATE', 'KETTLE CO-OP', 'HALCYON'], number: '19' },
       ] },
     // Third car (owner 2026-11-12: "slidey, distinctly different, built for long drifts"). Handling: docs/decisions.md, 2026-11-12.
+    // Own body + 4 liveries by art; stats are handling's.
     // Besides the usual stats it sets its own handling fields (a car without them drives exactly as CONFIG.arcade says):
     //   slideBite   once a steering key has been held biteAfter s (fully biteRamp s later) the fronts keep full bite until the slide is
     //               within 1/slideBite of the hold angle, so a held drift settles deeper and steadier. 1 = like the other cars; higher =
@@ -230,7 +231,10 @@ const CONFIG = {
       slideBite: 4, biteAfter: 0.6, biteRamp: 0.6, slideCatch: 0.4, slideKeep: 0.9, slideFrom: 8, slideFull: 15,
       paint: 0x14161c, stripe: 0xff8a1e, skirt: 0x14161c, number: '9',
       liveries: [
-        { id: 'nj-dusk', name: 'Dusk', design: 'signal', base: 0x14161c, a: 0xff8a1e, b: 0xf4f6f8, c: 0x14161c, wheel: 0xff8a1e, numBg: 0xff8a1e, numFg: 0x14161c, plate: 'NJ 09-KR', wing: 0xff8a1e, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'HALCYON'], number: '9' },
+        { id: 'nj-dusk',  name: 'Dusk',      design: 'dusk',    base: 0x14161c, a: 0xff8a1e, b: 0xf4f6f8, c: 0x14161c, wheel: 0xff8a1e, numBg: 0xff8a1e, numFg: 0x14161c, plate: 'NJ 09-KR', wing: 0xff8a1e, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'HALCYON'], number: '9' },
+        { id: 'nj-bone',  name: 'Bone Drift', design: 'bone',   base: 0xe9e6dc, a: 0xd8262e, b: 0x16171a, c: 0x16171a, wheel: 0xd8262e, numBg: 0x16171a, numFg: 0xe9e6dc, plate: 'NJ 13-BN', wing: 0x16171a, spons: ['NORTHGATE', 'TAMARACK', 'BRINDLE'], number: '13' },
+        { id: 'nj-deep',  name: 'Deep Sea',  design: 'deepsea', base: 0x0a2e3b, a: 0x1fe0e6, b: 0xff2d78, c: 0x061a22, wheel: 0xff2d78, numBg: 0xff2d78, numFg: 0x0a2e3b, plate: 'NJ 27-DS', wing: 0xff2d78, spons: ['PIKE RACING', 'AUROC', 'HALCYON'], number: '27', pod: true },
+        { id: 'nj-sand',  name: 'Sandstorm', design: 'sand',    base: 0xd8a24a, a: 0x4a2a14, b: 0xf4efe0, c: 0x16120e, wheel: 0x16120e, numBg: 0xf4efe0, numFg: 0x4a2a14, plate: 'NJ 05-SD', wing: 0x4a2a14, spons: ['BRINDLE BANK', 'ROTOR OIL', 'KETTLE CO-OP'], number: '5' },
       ] },
   ],
   carIndex: 0,

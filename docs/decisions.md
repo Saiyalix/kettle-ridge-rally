@@ -64,6 +64,13 @@ on Thornwick for loose cars; the recorded runs are clean.
 - Everything else as the other cars (swing-out ≤ 50°, spin test, wind-on, handbrake, bot clean).
 - Phone tilt: the shared full-tilt slide range would need the same per-car ranges as the keys.
 
+### 2026-11-12 · Art: Nightjar KR gets its own body and four liveries
+**Decision:** the third car (owner: "slidey, distinctly different, built for long drifts") has an original body, not a recolour of the Strada.
+- Shape: long nose (2.2 m ahead of the centre, vs 2.12 / 1.88), low roof set far back, ducktail lip, fat rear haunches with bolt-on flares (about 2.0 m wide over the flares), side-exit pipes, round fender lamps, a big swan-neck rear wing with an accent-colour gurney flap and an accent splitter lip. Eight thin wheel spokes. Wheel centres, radius and centre of mass are untouched (drawn only).
+- Cost (High): about 10 000 triangles and 13 draw calls, in line with Kestrel (9 500 / 13) and Strada (9 700 / 13). The Low path uses the same smaller wheel / flare segment counts as the other cars.
+- Liveries (plate prefix NJ): Dusk (black, orange; the default so it is not mistaken for the other two), Bone Drift (white, black skid arcs, red sun), Deep Sea (teal, pink and cyan waves), Sandstorm (tan, brown chevrons). Only existing sponsor names are used.
+- Code: `BODIES[ci]` replaces the `ci === 0 ? KESTREL : STRADA` picks; Nightjar details in `buildNightjarDetails`. Rivals stay on the two existing bodies. Stats (accel / top / grip / drift / turn / rear / rearDrive) are handling's and untouched here.
+
 ### 2026-11-12 · Art: sharper modern-retro look (High quality only)
 **Decision:**
 - Sharper: on High the scene is drawn into a 4x multisampled target (smooth road edges, car, fences) and the post pass adds a limited 4-tap sharpen. Render scale stays 0.72 x dpr (a 1.0 scale with MSAA made the software test browser time out). Low is untouched.
