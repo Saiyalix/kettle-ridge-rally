@@ -11,6 +11,64 @@ Sparks on scrapes are brighter and shorter. After hits the car shows dark scuffs
 Particle cap: 1000 on High, 360 on Low (Low emits about half as much; ui-mobile owns the Low path and should confirm). Drawn only: no physics change, handling rules and targets untouched.
 **Touched outside art:** `src/ui/visuals-hud.js` per-wheel dust block replaced by one call, `wheelFx(dt, i, w)` in `src/art/effects.js` (no behaviour change for the HUD).
 
+### 2026-11-11 · Handling: in a drift the tyres decide where the car goes, and drifting is never the faster way
+**Request (owner):** "as soon as you drift the car goes alot quicker ... its like the wheels on the ground dont dictate
+where the car goes ... in a drift the car will keep going in a straight line when accelerating, instead of going where
+the nose of the car points. Adjust that."
+
+**Causes found (`handling/car.js` `arcadeForces`, measured on the flat skid pad, from `main` 3eb5336):**
+- Cornering, and above all sliding, cost no speed. The grip the loose rear loses was handed back as a side force pushing
+  exactly square to the travel (`slideCarry`: bends the path, never scrubs), and 60% of what the real tyres scrub was
+  handed back (`slideKeep`). Full throttle, 3 s from 80 km/h: a held drift ended 3–4 km/h short of driving dead straight;
+  a 90° drift on snow (Strada) ended 1.4 km/h *faster* than driving straight for the same time.
+- Throttle took the carried grip away too: the power slide shrank the rear's side grip *and* the carried grip by the same
+  friction circle (down to 20%). So on the gas the tail swung but nothing bent the path: the nose pointed in, the car went on
+  straight. Held key + full gas for 3 s on gravel: the nose turned 83°, the travel only 53° (Strada).
+- Letting go in a drift on the gas: the nose swung back to the old line instead of the car following the nose (path did
+  only 19–45% of the straightening).
+- Top speed was checked against the speed along the nose, so a slide at high speed could pass the car's top speed.
+
+**Changes (all `src/handling/`):**
+- The carried grip still pushes square to the travel (bends the path toward the nose) but now scrubs speed like a tyre
+  leaning across the car would; `slideKeep` 0.6 → 0.75 is now the share of *all* slide scrub kept (tyres and carried grip).
+- New `powerCarry` 0.9: the share of the rear side grip that throttle takes which still pulls the car round toward the nose
+  (fades in with speed like the rear's looseness, `slideFrom`/`slideFull`). Throttle still swings the tail (rule 2).
+- Over-speed drag uses the real speed: no slide past top speed.
+- `slideCatch` 0.15 → 0.18 (s): keeps the Strada's first swing-out and spin-test margins where they were on snow.
+- Tried and dropped: a whole-car traction circle (drive limited by cornering grip) and an engine-push taper by real speed.
+  Both made drifts bog down (Strada to 55–57° slide, 80 → 50 km/h) or pushed the held slide past 32° at 140 km/h.
+
+**Measured (skid pad; full throttle; before → after):**
+| What | Kestrel GT4 | Strada HF |
+|---|---|---|
+| 90° turn of the travel from 80 km/h, gravel, steady 60% part steer (phone tilt, small slide): time, km/h lost vs driving straight as long | 4.88 s, 2.3 km/h → 4.35 s, 2.1 | 6.40 s, 2.5 → 4.36 s, 4.5 |
+| Same, held-key drift | 3.93 s, 5.2 → 3.48 s, 5.3 | 5.33 s, 2.9 → 3.57 s, 9.1 |
+| Same on snow, drift | 4.97 s, 3.8 → 3.91 s, 6.4 | 6.04 s, −1.4 (faster than straight) → 4.05 s, 8.0 |
+| Held key + full gas 3 s, gravel: travel / nose turned | 70° / 86° → 79° / 93° | 53° / 83° → 77° / 103° |
+| Same, dirt / snow | 67/86 → 78/96; 56/80 → 71/94 | 53/84 → 76/105; 52/83 → 69/101 |
+| Let go after 1.5 s of drift on full gas: share of the slide closed by the path (rest by the nose swinging back) | gravel 45 → 57%, dirt 38 → 51%, snow 31 → 43% | gravel 23 → 60%, dirt 19 → 54%, snow 18 → 37% |
+| Full gas through a 40 m gravel corner (bot-style aim): runs wide by | 28 m → 23 m | 47 m → 28 m |
+| Full gas held drift 3 s from 160 km/h vs straight (snow) | 0.3 → 1.7 km/h slower | 3.2 faster → 0.2 slower |
+- A drift now costs about 2× the speed of a gripping corner of the same turn (gravel/dirt/snow), and turns the corner sooner.
+- At 160 km/h a full-gas drift still gains about as much as driving straight (it can't pass top speed any more).
+
+**Targets (all still hold, `node tests/run.js`: 227 pass, 0 fail):** held-key slide tarmac 0.1–4.3°, gravel 14.3–27.9°,
+dirt 15.8–28.9°, snow 17.9–26.3°, grass 26–36°; first swing-out ≤ 47.8° (was 47.7); spin test max 46°, Strada snow
+0.35 → 0.00 s past 45°, grass 0.25 → 0.24 s; letting go ≤ 0.68 s (grass 1.00 s), no overshoot; wind-on unchanged
+92/100/108/125 ms on every surface; Strada slides +8°/+8° more than Kestrel on gravel/dirt; handbrake turn 1.02/1.00 →
+1.10/1.03 s (auto gas 1.03/1.06 → 1.09/1.12 s, limit 1.2); phone tilt unchanged within 0.5°, part-tilt wobble ≤ 2.7°;
+auto gas + brake tap never past 45° (Strada snow 0.49 → 0.00 s), turns 3–14° more than before.
+
+**Bot (unchanged autopilot), old → new s:** Kettle Ridge 90.58 → 90.46 / 90.10 → 90.04; Vulture Ledge 87.47 → 87.39 /
+87.37 → 86.94; Sakura Touge 88.21 → 88.51 / 87.93 → 87.93; Thornwick Keep 94.26 → 94.08 / 97.29 → 93.75 (Strada's 3.7 s
+off-road gone). 0 spins, 0 rescues, clock margins unchanged (tightest 8.9 s, Vulture Ledge). Times recorded in
+`tests/expected.json` → `bot.times` (all within 3% of the old expected times; the Strada at Thornwick moved −2.4%).
+No other expected value changed.
+
+**Proposed wording for rule 5 in `CLAUDE.md`** (the main session edits it after the owner says yes; no measured target changes):
+> 5. A held slide corners almost as hard as gripping and is the stylish way round a loose corner, but it costs a little
+>    speed: it is never faster than a clean line. On the throttle the tyres pull the car where the nose points.
+
 ---
 
 ### 2026-11-11 · Studio: dashboard updated at every step
