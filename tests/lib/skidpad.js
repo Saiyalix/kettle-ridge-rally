@@ -14,7 +14,9 @@
 // mode 'autogas'   phone: auto gas (full throttle) and the right button held; a brake tap (0.15 s) at t = 1.5 s:
 //                  slideDeg (before the tap), tapPeakDeg (biggest slide in the 1.5 s after it), turnDeg (heading change in
 //                  those 1.5 s), maxDeg, over45S (seconds past 45 deg), spun. tap: false = the same run without the tap (for comparison).
-module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = true, autoGas = false }) {
+// mode 'long'      long drift: hold the key for holdS seconds with the gas OFF, from a steady speed. meanDeg and spreadDeg (biggest
+//                  distance from the average) of the slide from fromS on, keptPct (speed at the end / speed at the start).
+module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = true, autoGas = false, holdS = 4, fromS = 1.5 }) {
   // Car and CONFIG come from the probe (works when the game script is a module and they are not globals)
   const probe = window.__probe || window, { Car, CONFIG } = probe;
   const pads = { gas: 0, tilt: 0, lift: 0, brakeS: 0, keep: false };                  // the phone controls' own state for this run
@@ -48,6 +50,11 @@ module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = tru
     const after = samples.filter(s => s.t > 3);
     const back = after.find(s => Math.abs(s.beta) < 5);
     res = { slideDeg, swingDeg, wheelMs, drift, recoverS: back ? back.t - 3 : null, overshootDeg: Math.max(0, ...after.map(s => -sgn * s.beta)) };
+  } else if (mode === 'long') {
+    const v0 = car.speed, win = []; inp.steer = 1; inp.throttle = 0;
+    for (let k = 1; k <= Math.round(holdS / H); k++) { step(); if (k * H > fromS) win.push(Math.abs(car.beta) * DEG); }
+    const meanDeg = win.reduce((a, x) => a + x, 0) / win.length;
+    res = { meanDeg, spreadDeg: Math.max(...win.map(x => Math.abs(x - meanDeg))), keptPct: 100 * car.speed / v0 };
   } else if (mode === 'spin') {
     let maxDeg = 0, over45 = 0, spun = false;
     inp.steer = 1; inp.throttle = 1;

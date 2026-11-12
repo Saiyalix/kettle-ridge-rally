@@ -6,12 +6,22 @@
     "times": {
       "Kettle Ridge / Kestrel GT4": 90.46,
       "Kettle Ridge / Strada HF": 90.04,
+      "Kettle Ridge / Nightjar KR": 95,
       "Vulture Ledge / Kestrel GT4": 87.39,
       "Vulture Ledge / Strada HF": 86.94,
+      "Vulture Ledge / Nightjar KR": 87.76,
       "Sakura Touge / Kestrel GT4": 88.51,
       "Sakura Touge / Strada HF": 87.93,
+      "Sakura Touge / Nightjar KR": 88.48,
       "Thornwick Keep / Kestrel GT4": 94.08,
-      "Thornwick Keep / Strada HF": 93.75
+      "Thornwick Keep / Strada HF": 93.75,
+      "Thornwick Keep / Nightjar KR": 93.94
+    },
+    "neverFasterThan": {
+      "Nightjar KR": [
+        "Kestrel GT4",
+        "Strada HF"
+      ]
     }
   },
   "handling": {
@@ -71,7 +81,67 @@
     ],
     "turnInUpToKmh": 80,
     "maxWheelSpreadMs": 9,
-    "stradaExtraDeg": 4,
+    "slideMorePairs": [
+      {
+        "more": "Strada HF",
+        "less": "Kestrel GT4",
+        "surfaces": [
+          "gravel",
+          "dirt"
+        ],
+        "extraDeg": 4
+      },
+      {
+        "more": "Nightjar KR",
+        "less": "Strada HF",
+        "surfaces": [
+          "gravel",
+          "dirt"
+        ],
+        "extraDeg": 7
+      }
+    ],
+    "perCar": {
+      "_readme": "Own targets for one car (CLAUDE.md, Nightjar KR block). They replace the shared slideDeg / grassMaxSlideDeg / recoverS for that car only; the keys and the full phone tilt use the same slide ranges. minDegFromKmh = a slide of at least minDeg from that speed up (tarmac).",
+      "Nightjar KR": {
+        "slideDeg": {
+          "tarmac": [
+            8,
+            24
+          ],
+          "gravel": [
+            26,
+            38
+          ],
+          "dirt": [
+            26,
+            38
+          ],
+          "snow": [
+            26,
+            38
+          ]
+        },
+        "grassMaxSlideDeg": 42,
+        "tarmacMinDeg": 10,
+        "tarmacMinFromKmh": 80,
+        "recoverS": {
+          "default": 1.0,
+          "grass": 1.8
+        },
+        "longDrift": {
+          "needsMoreSpeedKeptPts": 4
+        }
+      }
+    },
+    "longDrift": {
+      "_readme": "Gravel, 80 km/h, right key held 4 s, gas off (CLAUDE.md, Nightjar KR block). Angle measured from 1.5 s on; spread = biggest distance from its own average. Applies to the cars listed in perCar with longDrift.",
+      "surface": "gravel",
+      "kmh": 80,
+      "holdS": 4,
+      "fromS": 1.5,
+      "maxSpreadDeg": 4
+    },
     "handbrake": {
       "surface": "gravel",
       "kmh": 55,
@@ -103,6 +173,7 @@
       "width": 800,
       "height": 360
     },
+    "carCount": 3,
     "minTouchPx": 40,
     "maxCentreCoveragePct": {
       "pace": 5,

@@ -681,12 +681,13 @@ const CONFIG = {
     // rear = rear grip vs front (lower = the tail lets go more easily; below 1 a held key slides the car),
     // peak = slip angle of most grip (°; higher = softer, more progressive),
     // slide = angle (° × slideHold × car drift) where a held key stops adding rotation; a held slide settles at about 0.6× that
+    // bite = share of a car's slideBite that works here (default 1; only the Nightjar has one). 0 on grass: no deep drifts off the road
     surfaces: {
       tarmac: { maxG: 1.6,  top: 1.0,  drag: 0.02, rear: 1.04, peak: 6.5, slide: 16 },
       gravel: { maxG: 1.3,  top: 0.96, drag: 0.04, rear: 0.6,  peak: 9,   slide: 30 },
       dirt:   { maxG: 1.24, top: 0.95, drag: 0.05, rear: 0.58, peak: 10,  slide: 32 },
       snow:   { maxG: 1.08, top: 0.92, drag: 0.05, rear: 0.56, peak: 10,  slide: 34 },
-      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28 },
+      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28, bite: 0 },
     },
   },
   // Car colours (art owns paint / stripe / skirt / number and `liveries`): paint/stripe/skirt/number = the default
@@ -709,6 +710,25 @@ const CONFIG = {
         { id: 'lime',    name: 'Lime Rush',    design: 'lime',   base: 0xb7e81c, a: 0x15161a, b: 0x12b7c4, c: 0x15161a, wheel: 0x24272c, numBg: 0x15161a, numFg: 0xb7e81c, plate: 'LR 88-ZP', wing: 0x15161a, spons: ['TAMARACK', 'HALCYON', 'NORTHGATE'], number: '88' },
         { id: 'violet',  name: 'Violet Storm', design: 'violet', base: 0x6a2bd6, a: 0x19e0e0, b: 0xf4f6f8, c: 0x1b0d3d, wheel: 0x19e0e0, numBg: 0xf4f6f8, numFg: 0x4a1aa8, plate: 'VS 23-ZZ', wing: 0x19e0e0, spons: ['PIKE RACING', 'ROTOR OIL', 'AUROC'], number: '23' },
         { id: 'arctic',  name: 'Silver Shard', design: 'arctic', base: 0xc9ced6, a: 0x0f6b5e, b: 0xff3d8a, c: 0x0f6b5e, wheel: 0xff3d8a, numBg: 0xff3d8a, numFg: 0xf4f6f8, plate: 'SS 19-IC', wing: 0x0f6b5e, spons: ['NORTHGATE', 'KETTLE CO-OP', 'HALCYON'], number: '19' },
+      ] },
+    // Third car (owner 2026-11-12: "slidey, distinctly different, built for long drifts"). Handling: docs/decisions.md, 2026-11-12.
+    // Own body + 4 liveries by art; stats are handling's.
+    // Besides the usual stats it sets its own handling fields (a car without them drives exactly as CONFIG.arcade says):
+    //   slideBite   once a steering key has been held biteAfter s (fully biteRamp s later) the fronts keep full bite until the slide is
+    //               within 1/slideBite of the hold angle, so a held drift settles deeper and steadier. 1 = like the other cars; higher =
+    //               deeper. A handbrake pull or brake tap brings it in at once; off on grass (CONFIG.arcade.surfaces.grass.bite).
+    //               Quick taps and corrections never get it, so the car stays tidy when you are just placing it.
+    //   slideCatch  its own CONFIG.arcade.slideCatch for slides from steering alone (higher = calmer swing-out, steadier drift)
+    //   slideKeep   its own CONFIG.arcade.slideKeep (higher = a drift loses less speed; still slower than a clean line, rule 5)
+    //   slideFrom / slideFull   its own speeds (m/s) where the rear's looseness fades in (here: fully loose from 54 km/h)
+    { id: 'nightjar', name: 'Nightjar KR', blurb: 'Long, loose and happiest sideways. Throws its tail out early and holds a drift all the way round.', accel: 1.0, top: 1.0, grip: 1.0, drift: 1.04, turn: 1.05, rear: 0.85, rearDrive: 1.15,
+      slideBite: 4, biteAfter: 0.6, biteRamp: 0.6, slideCatch: 0.4, slideKeep: 0.9, slideFrom: 8, slideFull: 15,
+      paint: 0x14161c, stripe: 0xff8a1e, skirt: 0x14161c, number: '9',
+      liveries: [
+        { id: 'nj-dusk',  name: 'Dusk',      design: 'dusk',    base: 0x14161c, a: 0xff8a1e, b: 0xf4f6f8, c: 0x14161c, wheel: 0xff8a1e, numBg: 0xff8a1e, numFg: 0x14161c, plate: 'NJ 09-KR', wing: 0xff8a1e, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'HALCYON'], number: '9' },
+        { id: 'nj-bone',  name: 'Bone Drift', design: 'bone',   base: 0xe9e6dc, a: 0xd8262e, b: 0x16171a, c: 0x16171a, wheel: 0xd8262e, numBg: 0x16171a, numFg: 0xe9e6dc, plate: 'NJ 13-BN', wing: 0x16171a, spons: ['NORTHGATE', 'TAMARACK', 'BRINDLE'], number: '13' },
+        { id: 'nj-deep',  name: 'Deep Sea',  design: 'deepsea', base: 0x0a2e3b, a: 0x1fe0e6, b: 0xff2d78, c: 0x061a22, wheel: 0xff2d78, numBg: 0xff2d78, numFg: 0x0a2e3b, plate: 'NJ 27-DS', wing: 0xff2d78, spons: ['PIKE RACING', 'AUROC', 'HALCYON'], number: '27', pod: true },
+        { id: 'nj-sand',  name: 'Sandstorm', design: 'sand',    base: 0xd8a24a, a: 0x4a2a14, b: 0xf4efe0, c: 0x16120e, wheel: 0x16120e, numBg: 0xf4efe0, numFg: 0x4a2a14, plate: 'NJ 05-SD', wing: 0x4a2a14, spons: ['BRINDLE BANK', 'ROTOR OIL', 'KETTLE CO-OP'], number: '5' },
       ] },
   ],
   carIndex: 0,
@@ -1437,7 +1457,7 @@ class Car {
     this.speed = 0; this.vForward = 0; this.throttleOut = 0; this.frontPeak = 8 * D2R;
     this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0;
+    this.beta = 0; this.grounded = 1; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0; this.keyHeld = 0; this.keySide = 0;
     this.lastVel = new THREE.Vector3(); this.vis = { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false };   // visual body attitude
     this.dbg = { gripUse: 0, traction: 1, yawT: 0, yawNow: 0, drift: false };
     this.prevPos = new THREE.Vector3(); this.prevQ = new THREE.Quaternion();      // for smooth rendering between physics steps
@@ -1450,7 +1470,7 @@ class Car {
     for (const w of this.wheels) { w.omega = 0; w.comp = w.prevComp = w.compVel = 0; }
     this.gear = 1; this.steer = 0; this.shiftTimer = 0; this.brakeIn = 0;
     this.steerIn = 0; this.drift = false; this.driftDir = 0; this.driftBlend = 0; this.driftNeutral = 0; this.driftCounter = 0; this.driftKick = 0;
-    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0;
+    this.beta = 0; this.groundS = 1; this.airTime = 0; this.surfS = null; this.loadF = 1; this.loadR = 1; this.prevBeta = 0; this.betaRate = 0; this.driftBoost = 0; this.driftSide = 0; this.prevBrakeKey = 0; this.keyHeld = 0; this.keySide = 0;
     this.lastVel.set(0, 0, 0); Object.assign(this.vis, { roll: 0, pitch: 0, heave: 0, rollV: 0, pitchV: 0, heaveV: 0, init: false });
   }
 
@@ -1742,21 +1762,26 @@ class Car {
     const A = CONFIG.arcade, D = A.drift, CAR = CONFIG.cars[CONFIG.carIndex] || CONFIG.cars[0], m = CONFIG.car.mass, g = CONFIG.gravity, R = CONFIG.wheels.radius;
     const a = CONFIG.wheels.frontZ, b = -CONFIG.wheels.rearZ, L = a + b, Iy = CONFIG.car.inertia.yaw / (CAR.turn || 1);
     const w0 = this.wheels;
+    // optional per-car overrides (CONFIG.cars[i]); a car without them uses the CONFIG.arcade value
+    const pc = (k, d) => CAR[k] != null ? CAR[k] : d;
+    const slideFrom = pc('slideFrom', A.slideFrom), slideFull = pc('slideFull', A.slideFull);
+    const slideCatch = pc('slideCatch', A.slideCatch), slideKeep = pc('slideKeep', A.slideKeep);
+    const slideBite = pc('slideBite', 1);   // see CONFIG.cars
 
     // --- Ground contact and surface. Smoothed so a bump or a wheel on the verge doesn't make the grip flicker.
-    let nC = 0, maxG = 0, top = 0, drag = 0, rear = 0, peak = 0, slide = 0;
+    let nC = 0, maxG = 0, top = 0, drag = 0, rear = 0, peak = 0, slide = 0, bite = 0;
     _ag.set(0, 0, 0);
     for (const w of w0) if (w.contact) {
       nC++; _ag.add(w.normal);
       const sp = A.surfaces[w.surface] || A.surfaces.gravel;
-      maxG += sp.maxG; top += sp.top; drag += sp.drag; rear += sp.rear; peak += sp.peak; slide += sp.slide;
+      maxG += sp.maxG; top += sp.top; drag += sp.drag; rear += sp.rear; peak += sp.peak; slide += sp.slide; bite += sp.bite != null ? sp.bite : 1;
     }
-    if (!this.surfS) { const s0 = A.surfaces.gravel; this.surfS = { maxG: s0.maxG, top: s0.top, drag: s0.drag, rear: s0.rear, peak: s0.peak, slide: s0.slide }; }
+    if (!this.surfS) { const s0 = A.surfaces.gravel; this.surfS = { maxG: s0.maxG, top: s0.top, drag: s0.drag, rear: s0.rear, peak: s0.peak, slide: s0.slide, bite: 1 }; }
     const SS = this.surfS;
     if (nC) {
       const k = Math.min(1, dt * 10);
       SS.maxG += (maxG / nC - SS.maxG) * k; SS.top += (top / nC - SS.top) * k; SS.drag += (drag / nC - SS.drag) * k;
-      SS.rear += (rear / nC - SS.rear) * k; SS.peak += (peak / nC - SS.peak) * k; SS.slide += (slide / nC - SS.slide) * k;
+      SS.rear += (rear / nC - SS.rear) * k; SS.peak += (peak / nC - SS.peak) * k; SS.slide += (slide / nC - SS.slide) * k; SS.bite += (bite / nC - SS.bite) * k;
       _ag.normalize();
     } else _ag.copy(up);
     const contact = nC >= 2 ? 1 : nC === 1 ? 0.5 : 0;
@@ -1792,6 +1817,10 @@ class Car {
     else sRate = A.steerAttackSlow + (A.steerAttackFast - A.steerAttackSlow) * clamp(speed / A.steerFastSpeed, 0, 1);
     this.steerIn += clamp(sTarget - this.steerIn, -sRate * dt, sRate * dt);
     const sc = -this.steerIn;                                           // + = left (same sign as rotation)
+    // how long the steering has been held to one side (s); letting go or switching sides starts it again.
+    // Keys count once the wheel is nearly wound on; part steering (phone tilt) from half lock
+    const side = Math.abs(this.steerIn) > (Math.abs(inp.steer) >= 1 ? 0.9 : 0.5) ? Math.sign(sc) : 0;
+    this.keyHeld = side !== 0 && side === this.keySide ? this.keyHeld + dt : 0; this.keySide = side;
 
     // --- Axle velocities and grip limits
     const v = Math.max(speed, 0.5);
@@ -1800,7 +1829,7 @@ class Car {
     const travF = Math.atan2(vy + r * a, vx), travR = Math.atan2(vy - r * b, vx);
     const muF = SS.maxG * CAR.grip;
     // the rear's looseness fades in with speed: at a crawl both axles grip the same
-    const loose = smoothstep(clamp((speed - A.slideFrom) / (A.slideFull - A.slideFrom), 0, 1));
+    const loose = smoothstep(clamp((speed - slideFrom) / (slideFull - slideFrom), 0, 1));
     // drift memory: a handbrake pull or a brake tap while steering (at speed) loosens the rear and lets the slide
     // grow bigger for this corner. It fades after drift.release s of neutral steering, on countersteer, or when the slide ends.
     const brakeTap = inp.brake > 0.3 && !(this.prevBrakeKey > 0.3) && Math.abs(this.steerIn) > 0.5;
@@ -1811,6 +1840,11 @@ class Car {
       if (this.driftNeutral > D.release || speed < D.minSpeed - 3 || (!inp.handbrake && Math.abs(beta) < D.off * D2R && this.betaRate * beta <= 0)) this.driftBoost = Math.max(0, this.driftBoost - dt * 4);
     }
     const boost = this.driftBoost;
+    // a car's own slideCatch calms slides from steering alone; a deliberate drift (handbrake pull or brake tap) swings like the others
+    const catchNow = slideCatch + (A.slideCatch - slideCatch) * boost;
+    // a car's slideBite (CONFIG.cars) comes in once a key has been held biteAfter s (over biteRamp s), or at once in a deliberate drift.
+    // Part steering (phone tilt) gets a share of it that grows from half to full lock, so tilting further deepens the drift smoothly
+    const biteK = 1 + (slideBite - 1) * SS.bite * smoothstep(clamp((Math.abs(this.steerIn) - 0.5) / 0.45, 0, 1)) * Math.max(boost, smoothstep(clamp((this.keyHeld - pc('biteAfter', 0)) / pc('biteRamp', 0.01), 0, 1)));
     const rearRatio = (1 + (SS.rear * (CAR.rear || 1) - 1) * loose) * (1 - D.looser * boost);
     const muR = muF * rearRatio;
     let capF = muF * Nf0 * lf, capR = muR * Nr0 * lr, capRfull = muF * Math.max(1, rearRatio) * Nr0 * lr;
@@ -1845,9 +1879,9 @@ class Car {
     const sf = clamp((vF - A.steerFrom) / (A.steerFull - A.steerFrom), 0, 1);
     this.betaRate += ((beta - this.prevBeta) / dt - this.betaRate) * Math.min(1, dt * 30); this.prevBeta = beta;
     // + = already rotated towards the key (looking slideCatch s ahead, so a fast swing is caught early)
-    const into = (beta + clamp(this.betaRate, -3, 3) * A.slideCatch) * Math.sign(sc);
+    const into = (beta + clamp(this.betaRate, -3, 3) * catchNow) * Math.sign(sc);
     const aim = into > 0 ? clamp(1 - into / holdA, -0.6, 1) : 1;      // past the hold angle the key even countersteers a little
-    const deltaHigh = travF * A.selfAlign + sc * peakF * A.frontAim * aim;
+    const deltaHigh = travF * A.selfAlign + sc * peakF * A.frontAim * (aim > 0 ? Math.min(1, biteK * aim) : aim);
     const maxLock = 0.62;                                              // rad (35°): the wheels' real lock
     const delta = clamp(sc * lockLow * (1 - sf) + deltaHigh * sf, -maxLock, maxLock);
 
@@ -1917,7 +1951,7 @@ class Car {
       const scrubC = Math.abs(Fc * lG.dot(travel));                   // what the carried grip would scrub if it leaned across the car
       _aP.copy(this.pos).addScaledVector(up, -0.35);
       _aF.copy(left).multiplyScalar(Fc * Math.sign(lG.dot(left) || 1) * ground);
-      _aF.addScaledVector(travel, (Math.max(0, -scrub) * A.slideKeep - scrubC * (1 - A.slideKeep)) * ground);
+      _aF.addScaledVector(travel, (Math.max(0, -scrub) * slideKeep - scrubC * (1 - slideKeep)) * ground);
       this.addForceAt(_aF, _aP);
       // engine along the nose (front and rear axle), so in a slide throttle drives the car round
       _aF.copy(fG).multiplyScalar(m * aDrive * (1 - rearShare) * ground * wv);
@@ -6695,6 +6729,7 @@ function boot() {
   const LV_BODY = [
     { door: [0.16, -0.42], belt: 0.26, sill: -0.27, handle: [-0.3, 0.17], cap: [-1.3, 0.14] },       // Kestrel
     { door: [0.5, -0.58], belt: 0.3, sill: -0.27, handle: [-0.42, 0.2], cap: [-1.55, 0.12] },        // Strada
+    { door: [0.3, -0.75], belt: 0.26, sill: -0.27, handle: [-0.55, 0.17], cap: [-1.62, 0.18] },      // Nightjar
   ];
 
   function paintLivery(cv, ci, L) {
@@ -6836,6 +6871,51 @@ function boot() {
         tops((t) => { for (let k = 0; k < 6; k++) { const z = 2.15 - k * 0.2; poly(t, [[z, -0.65], [z - 0.2, -0.65], [z - 0.1, 0.65 - k * 0.0]], k % 2 ? C.a : C.b); } rect(t, 0.4, 0.62, -1.0, -0.62, C.a); rect(t, 0.4, 0.1, -1.0, -0.1, C.b); });
       },
     };
+    Object.assign(D, {
+      dusk() {               // black car, orange drift-trail swooshes down the flank, white pin-line, orange spine
+        sides((t) => {
+          poly(t, [[2.1, -0.12], [1.1, 0.04], [-0.3, 0.14], [-1.5, 0.12], [-2.3, 0.02], [-2.3, -0.08], [-1.4, -0.03], [-0.3, 0.02], [1.0, -0.1], [1.8, -0.22], [2.1, -0.26]], C.a);
+          poly(t, [[1.6, -0.22], [0.6, -0.1], [-0.6, -0.04], [-1.6, -0.12], [-1.5, -0.2], [-0.6, -0.14], [0.6, -0.2], [1.3, -0.3], [1.9, -0.3]], C.a);
+          line(t, [[2.0, -0.02], [1.0, 0.1], [-0.3, 0.2], [-1.5, 0.19], [-2.3, 0.1]], C.b, 0.012);
+          rect(t, -2.3, -0.3, 2.3, -0.27, C.a);
+          word(t, spons[0], 1.3, -0.17, 0.075, C.b, { spacing: 0.012 });
+          word(t, spons[1], -1.45, -0.02, 0.07, C.b, { spacing: 0.012 });
+        });
+        tops((t) => { rect(t, 2.2, 0.12, 0.6, -0.12, C.a); rect(t, 0.6, 0.1, -2.2, -0.1, C.a); rect(t, 2.2, 0.15, -2.2, 0.125, C.b); rect(t, 2.2, -0.125, -2.2, -0.15, C.b); });
+      },
+      bone() {               // bone-white car, black tyre-skid arcs, red sun on the bonnet, black roof
+        sides((t) => {
+          rect(t, -2.3, -0.3, 2.3, -0.17, C.b);
+          for (let k = 0; k < 3; k++) {
+            const pts = []; for (let i = 0; i <= 12; i++) { const z = 2.1 - i * 0.37; pts.push([z, 0.02 + k * 0.07 + 0.09 * Math.sin(i * 0.55 + k) * (i / 12) - 0.16 * (1 - i / 12) * (k === 1 ? 0.5 : 0.8)]); }
+            line(t, pts, C.b, 0.05 - k * 0.01);
+          }
+          rect(t, -2.3, -0.17, 2.3, -0.145, C.a);
+          word(t, spons[0], 1.45, -0.245, 0.055, C.base, { spacing: 0.02 });
+          word(t, spons[1], -1.45, -0.245, 0.055, C.base, { spacing: 0.02 });
+        });
+        tops((t) => { circ(t, 1.55, 0.0, 0.34, C.a); rect(t, 2.2, 0.7, 2.14, -0.7, C.b); rect(t, 0.6, 0.7, -1.5, -0.7, C.b); rect(t, 0.6, 0.06, -1.5, -0.06, C.a); rect(t, -1.5, 0.7, -2.2, -0.7, C.b); });
+      },
+      deepsea() {            // deep teal car, pink and cyan wave ribbons rolling along the flank
+        sides((t) => {
+          const wave = (y0, amp, ph) => { const p = []; for (let i = 0; i <= 24; i++) { const z = 2.3 - i * 0.19; p.push([z, y0 + amp * Math.sin(i * 0.7 + ph)]); } return p; };
+          line(t, wave(0.0, 0.1, 0), C.b, 0.09); line(t, wave(0.0, 0.1, 0), C.a, 0.025);
+          line(t, wave(-0.18, 0.07, 1.4), C.a, 0.06); line(t, wave(0.2, 0.05, 2.6), C.a, 0.02);
+          rect(t, -2.3, -0.3, 2.3, -0.27, C.b);
+          word(t, spons[0], 1.45, 0.0, 0.07, C.base, { spacing: 0.012 });
+          word(t, spons[1], -1.4, 0.0, 0.07, C.base, { spacing: 0.012 });
+        });
+        tops((t) => { for (let k = 0; k < 3; k++) { const p = []; for (let i = 0; i <= 14; i++) p.push([2.2 - i * 0.3, (k - 1) * 0.3 + 0.07 * Math.sin(i * 0.9 + k)]); line(t, p, k === 1 ? C.b : C.a, 0.07); } });
+      },
+      sand() {               // sand-tan car, brown chevrons pointing at the nose, black sill, cream roof stripe
+        sides((t) => {
+          for (let k = 0; k < 8; k++) { const z = 2.0 - k * 0.55; poly(t, [[z, -0.3], [z - 0.14, -0.3], [z - 0.4, -0.02], [z - 0.14, 0.26], [z, 0.26], [z - 0.26, -0.02]], k % 2 ? C.b : C.a); }
+          rect(t, -2.3, -0.3, 2.3, -0.23, C.c);
+          word(t, spons[0], 1.45, -0.265, 0.045, C.b, { spacing: 0.02 });
+        });
+        tops((t) => { for (let k = 0; k < 5; k++) { const z = 2.1 - k * 0.3; poly(t, [[z, 0.0], [z - 0.14, 0.0], [z - 0.4, 0.55], [z - 0.26, 0.55]], C.a); poly(t, [[z, 0.0], [z - 0.14, 0.0], [z - 0.4, -0.55], [z - 0.26, -0.55]], C.a); } rect(t, 0.5, 0.7, -1.5, -0.7, C.c); rect(t, 0.5, 0.08, -1.5, -0.08, C.b); });
+      },
+    });
     const RD = RIVAL_DESIGNS[L.design];                                       // rival crews' designs live in art/rival-liveries.js
     if (D[L.design]) D[L.design](); else if (RD) RD({ sides, tops, poly, rect, circ, line, word, C, spons, L, ci }); else D.ridgeline();
     // common to every livery: shut lines, handle, fuel cap, number panels
@@ -6843,19 +6923,20 @@ function boot() {
       // wing / spoiler endplate panel (the plates sample this part of the side tile)
       const wl = ((L.wing >> 16) & 255) * 0.3 + ((L.wing >> 8) & 255) * 0.59 + (L.wing & 255) * 0.11, wcol = hexS(L.wing);
       if (ci === 0) { rect(t, -2.1, 0.45, -1.55, 0.9, wcol); word(t, spons[2] || spons[0], -1.83, 0.69, 0.07, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
+      else if (ci === 2) { rect(t, -2.15, 0.5, -1.65, 0.9, wcol); word(t, spons[2] || spons[0], -1.9, 0.7, 0.065, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
       else { rect(t, -1.95, 0.8, -1.4, 0.9, wcol); word(t, 'KRR', -1.68, 0.86, 0.05, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
       const d = B.door, ln = 'rgba(8,10,14,0.55)';
       line(t, [[d[0], B.belt], [d[0], B.sill]], ln, 0.011); line(t, [[d[1], B.belt], [d[1], B.sill]], ln, 0.011);
       line(t, [[d[0], B.sill], [d[1], B.sill]], ln, 0.008);
       rect(t, B.handle[0] + 0.07, B.handle[1] + 0.012, B.handle[0] - 0.07, B.handle[1] - 0.012, ln);
       circ(t, B.cap[0], B.cap[1], 0.065, ln);
-      numPanel(t, (d[0] + d[1]) / 2 - 0.02, ci === 0 ? 0.0 : 0.02, 0.2, ci === 1);
+      numPanel(t, (d[0] + d[1]) / 2 - 0.02, ci === 0 ? 0.0 : ci === 2 ? 0.0 : 0.02, 0.2, ci === 1);
       // second wordmark band above the rear arch for the first two sponsors was drawn per design
     });
     tops((t) => {
-      numPanel(t, ci === 0 ? 1.45 : 1.25, 0.0, 0.2, false);
-      word(t, 'KRR', ci === 0 ? -0.2 : -0.3, 0.0, 0.09, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
-      word(t, spons[2] || spons[0], ci === 0 ? 1.92 : 1.72, 0.0, 0.085, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
+      numPanel(t, ci === 0 ? 1.45 : ci === 2 ? 1.5 : 1.25, 0.0, 0.2, false);
+      word(t, 'KRR', ci === 0 ? -0.2 : ci === 2 ? -0.5 : -0.3, 0.0, 0.09, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
+      word(t, spons[2] || spons[0], ci === 0 ? 1.92 : ci === 2 ? 2.0 : 1.72, 0.0, 0.085, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
     });
   }
 
@@ -7021,7 +7102,7 @@ function boot() {
     { crew: 'Kudi Sprint',     ci: 1, pod: false, design: 'dots',      base: 0xffd23f, a: 0xd81b60, b: 0x4a148c, c: 0x2a0a40, wheel: 0xd81b60, spons: ['KUDI', 'AJE MOTORS', 'ILE'], plate: 'KS 22-CO' },
     { crew: 'Tierra Picante',  ci: 0, pod: true,  design: 'diamonds',  base: 0x3e2723, a: 0xb6e32e, b: 0xf5f5f5, c: 0x1a0f0d, wheel: 0xb6e32e, spons: ['TIERRA', 'PICANTE', 'ALBORADA'], plate: 'TP 23-FC' },
   ];
-  /* ---------- the player car: two modelled bodies, four liveries each ----------
+  /* ---------- the player car: three modelled bodies, four liveries each ----------
      Built in code from lofted cross-sections (art/car-geo.js), painted by art/car-livery.js. Rebuilt when the car, the
      livery or the graphics quality changes (menu time), so nothing here costs anything per frame.
      Physics sizes (CONFIG.wheels) are not touched: wheel centres, radius and the centre of mass are where they were. */
@@ -7081,6 +7162,22 @@ function boot() {
     },
   };
   STRADA.w = (z) => STRADA.w0(z) + 0.04 * bump(z, 1.24, 0.55) + 0.04 * bump(z, -1.33, 0.55);
+  // Nightjar KR: long nose, low roof set far back, ducktail, fat rear haunches (the drift car)
+  const NIGHTJAR = {
+    z0: -2.08, z1: 2.2, tumble: 0.06, arches: [[1.24, -0.2, 0.43], [-1.33, -0.2, 0.45]],
+    yb: curve1([[-2.08, -0.14], [-1.95, -0.24], [-1.7, -0.3], [1.9, -0.3], [2.05, -0.24], [2.2, -0.14]]),
+    w0: curve1([[-2.08, 0.64], [-2.0, 0.76], [-1.8, 0.84], [-1.2, 0.86], [1.2, 0.84], [1.8, 0.82], [2.0, 0.76], [2.2, 0.62]]),
+    ys: curve1([[-2.08, 0.27], [-1.95, 0.33], [-1.7, 0.33], [-1.33, 0.3], [-0.5, 0.26], [0.6, 0.26], [1.0, 0.27], [1.24, 0.27], [1.7, 0.2], [2.0, 0.11], [2.2, 0.04]]),
+    crown: curve1([[-2.08, 0], [-1.9, 0.04], [-1.6, 0.03], [-1.2, 0], [0.8, 0], [1.2, 0.03], [1.7, 0.05], [2.2, 0]]),
+    cabin: {
+      z0: 0.55, z1: -1.45, belt: 0.0, tumble: 0.15, bz: [-0.35, 0.05],
+      yR: curve1([[-1.45, 0.3], [-1.2, 0.5], [-0.9, 0.67], [-0.5, 0.74], [-0.1, 0.74], [0.15, 0.7], [0.4, 0.5], [0.55, 0.27]]),
+      wB: curve1([[-1.45, 0.66], [-1.1, 0.78], [-0.6, 0.82], [0.1, 0.8], [0.55, 0.62]]),
+    },
+  };
+  NIGHTJAR.w = (z) => NIGHTJAR.w0(z) + 0.05 * bump(z, 1.24, 0.55) + 0.08 * bump(z, -1.33, 0.62);
+
+  const BODIES = [KESTREL, STRADA, NIGHTJAR];
 
   /* the lower body: sill to bonnet / boot, with the wheel wells dished into the sides */
   const SIDE_F = [0.1, 0.22, 0.36, 0.5, 0.64, 0.78, 0.9];
@@ -7291,6 +7388,69 @@ function boot() {
     return { frontPlate: [0, -0.2, 1.9, 0], rearPlate: [0, 0.0, -1.905, Math.PI] };
   }
 
+  function buildNightjarDetails(P, L, low, mats) {
+    const sp = NIGHTJAR, dk = hx3(DARK), lens = hx3(0xf4f1dc), red = hx3(0x8c1014), chrome = hx3(0xc4cad0), acc = hx3(L.a);
+    // round lamps in the fenders, a long dark chin with a bright splitter lip
+    both((s) => {
+      const z = 1.9, x = s * 0.6, y = topY(sp, z, 0.6), sl = -Math.atan((topY(sp, z + 0.1, 0.6) - topY(sp, z - 0.1, 0.6)) / 0.2);
+      cyl(P.dark, 0.11, 0.03, x, y + 0.004, z, dk, { rx: sl, low });
+      cyl(P.lamp, 0.085, 0.012, x, y + 0.02, z + 0.004, lens, { rx: sl - 0.1, low });
+      cyl(P.trim, 0.095, 0.008, x, y + 0.014, z, hx3(0x6a7078), { rx: sl, low });
+    });
+    box(P.dark, 1.0, 0.09, 0.02, 0, -0.1, 2.2, dk);
+    box(P.trim, 0.9, 0.012, 0.026, 0, -0.07, 2.205, chrome);
+    box(P.dark, 1.66, 0.025, 0.3, 0, -0.295, 2.1, dk);                       // splitter
+    box(P.trim, 1.66, 0.012, 0.03, 0, -0.29, 2.26, acc);                      // bright lip
+    both((s) => box(P.trim, 0.025, 0.07, 0.3, s * 0.83, -0.26, 2.1, acc));   // splitter end fences
+    // long bonnet: two louvred vents behind a shallow scoop, tow hook
+    both((s) => { for (let k = 0; k < 5; k++) box(P.dark, 0.2, 0.01, 0.03, s * 0.36, topY(sp, 1.0 + k * 0.08, 0.36) + 0.007, 1.0 + k * 0.08, dk, { rx: -0.05 }); });
+    box(P.dark, 0.3, 0.012, 0.22, 0, topY(sp, 1.55, 0) + 0.008, 1.55, dk, { rx: -0.1 });
+    cyl(P.trim, 0.025, 0.1, -0.35, -0.2, 2.22, acc, { rx: Math.PI / 2, low });
+    // fender vents and bolt-on flares (rear ones are the fat ones)
+    both((s) => {
+      for (let k = 0; k < 3; k++) box(P.dark, 0.014, 0.05, 0.1, s * (sp.w(0.7) + 0.005), 0.06 - 0.0, 0.62 + k * 0.14, dk);
+      for (const zc of [1.24, -1.33]) {
+        const rear = zc < 0, R = rear ? 0.46 : 0.44, yc = -0.2, top = sp.ys(zc) - 0.004, wz = sp.w(zc), hw = rear ? 0.6 : 0.52;
+        const pts = [[zc - hw, -0.31], [zc - hw, top], [zc + hw, top], [zc + hw, -0.31], [zc + Math.sqrt(R * R - 0.11 * 0.11), -0.31]];
+        for (let a = -14; a <= 194; a += low ? 26 : 13) pts.push([zc + R * Math.cos(a * Math.PI / 180), yc + R * Math.sin(a * Math.PI / 180)]);
+        pts.push([zc - Math.sqrt(R * R - 0.11 * 0.11), -0.31]);
+        const ex = rear ? 0.085 : 0.045;
+        slab(P.body, pts, s * (wz - 0.03), s * (wz + ex), [1, 1, 1], { uv: true });
+        for (const bz of [-0.45, 0.0, 0.45]) cyl(P.trim, 0.014, 0.01, s * (wz + ex + 0.004), -0.26, zc + bz * (rear ? 1.1 : 1), hx3(0x9aa0a8), { rz: Math.PI / 2, low });
+      }
+      // side-exit pipe under the sill, mirrors
+      cyl(P.trim, 0.04, 0.5, s * 0.88, -0.27, -0.75, chrome, { rx: Math.PI / 2, low });
+      box(P.dark, 0.06, 0.05, 1.5, s * 0.855, -0.265, -0.05, dk);
+      box(P.dark, 0.1, 0.014, 0.014, s * 0.74, 0.38, 0.4, dk, { rz: s * 0.5 });
+      box(P.body, 0.11, 0.07, 0.15, s * 0.84, 0.42, 0.38, [1, 1, 1], { ry: s * 0.12, uv: true });
+      box(P.dark, 0.09, 0.055, 0.01, s * 0.84, 0.42, 0.3, dk, { ry: s * 0.12 });
+    });
+    // rear: ducktail lip, slim tail-lamp bars, diffuser, centre exit, tall swan-neck wing
+    slab(P.body, [[-1.78, 0.325], [-2.0, 0.37], [-2.1, 0.385], [-2.1, 0.33], [-2.0, 0.31]], -0.58, 0.58, [1, 1, 1], { uv: true });
+    both((s) => { box(P.dark, 0.58, 0.08, 0.02, s * 0.36, 0.12, -2.06, dk, { ry: s * -0.12 }); box(P.tail, 0.54, 0.05, 0.025, s * 0.36, 0.12, -2.07, red, { ry: s * -0.12 }); });
+    box(P.tail, 0.2, 0.02, 0.02, 0, 0.12, -2.075, red);
+    slab(P.dark, [[-1.92, -0.26], [-2.1, -0.26], [-2.18, -0.17], [-2.1, -0.15]], -0.55, 0.55, dk);                       // diffuser
+    exhaust(P, 0.0, -0.2, -2.12, low);
+    const wc = hx3(L.wing), wz = -1.92, wy = 0.7;
+    both((s) => {
+      slab(P.body, [[wz + 0.19, wy - 0.09], [wz + 0.19, wy + 0.1], [wz, wy + 0.17], [wz - 0.2, wy + 0.2], [wz - 0.2, wy - 0.09]], s * 0.96, s * 0.975, wc, { uv: true });
+      slab(P.dark, [[wz + 0.08, 0.33], [wz - 0.04, 0.33], [wz - 0.05, wy - 0.02], [wz + 0.14, wy + 0.0]], s * 0.45, s * 0.5, dk);          // swan-neck upright
+    });
+    slab(P.trim, [[wz + 0.18, wy + 0.0], [wz + 0.12, wy + 0.04], [wz - 0.05, wy + 0.07], [wz - 0.2, wy + 0.11], [wz - 0.2, wy + 0.08], [wz - 0.05, wy + 0.0]], -0.96, 0.96, wc, { uv: false });
+    box(P.trim, 1.92, 0.02, 0.025, 0, wy + 0.2, wz - 0.19, acc, { rx: -0.2 });                                             // gurney flap in the accent colour
+    // roof vent, aerial
+    box(P.cabin, 0.34, 0.03, 0.3, 0, 0.75, -0.5, dk); box(P.cabin, 0.26, 0.035, 0.05, 0, 0.76, -0.4, [0, 0, 0]);
+    cyl(P.dark, 0.008, 0.3, -0.4, 0.4, -1.4, dk, { rx: -0.5, low });
+    if (L.pod) {
+      box(P.dark, 0.9, 0.02, 0.05, 0, topY(sp, 1.95, 0) + 0.0, 2.0, dk, { rx: -0.3 });
+      for (const lx of [-0.3, -0.1, 0.1, 0.3]) {
+        cyl(P.dark, 0.07, 0.07, lx, topY(sp, 1.95, 0) + 0.055, 2.0, dk, { rx: Math.PI / 2 - 0.3, low });
+        cyl(P.lamp, 0.058, 0.012, lx, topY(sp, 1.95, 0) + 0.059, 2.035, lens, { rx: Math.PI / 2 - 0.3, low });
+      }
+    }
+    return { frontPlate: [0, -0.2, 2.215, 0], rearPlate: [0, 0.04, -2.09, Math.PI] };
+  }
+
   // high quality paint: clear-coated, mirroring the blurred sky. Devices that cannot make the blurred sky (no float targets) get the plain glossy paint
   function glossPaint(map) {
     const env = envPMREM();
@@ -7323,20 +7483,20 @@ function boot() {
 
   // all the parts of one car body (also used for the rival cars, art/rival-model.js): { P: parts by material, det: plate positions }
   function buildCarParts(ci, L, low, mats) {
-    const sp = ci === 0 ? KESTREL : STRADA;
+    const sp = BODIES[ci];
     const P = { body: newPart(), cabin: newPart(), glass: newPart(), dark: newPart(), trim: newPart(), lamp: newPart(), tail: newPart() };
     lowerBody(sp, P, low); cabinLoft(sp, P, low);
     if (low === 2) {                                                  // far away (rival cars only): bare shell plus lamp strips, no details
-      const red = hx3(0x8c1014), lens = hx3(0xf4f1dc), sp2 = ci === 0 ? KESTREL : STRADA;
-      box(P.tail, 0.95, 0.07, 0.03, 0, ci === 0 ? 0.1 : 0.2, sp2.z0 - 0.005, red); box(P.lamp, 0.95, 0.08, 0.03, 0, 0.16, sp2.z1 + 0.005, lens);
+      const red = hx3(0x8c1014), lens = hx3(0xf4f1dc), sp2 = sp;
+      box(P.tail, 0.95, 0.07, 0.03, 0, ci === 0 ? 0.1 : ci === 2 ? 0.12 : 0.2, sp2.z0 - 0.005, red); box(P.lamp, 0.95, 0.08, 0.03, 0, 0.16, sp2.z1 + 0.005, lens);
       return { P, det: { frontPlate: [0, 0, 0, 0], rearPlate: [0, 0, 0, 0] } };
     }
-    const det = ci === 0 ? buildKestrelDetails(P, L, low, mats) : buildStradaDetails(P, L, low, mats);
+    const det = [buildKestrelDetails, buildStradaDetails, buildNightjarDetails][ci](P, L, low, mats);
     return { P, det };
   }
 
   function buildPlayerCar(ci, li, low) {
-    const L = CONFIG.cars[ci].liveries[li], sp = ci === 0 ? KESTREL : STRADA;
+    const L = CONFIG.cars[ci].liveries[li];
     while (bodyRoot.children.length) { const c = bodyRoot.children[0]; bodyRoot.remove(c); disposeCarTree(c); }
     for (const wm of wheelMeshes) if (wm.flip) { wm.spinG.remove(wm.flip); disposeCarTree(wm.flip); wm.flip = null; }
     // livery texture
@@ -7363,7 +7523,7 @@ function boot() {
     const mk2 = (pt, pl) => { const m = numberPlate(ci, L, pl); m.position.set(pt[0], pt[1], pt[2]); m.rotation.y = pt[3]; m.userData.own = true; bodyRoot.add(m); };
     mk2(det.frontPlate, false); mk2(det.rearPlate, true);
     // wheels
-    const kind = ci === 0 ? { spokes: 6, twin: true, w: 0.04 } : { spokes: 5, twin: false, w: 0.07 };
+    const kind = ci === 0 ? { spokes: 6, twin: true, w: 0.04 } : ci === 2 ? { spokes: 8, twin: false, w: 0.034 } : { spokes: 5, twin: false, w: 0.07 };
     const wp = wheelPart(CONFIG.wheels.radius, L.wheel, L.a, kind, low), wg = partGeo(wp);
     const wmat = low ? new THREE.MeshLambertMaterial({ vertexColors: true }) : new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x666666, shininess: 70, envMap, reflectivity: 0.3, combine: THREE.MixOperation });
     carMatsLive.push(wmat);
