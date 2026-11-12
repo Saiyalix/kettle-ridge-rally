@@ -91,6 +91,8 @@ html, body { height: 100%; margin: 0; overflow: hidden; background: var(--ink); 
   background: rgba(8, 14, 34, .74); border-left: 3px solid #ffd21f; font-family: var(--f-display); font-weight: 800; font-style: italic; text-transform: uppercase; }
 #pace svg { width: calc(var(--d-note) * 1.5); height: calc(var(--d-note) * 1.5); }
 #paceText { font-size: var(--d-note); letter-spacing: .02em; white-space: nowrap; }
+#pace.tight { border-left-color: #ff6a2b; }
+#pace.tight #paceText { color: #ffb070; }          /* tight corner (hairpin, square, sharp): warning colour */
 #paceSub { font-size: var(--d-note); color: #ffd21f; white-space: nowrap; }
 #paceThen { grid-column: 2 / 4; font-size: calc(var(--d-note) * .72); font-weight: 600; color: #bcd4ff; white-space: nowrap; margin-top: -2px; }
 #paceThen:empty { display: none; }

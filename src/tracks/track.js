@@ -127,6 +127,15 @@ function buildTrack(ST = CONFIG.stage) {
     if (before && ST.castle.gate1 - before.s1 < 90) before.text += ', then gate, brake for the well';      // early warning: the courtyard corner comes 40 m after the gate
     for (const nt of notes) if (nt.kind !== 'jump' && nt.s >= ST.castle.gate1 && nt.s1 <= ST.castle.gate2) nt.text = nt.text.replace(", don't cut", '') + ', around the well';
   }
+  // Tight corners are the ones that punish full gas: the call says "brake" (hairpin, square, full circle) and the HUD shows
+  // it earlier (note.lead = extra metres of warning), in a warning colour (note.tight). Sharp corners already say "don't cut".
+  for (const nt of notes) {
+    if (nt.kind === 'jump') continue;
+    const hard = /^(Hairpin|Square|Full circle)/.test(nt.text), sharp = /sharp/i.test(nt.text);
+    nt.tight = hard || sharp;
+    nt.lead = hard ? 60 : sharp ? 30 : 0;
+    if (hard && !/careful|brake|well/.test(nt.text)) nt.text += ', brake!';
+  }
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
   for (const t of turns) { const nt = turnNote.get(Math.round(t.s0)); t.blind = !!(nt && nt.blind); t.note = nt ? nt.text : ''; }
   notes.sort((a, b) => a.s - b.s);
