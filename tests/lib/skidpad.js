@@ -16,7 +16,11 @@
 //                  those 1.5 s), maxDeg, over45S (seconds past 45 deg), spun. tap: false = the same run without the tap (for comparison).
 // mode 'long'      long drift: hold the key for holdS seconds with the gas OFF, from a steady speed. meanDeg and spreadDeg (biggest
 //                  distance from the average) of the slide from fromS on, keptPct (speed at the end / speed at the start).
-module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = true, autoGas = false, holdS = 4, fromS = 1.5 }) {
+// mode 'gas'      the gas steers a held slide (CLAUDE.md, gas-control targets): the key is held and the gas is full for fullS (1.5 s), then for
+//                  testS (2 s) the gas stays full (gasOn: true) or is let go (gasOn: false). endDeg = average slide over the last windowS (0.5 s),
+//                  atLiftDeg = slide at the moment of the change (average of the 0.1 s before), after05Deg = slide 0.5 s later (average of 0.1 s around it),
+//                  maxAfterDeg = biggest slide from the change on, spun.
+module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = true, autoGas = false, holdS = 4, fromS = 1.5, gasOn = true, fullS = 1.5, testS = 2, windowS = 0.5 }) {
   // Car and CONFIG come from the probe (works when the game script is a module and they are not globals)
   const probe = window.__probe || window, { Car, CONFIG } = probe;
   const pads = { gas: 0, tilt: 0, lift: 0, brakeS: 0, keep: false };                  // the phone controls' own state for this run
@@ -50,6 +54,21 @@ module.exports = function skidpad({ mode, surface, kmh, carIndex, pct, tap = tru
     const after = samples.filter(s => s.t > 3);
     const back = after.find(s => Math.abs(s.beta) < 5);
     res = { slideDeg, swingDeg, wheelMs, drift, recoverS: back ? back.t - 3 : null, overshootDeg: Math.max(0, ...after.map(s => -sgn * s.beta)) };
+  } else if (mode === 'gas') {
+    const at = [], endWin = []; let maxAfter = 0, spun = false; inp.steer = 1;
+    const total = Math.round((fullS + testS) / H);
+    for (let k = 1; k <= total; k++) {
+      const t = k * H;
+      inp.throttle = t <= fullS || gasOn ? 1 : 0;
+      step();
+      const b2 = Math.abs(car.beta) * DEG;
+      at.push({ t, b: b2 });
+      if (t > fullS) maxAfter = Math.max(maxAfter, b2);
+      if (b2 > 90) spun = true;
+      if (t > fullS + testS - windowS + 1e-9) endWin.push(b2);
+    }
+    const avg = (a, b) => { const w = at.filter(s => s.t > a + 1e-9 && s.t <= b + 1e-9).map(s => s.b); return w.reduce((x, y) => x + y, 0) / w.length; };
+    res = { gasOn, endDeg: endWin.reduce((a, x) => a + x, 0) / endWin.length, atLiftDeg: avg(fullS - 0.1, fullS), after05Deg: avg(fullS + 0.45, fullS + 0.55), maxAfterDeg: maxAfter, spun };
   } else if (mode === 'long') {
     const v0 = car.speed, win = []; inp.steer = 1; inp.throttle = 0;
     for (let k = 1; k <= Math.round(holdS / H); k++) { step(); if (k * H > fromS) win.push(Math.abs(car.beta) * DEG); }

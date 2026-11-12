@@ -166,6 +166,45 @@
         "dirt"
       ],
       "brakeTapMinExtraTurnDeg": 3
+    },
+    "gasControl": {
+      "_readme": "The gas steers a held drift (CLAUDE.md, gas-control targets, 2026-11-12). Key held, full gas fullGasS, then testS more seconds of full gas vs gas let go; the slide angle is the average of the last windowS. Full gas must slide at least minMoreDeg[car] more than lifted, and the three cars' differences must be in the order Kestrel < Strada < Nightjar. tuck: 0.5 s after lifting the slide is at least minSmallerDeg smaller than at the moment of lifting (same runs: gravel and dirt, 80 km/h). neverPast: lifting or full gas in a held slide, from the moment of the change on, never past maxDeg (gravel, dirt, snow, all speeds in kmh).",
+      "surfaces": [
+        "gravel",
+        "dirt"
+      ],
+      "kmh": 80,
+      "fullGasS": 1.5,
+      "testS": 2,
+      "windowS": 0.5,
+      "minMoreDeg": {
+        "Kestrel GT4": 4,
+        "Strada HF": 6,
+        "Nightjar KR": 9
+      },
+      "order": [
+        "Kestrel GT4",
+        "Strada HF",
+        "Nightjar KR"
+      ],
+      "tuck": {
+        "afterS": 0.5,
+        "minSmallerDeg": 4
+      },
+      "neverPast": {
+        "surfaces": [
+          "gravel",
+          "dirt",
+          "snow"
+        ],
+        "kmh": [
+          60,
+          80,
+          90,
+          120
+        ],
+        "maxDeg": 45
+      }
     }
   },
   "mobile": {
@@ -205,6 +244,19 @@
       "hbExtraTurnDeg": 3,
       "backMinGas": 0.9,
       "maxSlideDeg": 90
+    },
+    "gasDrift": {
+      "_readme": "The gas steers the drift on the phone (CLAUDE.md gas-control targets, 2026-11-12), on the real game page with the phone's own code, on a flat gravel pad: 1.5 s on the gas holding the steering (buttons = the right key, tilt = full tilt), then 2 s with GAS held vs GAS let go. The slide (average of the last 0.5 s) with GAS held must be at least minMoreDeg[car] more than with GAS released, both with the buttons and with tilt.",
+      "surface": "gravel",
+      "kmh": 80,
+      "fullGasS": 1.5,
+      "testS": 2,
+      "windowS": 0.5,
+      "minMoreDeg": {
+        "Kestrel GT4": 4,
+        "Strada HF": 6,
+        "Nightjar KR": 9
+      }
     }
   }
 }

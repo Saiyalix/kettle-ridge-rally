@@ -61,6 +61,34 @@ const autoGasScenario = spec => {
   P.setKeys({ right: false });
   return { slideBefore: Math.abs(before.beta), peak, turn: unwrap(after.heading - b0), minGas, gasAtEnd: after.throttle, kmhEnd: after.kmh };
 };
+// the gas steers the drift: on a flat pad, steering held (buttons = right key, tilt = full tilt) with GAS held vs GAS let go (the same keys the buttons press)
+const gasDriftScenario = spec => {
+  const P = window.__probe.phone, S = { car: 0, surface: 'gravel', kmh: 80, via: 'keys', gas: true, fullS: 1.5, testS: 2, windowS: 0.5, ...spec };
+  window.__ang = 90; P.start();
+  if (S.via === 'tilt') for (let i = 0; i < 240; i++) { window.__pose(0, 0, 90); P.step(2); }   // countdown: the phone is held level
+  P.go();
+  const prev = P.setCar(S.car);
+  try {
+    P.pad(S.surface, S.kmh);
+    const betaAbs = () => Math.abs(P.read().beta);
+    for (let i = 0; i < 180; i++) { P.setKeys({ up: P.read().kmh < S.kmh }); window.__pose(0, 0, 90); P.step(1); }   // 1.5 s straight at speed
+    const steerOn = on => { if (S.via === 'keys') P.setKeys({ right: on }); else window.__pose(on ? 40 : 0, 0, 90); };
+    const win = [], peak = [];
+    const n = Math.round((S.fullS + S.testS) / (1 / 120));
+    for (let i = 1; i <= n; i++) {
+      const t = i / 120;
+      P.setKeys({ up: t <= S.fullS || S.gas });
+      if (S.via === 'tilt') { if (i % 2 === 0) steerOn(true); } else steerOn(true);
+      P.step(1);
+      const b = betaAbs();
+      if (t > S.fullS + S.testS - S.windowS) win.push(b);
+      if (t > S.fullS) peak.push(b);
+    }
+    return { endDeg: win.reduce((a, x) => a + x, 0) / win.length, peakDeg: Math.max(...peak), throttleEnd: P.read().throttle };
+  } finally {
+    P.setKeys({ up: false, right: false }); window.__pose(0, 0, 90); P.padEnd(); P.setCar(prev);
+  }
+};
 
 module.exports = async function phoneTest({ browser, base, expected, shot }) {
   const X = expected.phone, V = expected.mobile.viewport, checks = [];
@@ -127,6 +155,17 @@ module.exports = async function phoneTest({ browser, base, expected, shot }) {
   add(`tilt: part tilt (${X.jitterPartTiltDeg}°) with ±${X.jitterDeg}° shake: steering ± ≤ ${X.jitterMaxSteerRange}, slide wobble no more than ${X.jitterMaxSlideRangeDeg}° above the same run without shake`,
     wob.steerRange <= X.jitterMaxSteerRange && extra <= X.jitterMaxSlideRangeDeg,
     `steering varies by ${f(wob.steerRange, 3)}, slide varies by ${f(wob.slideRange, 2)}° (no shake ${f(wobRef.slideRange, 2)}°)`);
+
+  // the gas steers the drift with tilt steering (full tilt held): GAS held slides wider than GAS let go, on every car
+  {
+    const GD = X.gasDrift, names = await g.page.evaluate(() => window.__probe.CONFIG.cars.map(c => c.name));
+    for (let ci = 0; ci < names.length; ci++) {
+      const need = GD.minMoreDeg[names[ci]];
+      const gOn = await g.page.evaluate(gasDriftScenario, { car: ci, via: 'tilt', gas: true, ...GD }), off = await g.page.evaluate(gasDriftScenario, { car: ci, via: 'tilt', gas: false, ...GD });
+      add(`gas drift, tilt steering, ${names[ci]} (${GD.surface} ${GD.kmh} km/h, full tilt): GAS held slides ≥ ${need}° more than GAS let go`, need !== undefined && gOn.endDeg - off.endDeg >= need,
+        `${f(gOn.endDeg, 1)}° with GAS vs ${f(off.endDeg, 1)}° without (+${f(gOn.endDeg - off.endDeg, 1)}°), peak ${f(gOn.peakDeg, 0)}° / ${f(off.peakDeg, 0)}°`);
+    }
+  }
 
   // ================= 1b. TILT REVERSED (press the Steering button once: Tilt -> Tilt reversed) =================
   await clickId('tiltBtn2');
@@ -199,6 +238,17 @@ module.exports = async function phoneTest({ browser, base, expected, shot }) {
   await up(14); await up(11);
   const g4 = await keys();
   add('gas button: every finger up -> nothing stuck', on(g4) === 'none', `pressed: ${on(g4)}`);
+
+  // the gas steers the drift with the steering buttons (right key held): GAS held slides wider than GAS let go, on every car
+  {
+    const GD = X.gasDrift, names = await page.evaluate(() => window.__probe.CONFIG.cars.map(c => c.name));
+    for (let ci = 0; ci < names.length; ci++) {
+      const need = GD.minMoreDeg[names[ci]];
+      const gOn = await page.evaluate(gasDriftScenario, { car: ci, via: 'keys', gas: true, ...GD }), off = await page.evaluate(gasDriftScenario, { car: ci, via: 'keys', gas: false, ...GD });
+      add(`gas drift, steering buttons, ${names[ci]} (${GD.surface} ${GD.kmh} km/h): GAS held slides ≥ ${need}° more than GAS let go`, need !== undefined && gOn.endDeg - off.endDeg >= need,
+        `${f(gOn.endDeg, 1)}° with GAS vs ${f(off.endDeg, 1)}° without (+${f(gOn.endDeg - off.endDeg, 1)}°), peak ${f(gOn.peakDeg, 0)}° / ${f(off.peakDeg, 0)}°, throttle at the end ${f(gOn.throttleEnd)} / ${f(off.throttleEnd)}`);
+    }
+  }
 
   // rotating the phone mid-race with a finger down
   await down(8, 'right'); await page.waitForTimeout(150);
