@@ -5,6 +5,12 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-24 · Region: stages get a shared real-world setting (Brindmark)
+**Decision:** the owner asked "Make the tracks more in tune with the area around ... fit into a context, like it's in a real world." Answers: (1) how lively: **Rich** (towns, farms, power lines, trains, chimney smoke, cattle, many buildings, far landmarks); (2) region: **full region map**, the same invented place names on signposts across stages, plus a map in the menu showing where each stage is; (3) run-in and run-out roads: **scenery only, not drivable**. The setting is an invented island, Brindmark, with five districts (one per stage); names, distances, map grid and sign style are in `docs/region.md`.
+**Why:** each stage started "in the middle of nowhere". Shared names and a map make five different looks (forest, alpine, Japan, castle, desert) feel like one place. Scenery only means no change to handling, stage roads, clocks or bot times.
+**Numbers:** none measured yet. Bot times must stay unchanged in every stage PR.
+**Names:** QA flagged names that match real places, so they were changed before any stage uses them (checked from memory, no web search): Varnholm to Brindmark, Port Varn to Port Sallow, Highgate to Skarnfell (Alps, Lodge, town), Minato to Hamaro, Kazemi to Kazeura, Fenmouth to Saltreach, Alderby to Birkwen, Coldwater Dam to Greywater Dam, Dry Fork to Ember Fork, River Wend to River Teal, River Aldwater to River Birkwater. Distances unchanged except Ember Fork on SS4 (112 became 114 = Thornwick 44 + Port Sallow 70). Thornwick, Kettle Ridge, Vulture Ledge, Sakura Touge are existing stage names and stay.
+
 ### 2026-11-12 · Tracks: SS5 Red Mesa Run (desert canyon at sunset), drivable stage
 **Decision:**
 - New stage `redmesa` (theme `desert`, seed 59), between SS4 and the Test Track, so the championship is now 5 stages. About 2870 m with the run-out (finish at 2723 m).
