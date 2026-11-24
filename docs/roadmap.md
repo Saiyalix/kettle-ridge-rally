@@ -3,6 +3,7 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **SS5 Red Mesa Run** (2026-11-24): desert canyon at golden hour, 2.7 km: dirt sweepers, a tarmac mining road, a gravel canyon with a 1.9 m crest jump. All three cars clean on the bot, 11+ s clock margin.
 - **Third car, Nightjar KR** (2026-11-12, owner: "slidey, distinctly different ... built to handle long drifts"): steady 32–34° drift on gravel, dirt and snow, 12–15° on tarmac, never quicker than the other two on the bot. Own long, low body and 4 liveries. Own targets in `CLAUDE.md`; tests check them per car. Owner decided damage stays looks only.
 - **Full-game flow test** (2026-11-12, #40): new `flow` test plays menu → finish → replay, championship, pause, rescue, Test Track. The test kit waits longer on a busy machine.
 - **Earlier corner warnings** (2026-11-12, #39): hairpin and square calls ~60 m earlier with ", brake!", sharp corners +30 m, orange note box for tight corners.
@@ -40,7 +41,6 @@ Kept up to date by the producer department. Newest changes at the top of each se
 
 ## Next (in this order unless the owner says otherwise)
 1. **Brighter dust and clearer grass clods**: the dust is modest, and green clods are hard to see on grass. (art)
-2. **Fifth stage**: new route, theme and clock; needs bot times recorded. Route and theme to be picked by the producer plan. (tracks, art)
 
 ## Settled, no longer open
 - Hay bales you can drive through: solved 2026-11-11, hay is solid and soft (#24).
