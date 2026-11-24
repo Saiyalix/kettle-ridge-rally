@@ -89,6 +89,22 @@ const STAGES = [
     checkpoints: [520, 1030, 1520, 2030],
     timeStart: 28, timeExt: [29, 25, 26, 22], refTime: 109,   // refTime: a steady clean run; rival times are spread around it    // arcade clock: seconds at the start, + at each checkpoint
     jumps: [[1450, 2.3]],
+    // context: the world around the stage (docs/decisions.md, 2026-11-24). Visual only: run-in and run-out are not part of the route, the clock or the bot.
+    //   lead / tail: { len m, curve deg (+ = turning left over the whole length), end: 'tee' | 'gate' | 'none', surface (default: the stage's first / last), arm: tee arm length m }
+    //   houses: [{ from, to, gap: [min, max], skip, stone, flat }]   walls: [{ from, to, kind: 'stone' | 'fence', off, any }]   (s may be < 0 or > length)
+    //   signs: [{ s, side, kind: 'entry' | 'direction', lines, off }]   benches: [{ s, side, off, w, d, ramp }]   keep: { start, finishBefore, finishAfter }   margin: m
+    context: {
+      lead: { len: 200, curve: 10, end: 'tee' },
+      tail: { len: 220, curve: -15, end: 'gate' },
+      houses: [{ from: -196, to: -18, gap: [3.8, 6.0], skip: 0.12 }, { from: -196, to: -60, gap: [9, 12], skip: 0.35, stone: 0.5 }],
+      walls: [{ from: -196, to: -16, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
+      signs: [
+        { s: -24, side: 1, kind: 'entry', lines: ['BIRKWEN'] },
+        { s: 84, side: 1, kind: 'direction', lines: ['SAWMILL GAP 6 >', 'SKARNFELL 38', 'PORT SALLOW 71'] },
+        { s: 2660, side: 1, kind: 'entry', lines: ['SAWMILL GAP'] },
+        { s: 2730, side: 1, kind: 'direction', lines: ['SALTREACH 98 >', 'SKARNFELL 38'] },
+      ],
+    },
     segments: [
       ['S', 120], ['L', 35, 180], ['S', 80], ['R', 70, 80], ['S', 60], ['L', 90, 40],
       ['S', 140], ['R', 30, 250], ['S', 100], ['L', 60, 60], ['S', 60], ['R', 165, 17],

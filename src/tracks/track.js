@@ -101,6 +101,43 @@ function buildTrack(ST = CONFIG.stage) {
       p.drop = 40 + 55 * (0.5 + 0.5 * Math.sin(p.s / 143 + 1.3));
     }
   }
+  // Run-in and run-out: visual road before s = 0 and after the runoff (ST.context.lead / .tail). NOT in `samples`: s values, gates, checkpoints,
+  // pace notes, minimap, rivals and the bot only ever see `samples`. Terrain and the road mesh also read `visual` (lead + samples + tail + tee arms).
+  // Each piece: { len m, curve deg (+ = turning left, over the whole length), end: 'tee' | 'gate' | 'none', surface, arm: tee arm length m }
+  const ctx = ST.context || {}, lead = [], tail = [], arms = [], ends = {};
+  const ghFn = ST.roadHeight || ST.height, XS = 4;
+  const extend = (a, sgn, spec) => {
+    const out = [], m = Math.max(1, Math.round(spec.len / XS)), ds = spec.len / m, dth = (spec.curve || 0) * D2R / m, g0 = ghFn(a.x, a.z);
+    let x = a.x, z = a.z, th = a.th;
+    for (let i = 1; i <= m; i++) {
+      if (sgn > 0) { th += dth * 0.5; x += Math.sin(th) * ds; z += Math.cos(th) * ds; th += dth * 0.5; }
+      else { th -= dth * 0.5; x -= Math.sin(th) * ds; z -= Math.cos(th) * ds; th -= dth * 0.5; }
+      const s0 = sgn > 0 ? a.s + i * ds : -i * ds;
+      const y = ST.elevation ? ST.elevation(s0) : a.y + (ghFn(x, z) - g0) * smoothstep(clamp(i * ds / 80, 0, 1));
+      const q = { x, z, th, s: s0, y, surface: spec.surface || a.surface, v: true };
+      if (cs) { q.upL = a.upL; q.upR = a.upR; q.wall = a.wall; q.drop = a.drop; }
+      out.push(q);
+    }
+    return sgn > 0 ? out : out.reverse();
+  };
+  if (ctx.lead) lead.push(...extend(pts[0], -1, ctx.lead));
+  if (ctx.tail) tail.push(...extend(pts[n - 1], 1, ctx.tail));
+  // a T: the road ends against a cross road (both arms are visual road too, so the ground flattens under them)
+  const teeFor = (e, spec, outward) => {
+    const half = ST.roadHalfWidth, L = spec.arm || 36, c = Math.cos(e.th), sn = Math.sin(e.th);
+    const cx = e.x + Math.sin(e.th) * outward * half * 0.98, cz = e.z + Math.cos(e.th) * outward * half * 0.98, g0 = ghFn(cx, cz), strip = [];
+    for (let t = -L; t <= L + 0.01; t += XS) {
+      const x = cx + c * t, z = cz - sn * t, q = { x, z, th: e.th + Math.PI / 2, s: e.s, y: e.y + (ghFn(x, z) - g0) * smoothstep(clamp(Math.abs(t) / 30, 0, 1)), surface: e.surface, v: true, t: t + 1000 };
+      if (cs) { q.upL = e.upL; q.upR = e.upR; q.wall = e.wall; q.drop = e.drop; }
+      strip.push(q); arms.push(q);
+    }
+    return strip;
+  };
+  const tees = [];
+  if (lead.length && ctx.lead.end === 'tee') tees.push(teeFor(lead[0], ctx.lead, -1));
+  if (tail.length && ctx.tail.end === 'tee') tees.push(teeFor(tail[tail.length - 1], ctx.tail, 1));
+  if (lead.length) ends.lead = { end: ctx.lead.end || 'none', p: lead[0] };
+  if (tail.length) ends.tail = { end: ctx.tail.end || 'none', p: tail[tail.length - 1] };
   if (cs) for (const nt of notes) {           // warn about corners with a drop on the outside
     if (nt.kind === 'jump') continue;
     const p = pts[clamp(Math.round(nt.s / step) + 8, 0, n - 1)];
@@ -139,7 +176,7 @@ function buildTrack(ST = CONFIG.stage) {
   const turnNote = new Map(notes.filter(nt => nt.kind !== 'jump').map(nt => [Math.round(nt.s), nt]));
   for (const t of turns) { const nt = turnNote.get(Math.round(t.s0)); t.blind = !!(nt && nt.blind); t.note = nt ? nt.text : ''; }
   notes.sort((a, b) => a.s - b.s);
-  return { samples: pts, notes, turns, length, finishS, cityStart, flatZones, step };
+  return { samples: pts, notes, turns, length, finishS, cityStart, flatZones, step, lead, tail, tees, ends, visual: lead.concat(pts, tail, arms) };
 }
 
 /* =====================================================================
@@ -148,19 +185,50 @@ function buildTrack(ST = CONFIG.stage) {
    'cliff': shaped around the road: a rock wall on the uphill side, a drop on the other.
    ===================================================================== */
 function buildTerrain(track, ST = CONFIG.stage) {
-  const P = track.samples, half = ST.roadHalfWidth, cliff = ST.terrain === 'cliff';
-  const cell = ST.cell || 4, margin = cliff ? 260 : 200;
+  const P = track.samples, V = track.visual || P, half = ST.roadHalfWidth, cliff = ST.terrain === 'cliff', ctx = ST.context || {};
+  const cell = ST.cell || 4, margin = ctx.margin || (cliff ? 260 : 200);
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
   for (const p of P) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }
   minX -= margin; minZ -= margin; maxX += margin; maxZ += margin;
+  // scenery scatters inside these (the box without run-in / run-out), so adding a run-in never moves a tree
+  const base = { minX, minZ, maxX, maxZ };
+  if (V !== P) {              // grow the grid to cover the run-in / run-out, on the same grid lines (heights on the old nodes stay exactly as they were)
+    let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+    for (const p of V) { a = Math.min(a, p.x); b = Math.max(b, p.x); c = Math.min(c, p.z); d = Math.max(d, p.z); }
+    a -= margin; c -= margin; b += margin; d += margin;
+    if (a < minX) minX -= Math.ceil((minX - a) / cell) * cell;
+    if (c < minZ) minZ -= Math.ceil((minZ - c) / cell) * cell;
+    if (b > maxX) maxX += Math.ceil((b - maxX) / cell) * cell;
+    if (d > maxZ) maxZ += Math.ceil((d - maxZ) / cell) * cell;
+  }
   const nx = Math.ceil((maxX - minX) / cell) + 1, nz = Math.ceil((maxZ - minZ) / cell) + 1;
   const N = nx * nz;
-  const h = new Float32Array(N), dist = new Float32Array(N), nearS = new Float32Array(N);
-  const natural = (x, z) => {
+  const h = new Float32Array(N), dist = new Float32Array(N), nearS = new Float32Array(N), distV = new Float32Array(N);
+  const natural0 = (x, z) => {
     let v = ST.height(x, z);
     for (const f of track.flatZones) { const r = Math.hypot(x - f.x, z - f.z); if (r < f.r + 140) v += (f.level - v) * (1 - smoothstep(clamp((r - f.r) / 140, 0, 1))); }
     return v;
   };
+  // benches (ST.context.benches): level pads beside the road for service parks, car parks, farm yards. { s, side, off, w, d, ramp }:
+  // centre `off` m from the road centre line (side +1 = right), w along the road, d across it, eased into the ground over `ramp` m (default 24).
+  // The inner edge is kept at least 20 m from the road edge, and a bench only ever changes the ground (natural), never the road height.
+  const benches = [];
+  for (const b of ctx.benches || []) {
+    let bp = P[0], bd = 1e9, bs = b.s;
+    for (const arr of [track.lead, P, track.tail]) for (const q of arr) { const dd = Math.abs(q.s - bs); if (dd < bd) { bd = dd; bp = q; } }
+    const off = Math.max(b.off, half + 20 + b.d / 2), side = b.side < 0 ? -1 : 1;
+    const cx = bp.x - Math.cos(bp.th) * side * off, cz = bp.z + Math.sin(bp.th) * side * off;
+    benches.push({ x: cx, z: cz, th: bp.th, w: b.w, d: b.d, ramp: b.ramp || 24, level: natural0(cx, cz), s: bp.s, side, off });
+  }
+  const natural = benches.length ? (x, z) => {
+    let v = natural0(x, z);
+    for (const b of benches) {
+      const dx = x - b.x, dz = z - b.z, u = dx * Math.sin(b.th) + dz * Math.cos(b.th), l = -dx * Math.cos(b.th) + dz * Math.sin(b.th);
+      const ex = Math.max(0, Math.abs(u) - b.w / 2), ez = Math.max(0, Math.abs(l) - b.d / 2), dr = Math.hypot(ex, ez);
+      if (dr < b.ramp) v += (b.level - v) * (1 - smoothstep(dr / b.ramp));
+    }
+    return v;
+  } : natural0;
   // cliff profile of the ground at lateral offset lat (+ = right of the road) from sample p
   const profile = (p, lat, x, z) => {
     const a = Math.abs(lat), edge = half + 2.2;
@@ -173,7 +241,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
   const lateral = (p, x, z) => (x - p.x) * -Math.cos(p.th) + (z - p.z) * Math.sin(p.th);
   // Spatial hash of road samples
   const HC = 20, R = cliff ? 4 : 3, hash = new Map();
-  P.forEach((p, i) => { const k = Math.floor(p.x / HC) * 73856 + Math.floor(p.z / HC); if (!hash.has(k)) hash.set(k, []); hash.get(k).push(i); });
+  V.forEach((p, i) => { const k = Math.floor(p.x / HC) * 73856 + Math.floor(p.z / HC); if (!hash.has(k)) hash.set(k, []); hash.get(k).push(i); });
   // Coarse nearest-sample grid for far-away points
   const CG = 10, cnx = Math.ceil(nx / CG) + 1, cnz = Math.ceil(nz / CG) + 1, coarseI = new Int32Array(cnx * cnz), coarseD = new Float32Array(cnx * cnz);
   for (let cz = 0; cz < cnz; cz++) for (let cx = 0; cx < cnx; cx++) {
@@ -186,19 +254,19 @@ function buildTerrain(track, ST = CONFIG.stage) {
     for (let ix = 0; ix < nx; ix++) {
       const x = minX + ix * cell, z = minZ + iz * cell, k = iz * nx + ix;
       const hx = Math.floor(x / HC), hz = Math.floor(z / HC);
-      let best = 1e18, bi = -1;
+      let best = 1e18, bi = -1, bestP = 1e18, bpi = -1;       // best = nearest road of any kind (height), bestP = nearest real stage road (dist, nearS: as ever)
       for (let a = -R; a <= R; a++) for (let b = -R; b <= R; b++) {
         const list = hash.get((hx + a) * 73856 + (hz + b)); if (!list) continue;
-        for (const j of list) { const dx = P[j].x - x, dz = P[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bi = j; } }
+        for (const j of list) { const dx = V[j].x - x, dz = V[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bi = j; } if (d2 < bestP && !V[j].v) { bestP = d2; bpi = j; } }
       }
-      if (bi < 0) {
+      if (bpi < 0) {
         const ck = Math.round(iz / CG) * cnx + Math.round(ix / CG), ci = coarseI[ck];
-        h[k] = cliff ? profile(P[ci], lateral(P[ci], x, z), x, z) : natural(x, z);
         dist[k] = Math.max(R * HC, coarseD[ck]); nearS[k] = P[ci].s;
-        continue;
-      }
-      const d = Math.sqrt(best), p = P[bi];
-      dist[k] = d; nearS[k] = p.s;
+        if (bi < 0) { h[k] = cliff ? profile(P[ci], lateral(P[ci], x, z), x, z) : natural(x, z); distV[k] = dist[k]; continue; }
+      } else { dist[k] = Math.sqrt(bestP); nearS[k] = V[bpi].s; }
+      if (bi < 0) continue;
+      const d = Math.sqrt(best), p = V[bi];
+      distV[k] = d;
       if (!cliff) {
         const t = clamp((d - (half + 2)) / 22, 0, 1);
         h[k] = p.y + (natural(x, z) - p.y) * smoothstep(t);
@@ -209,12 +277,12 @@ function buildTerrain(track, ST = CONFIG.stage) {
       let best2 = 1e18, bj = -1;
       for (let a = -R; a <= R; a++) for (let b = -R; b <= R; b++) {
         const list = hash.get((hx + a) * 73856 + (hz + b)); if (!list) continue;
-        for (const j of list) { if (Math.abs(P[j].s - p.s) < 70) continue; const dx = P[j].x - x, dz = P[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best2) { best2 = d2; bj = j; } }
+        for (const j of list) { if (Math.abs(V[j].s - p.s) < 70) continue; const dx = V[j].x - x, dz = V[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best2) { best2 = d2; bj = j; } }
       }
       const h1 = profile(p, lateral(p, x, z), x, z);
       if (bj < 0) { h[k] = h1; continue; }
       const d2 = Math.sqrt(best2), w1 = 1 / Math.pow(d + 1, 4), w2 = 1 / Math.pow(d2 + 1, 4);
-      h[k] = (h1 * w1 + profile(P[bj], lateral(P[bj], x, z), x, z) * w2) / (w1 + w2);
+      h[k] = (h1 * w1 + profile(V[bj], lateral(V[bj], x, z), x, z) * w2) / (w1 + w2);
     }
   }
   function heightAt(x, z) {
@@ -228,7 +296,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
     const ix = clamp(Math.round((x - minX) / cell), 0, nx - 1), iz = clamp(Math.round((z - minZ) / cell), 0, nz - 1);
     return arr[iz * nx + ix];
   }
-  return { minX, minZ, maxX, maxZ, nx, nz, cell, h, dist, nearS, heightAt, distAt: (x, z) => gridLookup(dist, x, z), sAt: (x, z) => gridLookup(nearS, x, z) };
+  return { minX, minZ, maxX, maxZ, base, nx, nz, cell, h, dist, nearS, distV, benches, heightAt, distAt: (x, z) => gridLookup(dist, x, z), distVAt: (x, z) => gridLookup(distV, x, z), sAt: (x, z) => gridLookup(nearS, x, z) };
 }
 
 /* World interface used by the car: ground height, normal and surface */
