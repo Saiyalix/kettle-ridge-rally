@@ -3,6 +3,10 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **Third car, Nightjar KR** (2026-11-12, owner: "slidey, distinctly different ... built to handle long drifts"): steady 32–34° drift on gravel, dirt and snow, 12–15° on tarmac, never quicker than the other two on the bot. Own long, low body and 4 liveries. Own targets in `CLAUDE.md`; tests check them per car. Owner decided damage stays looks only.
+- **Full-game flow test** (2026-11-12, #40): new `flow` test plays menu → finish → replay, championship, pause, rescue, Test Track. The test kit waits longer on a busy machine.
+- **Earlier corner warnings** (2026-11-12, #39): hairpin and square calls ~60 m earlier with ", brake!", sharp corners +30 m, orange note box for tight corners.
+- **Phone speed pass** (2026-11-12, #38): ground drawn in tiles (about half the triangles per frame, same look), idle dust skipped, auto-drop to Low below ~28 fps. Low particle numbers confirmed.
 - **Sharper look** (2026-11-12, #35 test page, #36 live): 4x MSAA, light sharpen, punchier stage colours, smoother edges. Render scale stays 0.72 x dpr on High (1.0 with 4x MSAA timed out the test browser). Owner tried it on the phone: "good".
 - **Drift fix** (2026-11-12, #33): in a drift the car follows its nose on the gas, and drifting costs a little speed. Handling rule 5 reworded at the owner's request. Owner tried it on the phone: "good".
 - **Effects** (2026-11-12, #34): dust, spray and sparks per surface, scuffs and dirt on the car after hits.
@@ -28,17 +32,15 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - **Handling rebuilt**: arcade model (`CONFIG.arcade`, `Car.arcadeForces`) with the four handling rules; measured targets hold (see `tests/results/report.md`).
 - **Phone controls**: on-screen steer / brake / handbrake / camera / reset / pause, auto gas, tilt steering, landscape layout.
 - **4 stages**: SS1 Kettle Ridge (tarmac, gravel, snow), SS2 Vulture Ledge (gravel, dirt, cliffs), SS3 Sakura Touge (tarmac, gravel, neon town), SS4 Thornwick Keep (gravel only, village, forest, through a castle; blockout look, art dresses it next).
-- **2 cars**: Kestrel GT4 (grippy, precise), Strada HF (light, loves a slide).
+- **3 cars**: Kestrel GT4 (grippy, precise), Strada HF (light, loves a slide), Nightjar KR (drift car, 2026-11-12).
 - Co-driver pace notes with voice, replays, rescue/respawn, championship mode, 15-car field with rivals on time.
 
 ## Waiting on the owner
-- Nothing is waiting right now. Questions below need a yes before work starts (see Ideas): a 3rd car, light car damage.
+- Try the Nightjar KR on the test page before it goes live.
 
 ## Next (in this order unless the owner says otherwise)
-1. **Performance on mid-range phones**: target 30 fps; Sakura Touge's neon town is the heaviest stage. Confirm the Low-quality particle counts and the automatic fallback on a real phone. (ui-mobile, art)
-2. **Brighter dust and clearer grass clods**: the dust is modest, and green clods are hard to see on grass. (art)
-3. **Co-driver call for tight corners at speed**: make the note earlier or sharper where full gas into a tight corner still runs wide. Handling rules stay as they are. (tracks pace-note text; audio if the voice changes)
-4. **Fifth stage**: new route, theme and clock; needs bot times recorded. Route and theme to be picked by the producer plan. (tracks, art)
+1. **Brighter dust and clearer grass clods**: the dust is modest, and green clods are hard to see on grass. (art)
+2. **Fifth stage**: new route, theme and clock; needs bot times recorded. Route and theme to be picked by the producer plan. (tracks, art)
 
 ## Settled, no longer open
 - Hay bales you can drive through: solved 2026-11-11, hay is solid and soft (#24).
@@ -47,9 +49,8 @@ Kept up to date by the producer department. Newest changes at the top of each se
 ## Ideas (not planned yet)
 - Richer surface audio: more distinct gravel / snow / tarmac sounds. (audio)
 - More stages. (tracks, art)
-- A 3rd car (needs a new Strada-vs-Kestrel-style target; owner approval). (handling, art)
 - Weather and time of day variants of existing stages.
 - Daily challenge stage with a fixed seed.
-- Car damage that affects handling a little (would need owner approval: touches the handling rules).
+- ~~Car damage that affects handling~~: decided 2026-11-12, the owner wants damage to stay looks only.
 - Branch preview link so PRs can be tested on the phone before merging.
 - Turn the `boot()` parts into real JavaScript modules (each file with its own imports), one folder at a time. Only worth it if the shared-variable setup starts causing mistakes.

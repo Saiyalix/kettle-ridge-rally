@@ -29,6 +29,7 @@
   const LV_BODY = [
     { door: [0.16, -0.42], belt: 0.26, sill: -0.27, handle: [-0.3, 0.17], cap: [-1.3, 0.14] },       // Kestrel
     { door: [0.5, -0.58], belt: 0.3, sill: -0.27, handle: [-0.42, 0.2], cap: [-1.55, 0.12] },        // Strada
+    { door: [0.3, -0.75], belt: 0.26, sill: -0.27, handle: [-0.55, 0.17], cap: [-1.62, 0.18] },      // Nightjar
   ];
 
   function paintLivery(cv, ci, L) {
@@ -170,6 +171,51 @@
         tops((t) => { for (let k = 0; k < 6; k++) { const z = 2.15 - k * 0.2; poly(t, [[z, -0.65], [z - 0.2, -0.65], [z - 0.1, 0.65 - k * 0.0]], k % 2 ? C.a : C.b); } rect(t, 0.4, 0.62, -1.0, -0.62, C.a); rect(t, 0.4, 0.1, -1.0, -0.1, C.b); });
       },
     };
+    Object.assign(D, {
+      dusk() {               // black car, orange drift-trail swooshes down the flank, white pin-line, orange spine
+        sides((t) => {
+          poly(t, [[2.1, -0.12], [1.1, 0.04], [-0.3, 0.14], [-1.5, 0.12], [-2.3, 0.02], [-2.3, -0.08], [-1.4, -0.03], [-0.3, 0.02], [1.0, -0.1], [1.8, -0.22], [2.1, -0.26]], C.a);
+          poly(t, [[1.6, -0.22], [0.6, -0.1], [-0.6, -0.04], [-1.6, -0.12], [-1.5, -0.2], [-0.6, -0.14], [0.6, -0.2], [1.3, -0.3], [1.9, -0.3]], C.a);
+          line(t, [[2.0, -0.02], [1.0, 0.1], [-0.3, 0.2], [-1.5, 0.19], [-2.3, 0.1]], C.b, 0.012);
+          rect(t, -2.3, -0.3, 2.3, -0.27, C.a);
+          word(t, spons[0], 1.3, -0.17, 0.075, C.b, { spacing: 0.012 });
+          word(t, spons[1], -1.45, -0.02, 0.07, C.b, { spacing: 0.012 });
+        });
+        tops((t) => { rect(t, 2.2, 0.12, 0.6, -0.12, C.a); rect(t, 0.6, 0.1, -2.2, -0.1, C.a); rect(t, 2.2, 0.15, -2.2, 0.125, C.b); rect(t, 2.2, -0.125, -2.2, -0.15, C.b); });
+      },
+      bone() {               // bone-white car, black tyre-skid arcs, red sun on the bonnet, black roof
+        sides((t) => {
+          rect(t, -2.3, -0.3, 2.3, -0.17, C.b);
+          for (let k = 0; k < 3; k++) {
+            const pts = []; for (let i = 0; i <= 12; i++) { const z = 2.1 - i * 0.37; pts.push([z, 0.02 + k * 0.07 + 0.09 * Math.sin(i * 0.55 + k) * (i / 12) - 0.16 * (1 - i / 12) * (k === 1 ? 0.5 : 0.8)]); }
+            line(t, pts, C.b, 0.05 - k * 0.01);
+          }
+          rect(t, -2.3, -0.17, 2.3, -0.145, C.a);
+          word(t, spons[0], 1.45, -0.245, 0.055, C.base, { spacing: 0.02 });
+          word(t, spons[1], -1.45, -0.245, 0.055, C.base, { spacing: 0.02 });
+        });
+        tops((t) => { circ(t, 1.55, 0.0, 0.34, C.a); rect(t, 2.2, 0.7, 2.14, -0.7, C.b); rect(t, 0.6, 0.7, -1.5, -0.7, C.b); rect(t, 0.6, 0.06, -1.5, -0.06, C.a); rect(t, -1.5, 0.7, -2.2, -0.7, C.b); });
+      },
+      deepsea() {            // deep teal car, pink and cyan wave ribbons rolling along the flank
+        sides((t) => {
+          const wave = (y0, amp, ph) => { const p = []; for (let i = 0; i <= 24; i++) { const z = 2.3 - i * 0.19; p.push([z, y0 + amp * Math.sin(i * 0.7 + ph)]); } return p; };
+          line(t, wave(0.0, 0.1, 0), C.b, 0.09); line(t, wave(0.0, 0.1, 0), C.a, 0.025);
+          line(t, wave(-0.18, 0.07, 1.4), C.a, 0.06); line(t, wave(0.2, 0.05, 2.6), C.a, 0.02);
+          rect(t, -2.3, -0.3, 2.3, -0.27, C.b);
+          word(t, spons[0], 1.45, 0.0, 0.07, C.base, { spacing: 0.012 });
+          word(t, spons[1], -1.4, 0.0, 0.07, C.base, { spacing: 0.012 });
+        });
+        tops((t) => { for (let k = 0; k < 3; k++) { const p = []; for (let i = 0; i <= 14; i++) p.push([2.2 - i * 0.3, (k - 1) * 0.3 + 0.07 * Math.sin(i * 0.9 + k)]); line(t, p, k === 1 ? C.b : C.a, 0.07); } });
+      },
+      sand() {               // sand-tan car, brown chevrons pointing at the nose, black sill, cream roof stripe
+        sides((t) => {
+          for (let k = 0; k < 8; k++) { const z = 2.0 - k * 0.55; poly(t, [[z, -0.3], [z - 0.14, -0.3], [z - 0.4, -0.02], [z - 0.14, 0.26], [z, 0.26], [z - 0.26, -0.02]], k % 2 ? C.b : C.a); }
+          rect(t, -2.3, -0.3, 2.3, -0.23, C.c);
+          word(t, spons[0], 1.45, -0.265, 0.045, C.b, { spacing: 0.02 });
+        });
+        tops((t) => { for (let k = 0; k < 5; k++) { const z = 2.1 - k * 0.3; poly(t, [[z, 0.0], [z - 0.14, 0.0], [z - 0.4, 0.55], [z - 0.26, 0.55]], C.a); poly(t, [[z, 0.0], [z - 0.14, 0.0], [z - 0.4, -0.55], [z - 0.26, -0.55]], C.a); } rect(t, 0.5, 0.7, -1.5, -0.7, C.c); rect(t, 0.5, 0.08, -1.5, -0.08, C.b); });
+      },
+    });
     const RD = RIVAL_DESIGNS[L.design];                                       // rival crews' designs live in art/rival-liveries.js
     if (D[L.design]) D[L.design](); else if (RD) RD({ sides, tops, poly, rect, circ, line, word, C, spons, L, ci }); else D.ridgeline();
     // common to every livery: shut lines, handle, fuel cap, number panels
@@ -177,19 +223,20 @@
       // wing / spoiler endplate panel (the plates sample this part of the side tile)
       const wl = ((L.wing >> 16) & 255) * 0.3 + ((L.wing >> 8) & 255) * 0.59 + (L.wing & 255) * 0.11, wcol = hexS(L.wing);
       if (ci === 0) { rect(t, -2.1, 0.45, -1.55, 0.9, wcol); word(t, spons[2] || spons[0], -1.83, 0.69, 0.07, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
+      else if (ci === 2) { rect(t, -2.15, 0.5, -1.65, 0.9, wcol); word(t, spons[2] || spons[0], -1.9, 0.7, 0.065, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
       else { rect(t, -1.95, 0.8, -1.4, 0.9, wcol); word(t, 'KRR', -1.68, 0.86, 0.05, wl > 140 ? '#101418' : '#ffffff', { spacing: 0.01, italic: true }); }
       const d = B.door, ln = 'rgba(8,10,14,0.55)';
       line(t, [[d[0], B.belt], [d[0], B.sill]], ln, 0.011); line(t, [[d[1], B.belt], [d[1], B.sill]], ln, 0.011);
       line(t, [[d[0], B.sill], [d[1], B.sill]], ln, 0.008);
       rect(t, B.handle[0] + 0.07, B.handle[1] + 0.012, B.handle[0] - 0.07, B.handle[1] - 0.012, ln);
       circ(t, B.cap[0], B.cap[1], 0.065, ln);
-      numPanel(t, (d[0] + d[1]) / 2 - 0.02, ci === 0 ? 0.0 : 0.02, 0.2, ci === 1);
+      numPanel(t, (d[0] + d[1]) / 2 - 0.02, ci === 0 ? 0.0 : ci === 2 ? 0.0 : 0.02, 0.2, ci === 1);
       // second wordmark band above the rear arch for the first two sponsors was drawn per design
     });
     tops((t) => {
-      numPanel(t, ci === 0 ? 1.45 : 1.25, 0.0, 0.2, false);
-      word(t, 'KRR', ci === 0 ? -0.2 : -0.3, 0.0, 0.09, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
-      word(t, spons[2] || spons[0], ci === 0 ? 1.92 : 1.72, 0.0, 0.085, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
+      numPanel(t, ci === 0 ? 1.45 : ci === 2 ? 1.5 : 1.25, 0.0, 0.2, false);
+      word(t, 'KRR', ci === 0 ? -0.2 : ci === 2 ? -0.5 : -0.3, 0.0, 0.09, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
+      word(t, spons[2] || spons[0], ci === 0 ? 1.92 : ci === 2 ? 2.0 : 1.72, 0.0, 0.085, C.nbg, { italic: true, spacing: 0.02, stroke: C.nfg, strokeW: 0.02 });
     });
   }
 

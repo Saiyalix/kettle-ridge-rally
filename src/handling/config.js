@@ -187,12 +187,13 @@ const CONFIG = {
     // rear = rear grip vs front (lower = the tail lets go more easily; below 1 a held key slides the car),
     // peak = slip angle of most grip (°; higher = softer, more progressive),
     // slide = angle (° × slideHold × car drift) where a held key stops adding rotation; a held slide settles at about 0.6× that
+    // bite = share of a car's slideBite that works here (default 1; only the Nightjar has one). 0 on grass: no deep drifts off the road
     surfaces: {
       tarmac: { maxG: 1.6,  top: 1.0,  drag: 0.02, rear: 1.04, peak: 6.5, slide: 16 },
       gravel: { maxG: 1.3,  top: 0.96, drag: 0.04, rear: 0.6,  peak: 9,   slide: 30 },
       dirt:   { maxG: 1.24, top: 0.95, drag: 0.05, rear: 0.58, peak: 10,  slide: 32 },
       snow:   { maxG: 1.08, top: 0.92, drag: 0.05, rear: 0.56, peak: 10,  slide: 34 },
-      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28 },
+      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28, bite: 0 },
     },
   },
   // Car colours (art owns paint / stripe / skirt / number and `liveries`): paint/stripe/skirt/number = the default
@@ -215,6 +216,25 @@ const CONFIG = {
         { id: 'lime',    name: 'Lime Rush',    design: 'lime',   base: 0xb7e81c, a: 0x15161a, b: 0x12b7c4, c: 0x15161a, wheel: 0x24272c, numBg: 0x15161a, numFg: 0xb7e81c, plate: 'LR 88-ZP', wing: 0x15161a, spons: ['TAMARACK', 'HALCYON', 'NORTHGATE'], number: '88' },
         { id: 'violet',  name: 'Violet Storm', design: 'violet', base: 0x6a2bd6, a: 0x19e0e0, b: 0xf4f6f8, c: 0x1b0d3d, wheel: 0x19e0e0, numBg: 0xf4f6f8, numFg: 0x4a1aa8, plate: 'VS 23-ZZ', wing: 0x19e0e0, spons: ['PIKE RACING', 'ROTOR OIL', 'AUROC'], number: '23' },
         { id: 'arctic',  name: 'Silver Shard', design: 'arctic', base: 0xc9ced6, a: 0x0f6b5e, b: 0xff3d8a, c: 0x0f6b5e, wheel: 0xff3d8a, numBg: 0xff3d8a, numFg: 0xf4f6f8, plate: 'SS 19-IC', wing: 0x0f6b5e, spons: ['NORTHGATE', 'KETTLE CO-OP', 'HALCYON'], number: '19' },
+      ] },
+    // Third car (owner 2026-11-12: "slidey, distinctly different, built for long drifts"). Handling: docs/decisions.md, 2026-11-12.
+    // Own body + 4 liveries by art; stats are handling's.
+    // Besides the usual stats it sets its own handling fields (a car without them drives exactly as CONFIG.arcade says):
+    //   slideBite   once a steering key has been held biteAfter s (fully biteRamp s later) the fronts keep full bite until the slide is
+    //               within 1/slideBite of the hold angle, so a held drift settles deeper and steadier. 1 = like the other cars; higher =
+    //               deeper. A handbrake pull or brake tap brings it in at once; off on grass (CONFIG.arcade.surfaces.grass.bite).
+    //               Quick taps and corrections never get it, so the car stays tidy when you are just placing it.
+    //   slideCatch  its own CONFIG.arcade.slideCatch for slides from steering alone (higher = calmer swing-out, steadier drift)
+    //   slideKeep   its own CONFIG.arcade.slideKeep (higher = a drift loses less speed; still slower than a clean line, rule 5)
+    //   slideFrom / slideFull   its own speeds (m/s) where the rear's looseness fades in (here: fully loose from 54 km/h)
+    { id: 'nightjar', name: 'Nightjar KR', blurb: 'Long, loose and happiest sideways. Throws its tail out early and holds a drift all the way round.', accel: 1.0, top: 1.0, grip: 1.0, drift: 1.04, turn: 1.05, rear: 0.85, rearDrive: 1.15,
+      slideBite: 4, biteAfter: 0.6, biteRamp: 0.6, slideCatch: 0.4, slideKeep: 0.9, slideFrom: 8, slideFull: 15,
+      paint: 0x14161c, stripe: 0xff8a1e, skirt: 0x14161c, number: '9',
+      liveries: [
+        { id: 'nj-dusk',  name: 'Dusk',      design: 'dusk',    base: 0x14161c, a: 0xff8a1e, b: 0xf4f6f8, c: 0x14161c, wheel: 0xff8a1e, numBg: 0xff8a1e, numFg: 0x14161c, plate: 'NJ 09-KR', wing: 0xff8a1e, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'HALCYON'], number: '9' },
+        { id: 'nj-bone',  name: 'Bone Drift', design: 'bone',   base: 0xe9e6dc, a: 0xd8262e, b: 0x16171a, c: 0x16171a, wheel: 0xd8262e, numBg: 0x16171a, numFg: 0xe9e6dc, plate: 'NJ 13-BN', wing: 0x16171a, spons: ['NORTHGATE', 'TAMARACK', 'BRINDLE'], number: '13' },
+        { id: 'nj-deep',  name: 'Deep Sea',  design: 'deepsea', base: 0x0a2e3b, a: 0x1fe0e6, b: 0xff2d78, c: 0x061a22, wheel: 0xff2d78, numBg: 0xff2d78, numFg: 0x0a2e3b, plate: 'NJ 27-DS', wing: 0xff2d78, spons: ['PIKE RACING', 'AUROC', 'HALCYON'], number: '27', pod: true },
+        { id: 'nj-sand',  name: 'Sandstorm', design: 'sand',    base: 0xd8a24a, a: 0x4a2a14, b: 0xf4efe0, c: 0x16120e, wheel: 0x16120e, numBg: 0xf4efe0, numFg: 0x4a2a14, plate: 'NJ 05-SD', wing: 0x4a2a14, spons: ['BRINDLE BANK', 'ROTOR OIL', 'KETTLE CO-OP'], number: '5' },
       ] },
   ],
   carIndex: 0,

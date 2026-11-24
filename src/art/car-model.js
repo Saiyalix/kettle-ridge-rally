@@ -1,4 +1,4 @@
-  /* ---------- the player car: two modelled bodies, four liveries each ----------
+  /* ---------- the player car: three modelled bodies, four liveries each ----------
      Built in code from lofted cross-sections (art/car-geo.js), painted by art/car-livery.js. Rebuilt when the car, the
      livery or the graphics quality changes (menu time), so nothing here costs anything per frame.
      Physics sizes (CONFIG.wheels) are not touched: wheel centres, radius and the centre of mass are where they were. */
@@ -58,6 +58,22 @@
     },
   };
   STRADA.w = (z) => STRADA.w0(z) + 0.04 * bump(z, 1.24, 0.55) + 0.04 * bump(z, -1.33, 0.55);
+  // Nightjar KR: long nose, low roof set far back, ducktail, fat rear haunches (the drift car)
+  const NIGHTJAR = {
+    z0: -2.08, z1: 2.2, tumble: 0.06, arches: [[1.24, -0.2, 0.43], [-1.33, -0.2, 0.45]],
+    yb: curve1([[-2.08, -0.14], [-1.95, -0.24], [-1.7, -0.3], [1.9, -0.3], [2.05, -0.24], [2.2, -0.14]]),
+    w0: curve1([[-2.08, 0.64], [-2.0, 0.76], [-1.8, 0.84], [-1.2, 0.86], [1.2, 0.84], [1.8, 0.82], [2.0, 0.76], [2.2, 0.62]]),
+    ys: curve1([[-2.08, 0.27], [-1.95, 0.33], [-1.7, 0.33], [-1.33, 0.3], [-0.5, 0.26], [0.6, 0.26], [1.0, 0.27], [1.24, 0.27], [1.7, 0.2], [2.0, 0.11], [2.2, 0.04]]),
+    crown: curve1([[-2.08, 0], [-1.9, 0.04], [-1.6, 0.03], [-1.2, 0], [0.8, 0], [1.2, 0.03], [1.7, 0.05], [2.2, 0]]),
+    cabin: {
+      z0: 0.55, z1: -1.45, belt: 0.0, tumble: 0.15, bz: [-0.35, 0.05],
+      yR: curve1([[-1.45, 0.3], [-1.2, 0.5], [-0.9, 0.67], [-0.5, 0.74], [-0.1, 0.74], [0.15, 0.7], [0.4, 0.5], [0.55, 0.27]]),
+      wB: curve1([[-1.45, 0.66], [-1.1, 0.78], [-0.6, 0.82], [0.1, 0.8], [0.55, 0.62]]),
+    },
+  };
+  NIGHTJAR.w = (z) => NIGHTJAR.w0(z) + 0.05 * bump(z, 1.24, 0.55) + 0.08 * bump(z, -1.33, 0.62);
+
+  const BODIES = [KESTREL, STRADA, NIGHTJAR];
 
   /* the lower body: sill to bonnet / boot, with the wheel wells dished into the sides */
   const SIDE_F = [0.1, 0.22, 0.36, 0.5, 0.64, 0.78, 0.9];
@@ -268,6 +284,69 @@
     return { frontPlate: [0, -0.2, 1.9, 0], rearPlate: [0, 0.0, -1.905, Math.PI] };
   }
 
+  function buildNightjarDetails(P, L, low, mats) {
+    const sp = NIGHTJAR, dk = hx3(DARK), lens = hx3(0xf4f1dc), red = hx3(0x8c1014), chrome = hx3(0xc4cad0), acc = hx3(L.a);
+    // round lamps in the fenders, a long dark chin with a bright splitter lip
+    both((s) => {
+      const z = 1.9, x = s * 0.6, y = topY(sp, z, 0.6), sl = -Math.atan((topY(sp, z + 0.1, 0.6) - topY(sp, z - 0.1, 0.6)) / 0.2);
+      cyl(P.dark, 0.11, 0.03, x, y + 0.004, z, dk, { rx: sl, low });
+      cyl(P.lamp, 0.085, 0.012, x, y + 0.02, z + 0.004, lens, { rx: sl - 0.1, low });
+      cyl(P.trim, 0.095, 0.008, x, y + 0.014, z, hx3(0x6a7078), { rx: sl, low });
+    });
+    box(P.dark, 1.0, 0.09, 0.02, 0, -0.1, 2.2, dk);
+    box(P.trim, 0.9, 0.012, 0.026, 0, -0.07, 2.205, chrome);
+    box(P.dark, 1.66, 0.025, 0.3, 0, -0.295, 2.1, dk);                       // splitter
+    box(P.trim, 1.66, 0.012, 0.03, 0, -0.29, 2.26, acc);                      // bright lip
+    both((s) => box(P.trim, 0.025, 0.07, 0.3, s * 0.83, -0.26, 2.1, acc));   // splitter end fences
+    // long bonnet: two louvred vents behind a shallow scoop, tow hook
+    both((s) => { for (let k = 0; k < 5; k++) box(P.dark, 0.2, 0.01, 0.03, s * 0.36, topY(sp, 1.0 + k * 0.08, 0.36) + 0.007, 1.0 + k * 0.08, dk, { rx: -0.05 }); });
+    box(P.dark, 0.3, 0.012, 0.22, 0, topY(sp, 1.55, 0) + 0.008, 1.55, dk, { rx: -0.1 });
+    cyl(P.trim, 0.025, 0.1, -0.35, -0.2, 2.22, acc, { rx: Math.PI / 2, low });
+    // fender vents and bolt-on flares (rear ones are the fat ones)
+    both((s) => {
+      for (let k = 0; k < 3; k++) box(P.dark, 0.014, 0.05, 0.1, s * (sp.w(0.7) + 0.005), 0.06 - 0.0, 0.62 + k * 0.14, dk);
+      for (const zc of [1.24, -1.33]) {
+        const rear = zc < 0, R = rear ? 0.46 : 0.44, yc = -0.2, top = sp.ys(zc) - 0.004, wz = sp.w(zc), hw = rear ? 0.6 : 0.52;
+        const pts = [[zc - hw, -0.31], [zc - hw, top], [zc + hw, top], [zc + hw, -0.31], [zc + Math.sqrt(R * R - 0.11 * 0.11), -0.31]];
+        for (let a = -14; a <= 194; a += low ? 26 : 13) pts.push([zc + R * Math.cos(a * Math.PI / 180), yc + R * Math.sin(a * Math.PI / 180)]);
+        pts.push([zc - Math.sqrt(R * R - 0.11 * 0.11), -0.31]);
+        const ex = rear ? 0.085 : 0.045;
+        slab(P.body, pts, s * (wz - 0.03), s * (wz + ex), [1, 1, 1], { uv: true });
+        for (const bz of [-0.45, 0.0, 0.45]) cyl(P.trim, 0.014, 0.01, s * (wz + ex + 0.004), -0.26, zc + bz * (rear ? 1.1 : 1), hx3(0x9aa0a8), { rz: Math.PI / 2, low });
+      }
+      // side-exit pipe under the sill, mirrors
+      cyl(P.trim, 0.04, 0.5, s * 0.88, -0.27, -0.75, chrome, { rx: Math.PI / 2, low });
+      box(P.dark, 0.06, 0.05, 1.5, s * 0.855, -0.265, -0.05, dk);
+      box(P.dark, 0.1, 0.014, 0.014, s * 0.74, 0.38, 0.4, dk, { rz: s * 0.5 });
+      box(P.body, 0.11, 0.07, 0.15, s * 0.84, 0.42, 0.38, [1, 1, 1], { ry: s * 0.12, uv: true });
+      box(P.dark, 0.09, 0.055, 0.01, s * 0.84, 0.42, 0.3, dk, { ry: s * 0.12 });
+    });
+    // rear: ducktail lip, slim tail-lamp bars, diffuser, centre exit, tall swan-neck wing
+    slab(P.body, [[-1.78, 0.325], [-2.0, 0.37], [-2.1, 0.385], [-2.1, 0.33], [-2.0, 0.31]], -0.58, 0.58, [1, 1, 1], { uv: true });
+    both((s) => { box(P.dark, 0.58, 0.08, 0.02, s * 0.36, 0.12, -2.06, dk, { ry: s * -0.12 }); box(P.tail, 0.54, 0.05, 0.025, s * 0.36, 0.12, -2.07, red, { ry: s * -0.12 }); });
+    box(P.tail, 0.2, 0.02, 0.02, 0, 0.12, -2.075, red);
+    slab(P.dark, [[-1.92, -0.26], [-2.1, -0.26], [-2.18, -0.17], [-2.1, -0.15]], -0.55, 0.55, dk);                       // diffuser
+    exhaust(P, 0.0, -0.2, -2.12, low);
+    const wc = hx3(L.wing), wz = -1.92, wy = 0.7;
+    both((s) => {
+      slab(P.body, [[wz + 0.19, wy - 0.09], [wz + 0.19, wy + 0.1], [wz, wy + 0.17], [wz - 0.2, wy + 0.2], [wz - 0.2, wy - 0.09]], s * 0.96, s * 0.975, wc, { uv: true });
+      slab(P.dark, [[wz + 0.08, 0.33], [wz - 0.04, 0.33], [wz - 0.05, wy - 0.02], [wz + 0.14, wy + 0.0]], s * 0.45, s * 0.5, dk);          // swan-neck upright
+    });
+    slab(P.trim, [[wz + 0.18, wy + 0.0], [wz + 0.12, wy + 0.04], [wz - 0.05, wy + 0.07], [wz - 0.2, wy + 0.11], [wz - 0.2, wy + 0.08], [wz - 0.05, wy + 0.0]], -0.96, 0.96, wc, { uv: false });
+    box(P.trim, 1.92, 0.02, 0.025, 0, wy + 0.2, wz - 0.19, acc, { rx: -0.2 });                                             // gurney flap in the accent colour
+    // roof vent, aerial
+    box(P.cabin, 0.34, 0.03, 0.3, 0, 0.75, -0.5, dk); box(P.cabin, 0.26, 0.035, 0.05, 0, 0.76, -0.4, [0, 0, 0]);
+    cyl(P.dark, 0.008, 0.3, -0.4, 0.4, -1.4, dk, { rx: -0.5, low });
+    if (L.pod) {
+      box(P.dark, 0.9, 0.02, 0.05, 0, topY(sp, 1.95, 0) + 0.0, 2.0, dk, { rx: -0.3 });
+      for (const lx of [-0.3, -0.1, 0.1, 0.3]) {
+        cyl(P.dark, 0.07, 0.07, lx, topY(sp, 1.95, 0) + 0.055, 2.0, dk, { rx: Math.PI / 2 - 0.3, low });
+        cyl(P.lamp, 0.058, 0.012, lx, topY(sp, 1.95, 0) + 0.059, 2.035, lens, { rx: Math.PI / 2 - 0.3, low });
+      }
+    }
+    return { frontPlate: [0, -0.2, 2.215, 0], rearPlate: [0, 0.04, -2.09, Math.PI] };
+  }
+
   // high quality paint: clear-coated, mirroring the blurred sky. Devices that cannot make the blurred sky (no float targets) get the plain glossy paint
   function glossPaint(map) {
     const env = envPMREM();
@@ -300,20 +379,20 @@
 
   // all the parts of one car body (also used for the rival cars, art/rival-model.js): { P: parts by material, det: plate positions }
   function buildCarParts(ci, L, low, mats) {
-    const sp = ci === 0 ? KESTREL : STRADA;
+    const sp = BODIES[ci];
     const P = { body: newPart(), cabin: newPart(), glass: newPart(), dark: newPart(), trim: newPart(), lamp: newPart(), tail: newPart() };
     lowerBody(sp, P, low); cabinLoft(sp, P, low);
     if (low === 2) {                                                  // far away (rival cars only): bare shell plus lamp strips, no details
-      const red = hx3(0x8c1014), lens = hx3(0xf4f1dc), sp2 = ci === 0 ? KESTREL : STRADA;
-      box(P.tail, 0.95, 0.07, 0.03, 0, ci === 0 ? 0.1 : 0.2, sp2.z0 - 0.005, red); box(P.lamp, 0.95, 0.08, 0.03, 0, 0.16, sp2.z1 + 0.005, lens);
+      const red = hx3(0x8c1014), lens = hx3(0xf4f1dc), sp2 = sp;
+      box(P.tail, 0.95, 0.07, 0.03, 0, ci === 0 ? 0.1 : ci === 2 ? 0.12 : 0.2, sp2.z0 - 0.005, red); box(P.lamp, 0.95, 0.08, 0.03, 0, 0.16, sp2.z1 + 0.005, lens);
       return { P, det: { frontPlate: [0, 0, 0, 0], rearPlate: [0, 0, 0, 0] } };
     }
-    const det = ci === 0 ? buildKestrelDetails(P, L, low, mats) : buildStradaDetails(P, L, low, mats);
+    const det = [buildKestrelDetails, buildStradaDetails, buildNightjarDetails][ci](P, L, low, mats);
     return { P, det };
   }
 
   function buildPlayerCar(ci, li, low) {
-    const L = CONFIG.cars[ci].liveries[li], sp = ci === 0 ? KESTREL : STRADA;
+    const L = CONFIG.cars[ci].liveries[li];
     while (bodyRoot.children.length) { const c = bodyRoot.children[0]; bodyRoot.remove(c); disposeCarTree(c); }
     for (const wm of wheelMeshes) if (wm.flip) { wm.spinG.remove(wm.flip); disposeCarTree(wm.flip); wm.flip = null; }
     // livery texture
@@ -340,7 +419,7 @@
     const mk2 = (pt, pl) => { const m = numberPlate(ci, L, pl); m.position.set(pt[0], pt[1], pt[2]); m.rotation.y = pt[3]; m.userData.own = true; bodyRoot.add(m); };
     mk2(det.frontPlate, false); mk2(det.rearPlate, true);
     // wheels
-    const kind = ci === 0 ? { spokes: 6, twin: true, w: 0.04 } : { spokes: 5, twin: false, w: 0.07 };
+    const kind = ci === 0 ? { spokes: 6, twin: true, w: 0.04 } : ci === 2 ? { spokes: 8, twin: false, w: 0.034 } : { spokes: 5, twin: false, w: 0.07 };
     const wp = wheelPart(CONFIG.wheels.radius, L.wheel, L.a, kind, low), wg = partGeo(wp);
     const wmat = low ? new THREE.MeshLambertMaterial({ vertexColors: true }) : new THREE.MeshPhongMaterial({ vertexColors: true, specular: 0x666666, shininess: 70, envMap, reflectivity: 0.3, combine: THREE.MixOperation });
     carMatsLive.push(wmat);

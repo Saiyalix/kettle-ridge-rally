@@ -49,14 +49,14 @@
       }
       pVel[i * 3] *= 1 - 2.2 * dt; pVel[i * 3 + 2] *= 1 - 2.2 * dt; pVel[i * 3 + 1] = pVel[i * 3 + 1] * (1 - 1.5 * dt) + 0.4 * dt;
       pPos[i * 3] += pVel[i * 3] * dt; pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt; pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
-      pSize[i] += dt * 2.2;
-      pAlpha[i] = Math.max(0, 0.55 * pAmp[i] * (1 - t) * Math.min(1, t * 8));
+      pSize[i] += dt * 1.8; pPos[i * 3 + 1] += dt * 0.9;       // puffs swell as they thin out, and rise with their growth so the ground never slices them flat
+      pAlpha[i] = Math.max(0, 0.8 * pAmp[i] * (1 - t * t) * Math.min(1, t * 6));      // holds its body for most of its life, then thins out
     }
     pGeo.attributes.position.needsUpdate = pGeo.attributes.aColor.needsUpdate = pGeo.attributes.aAlpha.needsUpdate = pGeo.attributes.aSize.needsUpdate = true;
     if (live === 0) { pAny = false; points.visible = false; }   // this pass zeroed every alpha and uploaded it; from the next frame on there is nothing to do
   }
   let emitAcc = [0, 0, 0, 0], chipAcc = [0, 0, 0, 0];
-  const GREY = [0.82, 0.82, 0.84], CLOD_G = [0.22, 0.42, 0.15], CLOD_B = [0.3, 0.22, 0.14], SNOWW = [1, 1, 1];
+  const GREY = [0.82, 0.82, 0.84], CLOD_G = [0.10, 0.26, 0.07], CLOD_B = [0.19, 0.11, 0.05], SNOWW = [1, 1, 1], SNOW_SHADE = [0.70, 0.79, 0.93];   // darker clods and a cool shaded snow puff, so they read on green grass and white snow
 
   /* ---------- per-wheel trails (called once per wheel per frame from updateVisuals) ----------
      gravel / dirt: tan or brown dust, grows with speed and slide; rear wheels throw chips
@@ -73,14 +73,15 @@
     if (intensity < 0.02) return;
     const sideX = car.right.x * Math.sign(car.beta), sideZ = car.right.z * Math.sign(car.beta);   // the way the car is sliding
     const snow = w.surface === 'snow', grass = w.surface === 'grass';
-    emitAcc[i] += dt * intensity * (tar ? 45 : snow ? 85 : 90) * rate;
+    emitAcc[i] += dt * intensity * (tar ? 45 : 65) * rate;      // fewer, bigger, longer-lived puffs: the same particle budget fills the screen better
     while (emitAcc[i] > 1) {
       emitAcc[i] -= 1;
       const jx = (Math.random() - 0.5) * 0.4, jz = (Math.random() - 0.5) * 0.4, thr = slide * 0.18;
-      const c = tar ? GREY : surf.dust, k = tar ? 1 : 0.9 + Math.random() * 0.15;
-      emit(w.point.x + jx, w.point.y + 0.15, w.point.z + jz,
-        -car.vel.x * 0.15 + sideX * thr + (Math.random() - 0.5) * 1.5, (snow ? 1.2 : 0.6) + Math.random() * 1.2 + slide * 0.04, -car.vel.z * 0.15 + sideZ * thr + (Math.random() - 0.5) * 1.5,
-        [c[0] * k, c[1] * k, c[2] * k], (tar ? 0.5 : 0.6) + intensity * 0.8 + slide * 0.03, (tar ? 0.7 : 0.9) + Math.random() * 0.9 + slide * 0.04, 0, tar ? 0.45 : 1);
+      const c = tar ? GREY : snow ? SNOW_SHADE : surf.dust, k = tar ? 1 : snow ? 0.9 + Math.random() * 0.15 : 1.12 + Math.random() * 0.15;     // dust is a lighter shade of the surface, or it vanishes on a road of the same colour
+      const sz = tar ? 0.5 + intensity * 0.8 + slide * 0.03 : 1.0 + intensity * 1.0 + slide * 0.05;
+      emit(w.point.x + jx, w.point.y + 0.15 + sz * 0.3, w.point.z + jz,
+        -car.vel.x * 0.3 + sideX * thr + (Math.random() - 0.5) * 1.5, (snow ? 1.2 : 0.6) + Math.random() * 1.2 + slide * 0.04, -car.vel.z * 0.3 + sideZ * thr + (Math.random() - 0.5) * 1.5,
+        [c[0] * k, c[1] * k, c[2] * k], sz, tar ? 0.7 + Math.random() * 0.9 + slide * 0.04 : 1.4 + Math.random() * 1.0 + slide * 0.05, 0, tar ? 0.45 : 1);
     }
     if (tar || (w.front && !grass)) return;
     const roost = Math.max(0, w.slipSpeed - 2.5) + slide * 0.5;
@@ -95,7 +96,7 @@
         car.vel.x * 0.55 - car.fwd.x * back + sideX * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
         1.6 + Math.random() * 3.2,
         car.vel.z * 0.55 - car.fwd.z * back + sideZ * (1 + Math.random() * 2.5) * (slide > 2 ? 1 : 0.3) + (Math.random() - 0.5) * 2,
-        [c[0] * k, c[1] * k, c[2] * k], (grass ? 0.22 : 0.1) + Math.random() * 0.08, 0.45 + Math.random() * 0.3, 2);
+        [c[0] * k, c[1] * k, c[2] * k], (grass ? 0.7 : snow ? 0.16 : 0.12) + Math.random() * 0.1, 0.5 + Math.random() * 0.35, 2);
     }
   }
 

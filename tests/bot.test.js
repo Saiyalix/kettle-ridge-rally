@@ -1,4 +1,4 @@
-// (b) A scripted bot drives every stage with both cars. Finish time must sit inside the expected window,
+// (b) A scripted bot drives every stage with every car. Finish time must sit inside the expected window,
 // and the run must stay clean: no spins (past 90°), no rescues, the clock never runs out between checkpoints, limited time off the road.
 'use strict';
 const { openGame } = require('./lib/game');
@@ -25,6 +25,14 @@ module.exports = async function botTest({ browser, base, expected, record }) {
     checks.push({ name: `${key}: clock holds at every checkpoint`, pass: r.minMarginS > 0,
       detail: `tightest ${r.minMarginS.toFixed(1)} s left (${r.margins.map(m => m.toFixed(0)).join(' / ')} s at checkpoints and finish)` });
     checks.push({ name: `${key}: no spins, no rescues`, pass: r.spins === 0 && r.rescues === 0, detail: `spins ${r.spins}, rescues ${r.rescues}` });
+  }
+  // rule 5: a car listed in expected.json bot.neverFasterThan must not beat the fastest of the cars named there, on any stage
+  for (const [car, others] of Object.entries(E.neverFasterThan || {})) for (const stage of [...new Set(runs.map(r => r.stageName))]) {
+    const me = runs.find(r => r.stageName === stage && r.car === car), rest = runs.filter(r => r.stageName === stage && others.includes(r.car));
+    if (!me || !rest.length) continue;
+    const best = rest.reduce((a, b) => b.time < a.time ? b : a);
+    checks.push({ name: `${stage}: ${car} is never faster than ${others.join(' / ')}`, pass: me.time >= best.time,
+      detail: `${me.time.toFixed(2)} s vs ${best.time.toFixed(2)} s (${best.car}), ${(me.time - best.time >= 0 ? '+' : '') + (me.time - best.time).toFixed(2)} s` });
   }
   return { checks, data: runs };
 };
