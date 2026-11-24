@@ -39,7 +39,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - Try the Nightjar KR on the test page before it goes live.
 
 ## Next (in this order unless the owner says otherwise)
-1. **Stages in a real world (Rich)**: one stage per PR, SS1 first, then SS4, SS2, SS3, SS5; region map in the menu. Region and names in `docs/region.md` (Varnholm). Scenery only, not drivable. (tracks, art, ui-mobile)
+1. **Stages in a real world (Rich)**: one stage per PR, SS1 first, then SS4, SS2, SS3, SS5; region map in the menu. Region and names in `docs/region.md` (Brindmark). Scenery only, not drivable. (tracks, art, ui-mobile)
 2. **Brighter dust and clearer grass clods**: the dust is modest, and green clods are hard to see on grass. (art)
 3. **Fifth stage**: new route, theme and clock; needs bot times recorded. Route and theme to be picked by the producer plan. (tracks, art)
 

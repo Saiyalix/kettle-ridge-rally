@@ -5,8 +5,8 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
-### 2026-11-24 · Region: stages get a shared real-world setting (Varnholm)
-**Decision:** the owner asked "Make the tracks more in tune with the area around ... fit into a context, like it's in a real world." Answers: (1) how lively: **Rich** (towns, farms, power lines, trains, chimney smoke, cattle, many buildings, far landmarks); (2) region: **full region map**, the same invented place names on signposts across stages, plus a map in the menu showing where each stage is; (3) run-in and run-out roads: **scenery only, not drivable**. The setting is an invented island, Varnholm, with five districts (one per stage); names, distances, map grid and sign style are in `docs/region.md`.
+### 2026-11-24 · Region: stages get a shared real-world setting (Brindmark)
+**Decision:** the owner asked "Make the tracks more in tune with the area around ... fit into a context, like it's in a real world." Answers: (1) how lively: **Rich** (towns, farms, power lines, trains, chimney smoke, cattle, many buildings, far landmarks); (2) region: **full region map**, the same invented place names on signposts across stages, plus a map in the menu showing where each stage is; (3) run-in and run-out roads: **scenery only, not drivable**. The setting is an invented island, Brindmark, with five districts (one per stage); names, distances, map grid and sign style are in `docs/region.md`.
 **Why:** each stage started "in the middle of nowhere". Shared names and a map make five different looks (forest, alpine, Japan, castle, desert) feel like one place. Scenery only means no change to handling, stage roads, clocks or bot times.
 **Numbers:** none measured yet. Bot times must stay unchanged in every stage PR.
 
