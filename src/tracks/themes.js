@@ -509,11 +509,11 @@
     put(vg, 'mailboxes', -36, 7.4, { solid: false }); put(vg, 'mailboxes', -62, -7.6, { solid: false });
     const sp = vg;
     [[-30, 'red'], [-16, 'blue'], [-2, 'yellow'], [12, 'green']].forEach(([s, col], i) => {
-      put(sp, 'teamVan', s, -31, { color: COL[col], turn: (WR() - 0.5) * 0.12 });
+      put(sp, 'teamVan', s, -31, { color: COL[col], body: true, turn: (WR() - 0.5) * 0.12 });
       put(sp, 'trailer', s + (i % 2 ? 2 : -1), -46, { color: COL[col], turn: (WR() - 0.5) * 0.1 });
     });
     put(sp, 'timingHut', 36, -31);
-    put(sp, 'teamVan', 46, -42, { color: COL.orange, turn: 0.5 }); put(sp, 'teamVan', 52, -48, { color: COL.teal, turn: -0.4 });
+    put(sp, 'teamVan', 46, -42, { body: true, color: COL.orange, turn: 0.5 }); put(sp, 'teamVan', 52, -48, { body: true, color: COL.teal, turn: -0.4 });
 
     // 2. farmland, s 140 to 470
     const fm = cl('farm');

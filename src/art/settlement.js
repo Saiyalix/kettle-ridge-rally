@@ -364,10 +364,11 @@
   const spWheel = (m, x, y, z, r, w, seg) => m.cyl([x, y, z - w / 2], [x, y, z + w / 2], r, r, seg, [0.08, 0.08, 0.09]);
   MODELS.teamVan = (c) => {
     const { m, low, o } = c, col = o.color || [0.85, 0.12, 0.1], seg = low ? 6 : 8;
+    const bd = o.body ? spShade(col) : spShade(SP.white), bs = o.body ? SP.white : col;   // o.body: painted in the team colour, with a white stripe and roof
     m.at(0, 0, 0, -Math.PI / 2, () => {
-      m.box(-0.6, 1.4, 0, 4.4, 1.9, 2.1, spShade(SP.white)); m.box(2.2, 0.95, 0, 1.4, 1.0, 2.0, spShade(SP.white)); spFace(m, [1.6, 1.9, -0.95], [2.9, 1.5, -0.95], [2.9, 1.5, 0.95], [1.6, 1.9, 0.95], SP.glass, [0, 0, 0]); m.box(2.95, 0.6, 0, 0.1, 0.4, 1.8, SP.iron);
-      for (const s of [-1, 1]) { m.box(-0.6, 1.0, s * 1.06, 4.4, 0.3, 0.04, col); m.box(2.2, 1.45, s * 1.0, 0.9, 0.55, 0.04, SP.glass); m.box(-0.6, 1.9, s * 1.06, 2.2, 0.55, 0.04, SP.glass); for (const wx of [-1.5, 2.0]) spWheel(m, wx, 0.38, s * 1.0, 0.38, 0.26, seg); }
-      m.box(-0.6, 2.4, 0, 4.4, 0.1, 2.1, col); m.box(-2.82, 1.4, 0, 0.06, 1.7, 1.9, spMul(SP.white, 0.85)); m.box(2.95, 1.1, 0.7, 0.05, 0.2, 0.3, [1, 0.95, 0.8], { tw: SG_GLOW });
+      m.box(-0.6, 1.4, 0, 4.4, 1.9, 2.1, bd); m.box(2.2, 0.95, 0, 1.4, 1.0, 2.0, bd); spFace(m, [1.6, 1.9, -0.95], [2.9, 1.5, -0.95], [2.9, 1.5, 0.95], [1.6, 1.9, 0.95], SP.glass, [0, 0, 0]); m.box(2.95, 0.6, 0, 0.1, 0.4, 1.8, SP.iron);
+      for (const s of [-1, 1]) { m.box(-0.6, 1.0, s * 1.06, 4.4, o.body ? 0.4 : 0.3, 0.04, bs); m.box(2.2, 1.45, s * 1.0, 0.9, 0.55, 0.04, SP.glass); m.box(-0.6, 1.9, s * 1.06, 2.2, 0.55, 0.04, SP.glass); for (const wx of [-1.5, 2.0]) spWheel(m, wx, 0.38, s * 1.0, 0.38, 0.26, seg); }
+      m.box(-0.6, 2.4, 0, 4.4, 0.1, 2.1, bs); m.box(-2.82, 1.4, 0, 0.06, 1.7, 1.9, o.body ? spMul(col, 0.85) : spMul(SP.white, 0.85)); m.box(2.95, 1.1, 0.7, 0.05, 0.2, 0.3, [1, 0.95, 0.8], { tw: SG_GLOW });
       if (!low) { m.box(-0.6, 2.55, 0, 3.6, 0.06, 1.7, SP.iron); for (const x of [-2, 0, 1]) m.box(x, 2.5, 0, 0.06, 0.12, 1.7, SP.iron); m.box(2.9, 1.95, 0, 0.5, 0.12, 1.2, col); }
     });
   };

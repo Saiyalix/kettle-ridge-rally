@@ -173,12 +173,13 @@
   }
   // one far landmark standing on the ridge (see the header of this file). Sizes are real metres at lm.dist, scaled to the ring (1850 m) and to the picture's own stretch.
   const LM_DEF = { mast: [3500, 120, 30], dam: [3000, 70, 320], town: [3500, 40, 900], spire: [2500, 45, 40], bridge: [3000, 45, 520], tower: [3000, 60, 22], mesa: [4500, 160, 900], windfarm: [3500, 90, 1200] };
+  const LM_BIG = { mast: [3, 2], spire: [3, 2.2], town: [2.5, 1.3] };   // height / width boost so they read as silhouettes from the road
   function paintLandmark(g, W, H, L, lm, ridgeY, ridgeCol, hz, haze) {
     const d = LM_DEF[lm.kind]; if (!d) return;
-    const dist = lm.dist || d[0], hM = lm.h || d[1], wM = lm.w || d[2], sc = RING_R / dist, ky = H / (RING_HI - RING_LO), kx = W / (2 * Math.PI * RING_R);
+    const dist = lm.dist || d[0], bigK = lm.scale != null ? [lm.scale, lm.scale] : (LM_BIG[lm.kind] || [1.5, 1.5]), hM = (lm.h || d[1]) * bigK[0], wM = (lm.w || d[2]) * bigK[1], sc = RING_R / dist, ky = H / (RING_HI - RING_LO), kx = W / (2 * Math.PI * RING_R);
     const hp = (m) => m * sc * ky, wp = (m) => m * sc * kx, Y = H / 256, night = !!L.night || !!lm.lit, r = mulberry32(Math.floor((lm.az || 0) * 7) + 3);
     const x0 = (((lm.az || 0) % 360) + 360) % 360 / 360 * W, gy = ridgeY(x0) + 1.5 * Y;
-    const base = lm.col != null ? lm.col : mixHex(ridgeCol, 0x20242c, 0.45), col = hexCss(mixHex(base, haze, lm.mist != null ? lm.mist : 0.35)), dark = hexCss(mixHex(base, haze, (lm.mist != null ? lm.mist : 0.35) + 0.15));
+    const base = lm.col != null ? lm.col : mixHex(ridgeCol, 0x12141a, 0.8), col = hexCss(mixHex(base, haze, lm.mist != null ? lm.mist : 0.12)), dark = hexCss(mixHex(base, haze, (lm.mist != null ? lm.mist : 0.12) + 0.15));
     const light = (x, y, c, size) => { g.save(); g.shadowColor = c; g.shadowBlur = (night ? 8 : 4) * Y; g.fillStyle = c; g.beginPath(); g.arc(x, y, Math.max(1, size * Y), 0, 7); g.fill(); g.restore(); };
     const copies = [-W, 0, W];
     for (const dx of copies) {
@@ -186,7 +187,7 @@
       g.save(); g.translate(x, gy); g.fillStyle = col; g.strokeStyle = col;
       if (lm.kind === 'mast') {
         const h = hp(hM), bw = Math.max(2, wp(wM) * 0.5);
-        g.lineWidth = Math.max(1, 0.9 * Y); g.beginPath(); g.moveTo(-bw, 0); g.lineTo(-0.5, -h); g.moveTo(bw, 0); g.lineTo(0.5, -h); g.stroke();
+        g.lineWidth = Math.max(2.5, 2.4 * Y); g.beginPath(); g.moveTo(-bw, 0); g.lineTo(-0.5, -h); g.moveTo(bw, 0); g.lineTo(0.5, -h); g.stroke();
         for (let i = 0; i < 9; i++) { const t0 = i / 9, t1 = (i + 1) / 9, w0 = bw * (1 - t0) + 0.5 * t0, w1 = bw * (1 - t1) + 0.5 * t1; g.beginPath(); g.moveTo(-w0, -h * t0); g.lineTo(w1, -h * t1); g.moveTo(w0, -h * t0); g.lineTo(-w1, -h * t1); g.stroke(); }
         g.fillRect(-bw * 0.5, -h * 0.72, bw, Math.max(1.5, h * 0.03)); g.fillRect(-0.5, -h - h * 0.12, 1, h * 0.12);
         light(0, -h - h * 0.12, '#ff3030', 1.6); light(0, -h * 0.55, '#ff4040', 1.1);
