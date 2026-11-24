@@ -5,6 +5,11 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-24 · Region: stages get a shared real-world setting (Varnholm)
+**Decision:** the owner asked "Make the tracks more in tune with the area around ... fit into a context, like it's in a real world." Answers: (1) how lively: **Rich** (towns, farms, power lines, trains, chimney smoke, cattle, many buildings, far landmarks); (2) region: **full region map**, the same invented place names on signposts across stages, plus a map in the menu showing where each stage is; (3) run-in and run-out roads: **scenery only, not drivable**. The setting is an invented island, Varnholm, with five districts (one per stage); names, distances, map grid and sign style are in `docs/region.md`.
+**Why:** each stage started "in the middle of nowhere". Shared names and a map make five different looks (forest, alpine, Japan, castle, desert) feel like one place. Scenery only means no change to handling, stage roads, clocks or bot times.
+**Numbers:** none measured yet. Bot times must stay unchanged in every stage PR.
+
 ### 2026-11-12 · Audio: a bad number can no longer throw inside the sound code
 **Decision:** every value written to an AudioParam now goes through `audFin(x, fallback)` (non-finite becomes the fallback), and `updateAudio` clamps `dt` to 0..0.25 s and resets `boost` / surface weights if they ever turn non-finite.
 **Why:** QA's flow test once logged "Failed to set the 'value' property on 'AudioParam': The provided float value is non-finite" during pause and rescue. It did not repeat, so the exact source was not caught. Suspects: a NaN rpm/speed on the frame after a rescue teleport, or a bad dt after resume. No sound design or volume changed.
