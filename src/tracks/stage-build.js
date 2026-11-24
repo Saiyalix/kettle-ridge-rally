@@ -124,7 +124,7 @@
      heights are ST.height, shifted so the ring meets the terrain edge exactly (the shift fades out over 450 m); colours are the ground colours,
      fading to the haze colour with distance so the end of the ground melts into the fog and the painted ridge. */
   function buildSkirt() {
-    const low = quality === 'low', L = ST.look, alpine = ST.theme === 'alpine', snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
+    const low = quality === 'low', L = ST.look, alpine = ST.theme === 'alpine', desert = ST.theme === 'desert', snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
     const T = terrain, x0 = T.minX, z0 = T.minZ, x1 = T.minX + (T.nx - 1) * T.cell, z1 = T.minZ + (T.nz - 1) * T.cell, REACH = 1000 - 200;
     const line = (lo, hi) => {                                                       // grid lines along one axis: spread out going outwards, even over the terrain's own span
       const xs = [], first = low ? 48 : 26, grow = low ? 1.5 : 1.27; let sum = 0, st = first;
@@ -148,12 +148,17 @@
       pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z; uv[k * 2] = x / 11; uv[k * 2 + 1] = z / 11;
       const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0);
       let c = mixc(L.grassA, L.grassB, n1); c = [c[0] + 0.03, c[1] + 0.03, c[2]];
-      if (alpine) {
+      if (alpine || desert) {
         const i0 = Math.max(0, i - 1), i1 = Math.min(nx - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(nz - 1, j + 1);
         const steep = Math.hypot((hh[j * nx + i1] - hh[j * nx + i0]) / (xs[i1] - xs[i0]), (hh[j1 * nx + i] - hh[j0 * nx + i]) / (zs[j1] - zs[j0]));
-        const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1)), strata = 0.86 + 0.16 * Math.sign(Math.sin(h * 0.55 + Math.sin(x * 0.02) * 1.5));
-        c = mixc(c, [L.rock[0] * strata, L.rock[1] * strata, L.rock[2] * strata], rockT);
-        c = mixc(c, L.snow, smoothstep(clamp((h - ST.snowLine) / 25, 0, 1)) * (1 - rockT * 0.5));
+        if (desert) {                                                                // as in buildGround: red banded rock where steep or high
+          const rockT = Math.min(1, smoothstep(clamp((steep - 0.45) / 0.5, 0, 1)) * smoothstep(clamp((h - 3) / 5, 0, 1)) + smoothstep(clamp((h - 14) / 6, 0, 1)) * 0.6), strata = 0.82 + 0.2 * Math.sign(Math.sin(h * 0.9 + Math.sin(x * 0.03) * 1.2));
+          c = mixc(c, [L.rock[0] * strata, L.rock[1] * strata, L.rock[2] * strata], rockT);
+        } else {
+          const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1)), strata = 0.86 + 0.16 * Math.sign(Math.sin(h * 0.55 + Math.sin(x * 0.02) * 1.5));
+          c = mixc(c, [L.rock[0] * strata, L.rock[1] * strata, L.rock[2] * strata], rockT);
+          c = mixc(c, L.snow, smoothstep(clamp((h - ST.snowLine) / 25, 0, 1)) * (1 - rockT * 0.5));
+        }
       }
       if (isFinite(snowFrom)) { const sb = smoothstep(clamp((T.sAt(cx, cz) - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, L.snow, sb); }
       c = mixc(c, [hz.r, hz.g, hz.b], smoothstep(clamp((d - 250) / 550, 0, 1)) * 0.7);       // far ground melts into the haze

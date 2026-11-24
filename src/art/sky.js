@@ -172,7 +172,7 @@
     const low = hz + Math.max(6, ...L.ridge.map(l => 5 - l.base)) * Y; g.fillStyle = hexCss(haze); g.fillRect(0, low, W, H - low);
   }
   // one far landmark standing on the ridge (see the header of this file). Sizes are real metres at lm.dist, scaled to the ring (1850 m) and to the picture's own stretch.
-  const LM_DEF = { mast: [6000, 120, 30], dam: [4500, 70, 320], town: [5000, 40, 900], spire: [4000, 45, 40], bridge: [4500, 45, 520], tower: [4500, 60, 22], mesa: [7000, 160, 900], windfarm: [6000, 90, 1200] };
+  const LM_DEF = { mast: [3500, 120, 30], dam: [3000, 70, 320], town: [3500, 40, 900], spire: [2500, 45, 40], bridge: [3000, 45, 520], tower: [3000, 60, 22], mesa: [4500, 160, 900], windfarm: [3500, 90, 1200] };
   function paintLandmark(g, W, H, L, lm, ridgeY, ridgeCol, hz, haze) {
     const d = LM_DEF[lm.kind]; if (!d) return;
     const dist = lm.dist || d[0], hM = lm.h || d[1], wM = lm.w || d[2], sc = RING_R / dist, ky = H / (RING_HI - RING_LO), kx = W / (2 * Math.PI * RING_R);
