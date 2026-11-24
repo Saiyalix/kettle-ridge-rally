@@ -189,17 +189,13 @@
     instanced(new THREE.CylinderGeometry(0.13, 0.17, 9, 7).translate(0, 4.5, 0), lit({ color: 0x8b8d94 }), poles, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); });
     instanced(new THREE.BoxGeometry(1.8, 0.12, 0.12).translate(0, 8.3, 0), lit({ color: 0x5d6068 }), poles, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(0, q.th + Math.PI / 2, 0); o.scale.setScalar(1); });
     {
-      const verts = [];
+      const verts = [], sagBuf = [];
       for (let i = 1; i < poles.length; i++) {
         const a = poles[i - 1], b = poles[i]; if (b.s - a.s > 40) continue;
         for (const off of [-0.8, 0, 0.8]) {
           const ox = Math.cos(a.th) * off, oz = -Math.sin(a.th) * off;
-          let prev = null;
-          for (let k = 0; k <= 8; k++) {
-            const t = k / 8, sag = Math.sin(t * Math.PI) * 0.7;
-            const v = [a.x + (b.x - a.x) * t + ox, a.y + 8.3 + (b.y - a.y) * t - sag, a.z + (b.z - a.z) * t + oz];
-            if (prev) verts.push(...prev, ...v); prev = v;
-          }
+          const pp = sagPoints(sagBuf, [a.x + ox, a.y + 8.3, a.z + oz], [b.x + ox, b.y + 8.3, b.z + oz], 0.7, 8);      // art/settlement.js
+          for (let k = 0; k < 8; k++) verts.push(pp[k * 3], pp[k * 3 + 1], pp[k * 3 + 2], pp[k * 3 + 3], pp[k * 3 + 4], pp[k * 3 + 5]);
         }
       }
       const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
