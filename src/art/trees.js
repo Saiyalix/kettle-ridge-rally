@@ -416,7 +416,7 @@
   };
   function buildNature() {
     if (!stageGroup || !track) return;
-    const nr = mulberry32(ST.seed * 131 + 7), L = ST.look, japan = ST.theme === 'japan', alpine = ST.theme === 'alpine';
+    const nr = mulberry32(ST.seed * 131 + 7), L = ST.look, japan = ST.theme === 'japan', alpine = ST.theme === 'alpine', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : 1e9, city = track.cityStart || 1e9;
     const edge = half * 1.14 + 0.9;
     const okSpot = (x, z, y, p, minD, s0) => {
@@ -434,7 +434,9 @@
       for (let k = 0, n = nr() < 0.55 ? 2 : 1; k < n; k++) {
         const off = edge + Math.pow(nr(), 1.8) * 12, [x, z] = sideXZ(sampleAt(s + nr() * 1.5), side * off), y = terrain.heightAt(x, z), sc = 0.7 + nr() * 0.8, rot = nr() * 6.28, pick = nr(), pick2 = nr();
         if (s > snowFrom - 20 || !okSpot(x, z, y, p, edge, s)) continue;
-        const c = pick2 < dry ? strawC.map(q => q * (0.9 + 0.15 * pick)) : gr(1.0);
+        // desert: dry scrub only (bleached straw, dusty khaki-sage, a few rust brown), never green
+        const c = desert ? (pick2 < 0.5 ? [0.74, 0.62, 0.38] : pick2 < 0.85 ? [0.52, 0.48, 0.30] : [0.50, 0.30, 0.20]).map(q => q * (0.85 + 0.25 * pick))
+          : pick2 < dry ? strawC.map(q => q * (0.9 + 0.15 * pick)) : gr(1.0);
         (pick < 0.3 ? tall : tufts).push({ x, y: y - 0.02, z, s: sc, r: rot, c });
       }
     }
@@ -445,6 +447,7 @@
       if (s > snowFrom - 40) c = [0.8, 0.88, 0.98];
       else if (alpine) c = [0.5 + pick * 0.2, 0.52 + pick * 0.1, 0.3];
       else if (japan) c = pick2 < 0.3 ? [1.0, 0.45 + pick * 0.2, 0.72] : [0.2 + pick * 0.1, 0.5, 0.3];
+      else if (desert) c = pick2 < 0.5 ? [0.50 + pick * 0.1, 0.46 + pick * 0.08, 0.28] : [0.60 + pick * 0.1, 0.46, 0.27];       // dry sage and straw scrub
       else if (pick2 < 0.08) c = [0.62, 0.46, 0.27];
       bushes.push({ x, y: y - 0.05, z, s: sc, r: rot, c });
     }

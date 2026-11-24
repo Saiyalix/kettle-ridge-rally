@@ -15,7 +15,10 @@
       "Sakura Touge / Nightjar KR": 88.48,
       "Thornwick Keep / Kestrel GT4": 94.08,
       "Thornwick Keep / Strada HF": 93.75,
-      "Thornwick Keep / Nightjar KR": 93.94
+      "Thornwick Keep / Nightjar KR": 93.94,
+      "Red Mesa Run / Kestrel GT4": 88.33,
+      "Red Mesa Run / Strada HF": 87.56,
+      "Red Mesa Run / Nightjar KR": 88.31
     },
     "neverFasterThan": {
       "Nightjar KR": [
@@ -126,7 +129,7 @@
         "tarmacMinDeg": 10,
         "tarmacMinFromKmh": 80,
         "recoverS": {
-          "default": 1.0,
+          "default": 1,
           "grass": 1.8
         },
         "longDrift": {
