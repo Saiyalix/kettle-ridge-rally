@@ -213,7 +213,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
   };
   // benches (ST.context.benches): level pads beside the road for service parks, car parks, farm yards. { s, side, off, w, d, ramp }:
   // centre `off` m from the road centre line (side +1 = right), w along the road, d across it, eased into the ground over `ramp` m (default 24).
-  // The inner edge is kept at least 20 m from the road edge, and a bench only ever changes the ground (natural), never the road height.
+  // The inner edge is kept at least 20 m from the road edge, and a bench only ever changes the ground (natural), never the road height; its effect fades in between 12 and 20 m from the road edge, so the ground within 12 m is exactly what it was without it.
   const benches = [];
   for (const b of ctx.benches || []) {
     let bp = P[0], bd = 1e9, bs = b.s;
@@ -273,7 +273,8 @@ function buildTerrain(track, ST = CONFIG.stage) {
       distV[k] = d;
       if (!cliff) {
         const t = clamp((d - (half + 2)) / 22, 0, 1);
-        h[k] = p.y + (natural(x, z) - p.y) * smoothstep(t);
+        const nat = benches.length ? natural0(x, z) + (natural(x, z) - natural0(x, z)) * smoothstep(clamp((d - half - 12) / 8, 0, 1)) : natural0(x, z);       // a bench changes nothing within 12 m of the road edge (the bot and the event props see the ground as before)
+        h[k] = p.y + (nat - p.y) * smoothstep(t);
         continue;
       }
       // Blend with the nearest point of a different part of the road (switchbacks), so terrain between

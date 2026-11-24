@@ -1042,10 +1042,11 @@ const STAGES = [
     //   houses: [{ from, to, gap: [min, max], skip, stone, flat }]   walls: [{ from, to, kind: 'stone' | 'fence', off, any }]   (s may be < 0 or > length)
     //   signs: [{ s, side, kind: 'entry' | 'direction', lines, off }]   benches: [{ s, side, off, w, d, ramp }]   keep: { start, finishBefore, finishAfter }   margin: m
     context: {
+      benches: [{ s: 66, side: 1, off: 44, w: 46, d: 28, ramp: 20 }, { s: 8, side: -1, off: 44, w: 110, d: 36, ramp: 22 }, { s: 280, side: -1, off: 38, w: 86, d: 28, ramp: 18 }, { s: 2552, side: 1, off: 48, w: 150, d: 32, ramp: 22 }],
       lead: { len: 200, curve: 10, end: 'tee' },
       tail: { len: 220, curve: -15, end: 'gate' },
-      houses: [{ from: -196, to: -18, gap: [3.8, 6.0], skip: 0.12 }, { from: -196, to: -60, gap: [9, 12], skip: 0.35, stone: 0.5 }],
-      walls: [{ from: -196, to: -16, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
+      houses: [{ from: -196, to: -72, gap: [3.8, 6.0], skip: 0.12 }, { from: -196, to: -72, gap: [9, 12], skip: 0.35, stone: 0.5 }],
+      walls: [{ from: -196, to: -72, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
       signs: [
         { s: -24, side: 1, kind: 'entry', lines: ['BIRKWEN'] },
         { s: 84, side: 1, kind: 'direction', lines: ['SAWMILL GAP 6 >', 'SKARNFELL 38', 'PORT SALLOW 71'] },
@@ -1066,6 +1067,8 @@ const STAGES = [
       hemiSky: 0xcfe6ff, hemiGround: 0x5a6a58, hemi: 1.0, sun: 0xffeccc, sunI: 4.2, exposure: 1.1, sunEl: 52, sunAz: -123,
       ink: 0x1c2440, env: [0x7ab8ff, 0xeaf5ff, 0x5a6a3a],
       sky: { clouds: 'cumulus', seed: 5, sunCol: 0xfffbe8, sunSize: 0.03, glowCol: 0xfff0c0, glowAmt: 0.35, band: 0, shade: 0x9fb8e0, lit: 0xffffff, rim: 0xfff4cc },
+      // far landmarks (compass bearing from the start direction, + = to the left; docs/region.md: Kettle Tower on the ridge to the north-west, Port Sallow far to the south, a village spire in the next valley)
+      landmarks: [{ kind: 'mast', az: 62, dist: 2300, h: 140 }, { kind: 'town', az: 236, dist: 2900, w: 1100, h: 60 }, { kind: 'spire', az: 18, dist: 1900, h: 55 }],
       ridge: [
         { col: 0x9cbbe6, base: 2, amp: 80, per: 5, oct: 4, jag: 1, mist: 0.5, snow: 0xffffff },
         { col: 0x86b2dc, base: -14, amp: 56, per: 7, oct: 4, jag: 0, mist: 0.45 },
@@ -1445,7 +1448,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
   };
   // benches (ST.context.benches): level pads beside the road for service parks, car parks, farm yards. { s, side, off, w, d, ramp }:
   // centre `off` m from the road centre line (side +1 = right), w along the road, d across it, eased into the ground over `ramp` m (default 24).
-  // The inner edge is kept at least 20 m from the road edge, and a bench only ever changes the ground (natural), never the road height.
+  // The inner edge is kept at least 20 m from the road edge, and a bench only ever changes the ground (natural), never the road height; its effect fades in between 12 and 20 m from the road edge, so the ground within 12 m is exactly what it was without it.
   const benches = [];
   for (const b of ctx.benches || []) {
     let bp = P[0], bd = 1e9, bs = b.s;
@@ -1505,7 +1508,8 @@ function buildTerrain(track, ST = CONFIG.stage) {
       distV[k] = d;
       if (!cliff) {
         const t = clamp((d - (half + 2)) / 22, 0, 1);
-        h[k] = p.y + (natural(x, z) - p.y) * smoothstep(t);
+        const nat = benches.length ? natural0(x, z) + (natural(x, z) - natural0(x, z)) * smoothstep(clamp((d - half - 12) / 8, 0, 1)) : natural0(x, z);       // a bench changes nothing within 12 m of the road edge (the bot and the event props see the ground as before)
+        h[k] = p.y + (nat - p.y) * smoothstep(t);
         continue;
       }
       // Blend with the nearest point of a different part of the road (switchbacks), so terrain between
@@ -3167,6 +3171,11 @@ function boot() {
       }
       let sb = 0;
       if (isFinite(snowFrom)) { sb = smoothstep(clamp((s0 - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, [L.snow[0] - n2 * 0.5, L.snow[1] - n2 * 0.5, L.snow[2]], sb); }
+      if (ST.id === 'kettle' && s0 > 130 && s0 < 500 && d > half + 9 && d < 150 && steep < 0.16) {        // SS1 farmland: hay, plough and fresh meadow patches (no random numbers: placed by cell)
+        const fx = Math.floor(x / 26), fz = Math.floor(z / 22), t = (((fx * 73856093) ^ (fz * 19349663)) >>> 0) % 5;
+        const f = t === 0 ? [0.80, 0.72, 0.34] : t === 1 ? [0.52, 0.42, 0.30] : t === 2 ? [0.52, 0.76, 0.30] : null;
+        if (f) c = mixc(c, f, 0.6 * smoothstep(clamp((d - half - 9) / 10, 0, 1)) * (1 - smoothstep(clamp((d - 110) / 40, 0, 1))));
+      }
       let city = false;
       if (japan) {
         if (s0 < 560 && d > half + 6 && d < 170 && steep < 0.14) {           // rice paddies: flooded and planted fields with dikes
@@ -3548,9 +3557,11 @@ function boot() {
             const g = terrain.heightAt(q[0], q[1]); y = Math.min(y, g); yMax = Math.max(yMax, g);
           }
           if (!ok || yMax - y > 3.5 || Math.abs(y - p.y) > 3) continue;
-          frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
+          // SS1: past s 262 the street gives way to farmland. Four houses in five are not built, but they stay in frameHouses, so every tree and rock stays where it was
+          const farmland = ST.id === 'kettle' && sc > 262 && hash2(cx, cz) < 0.8;
+          if (!farmland) frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
           frameHouses.push({ x: cx, z: cz, r: Math.hypot(w, d) / 2 + 2.5 });
-          for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
+          if (!farmland) for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
         }
       }
     };
@@ -3625,7 +3636,7 @@ function boot() {
     if (ST.id === 'kettle') {
       for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, 470, 90, 160, 3, 6).concat(chunksOf(rng, 470, track.finishS - 80, 40, 110, 4, 14))) {
         const village = b <= 470, snow = a > ST.snowFrom - 20, pick = rng();
-        if (village) { stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), Object.assign(wallOpt(), { sink: 1.2 }), 0.33); continue; }
+        if (village) { const wo = Object.assign(wallOpt(), { sink: 1.2 }); if (a < 262) stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), wo, 0.33); continue; }       // SS1: walls end where the farmland begins (same random draws as ever)
         if (pick < 0.15) continue;
         if (pick < 0.4) { const o = wallOpt(); if (snow) o.tint = [0.88, 0.94, 1]; stone(framePath(a, b, side, 2.4, keep), o, 0.33); }
         else fence(framePath(a, b, side, 2.6, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: snow ? [0.92, 0.96, 1.05] : [1, 1, 1] });
@@ -6355,6 +6366,7 @@ function boot() {
       { o0: 15, o1: 24, step: 3.2, p: 0.95, s0: 1.1, s1: 1.6, sep: 3.6 }, { o0: 25, o1: 40, step: 3.4, p: 0.9, s0: 1.2, s1: 1.8, sep: 4 }] }, lvl));
     const crest = woodExtras(trees.concat(woods), Object.assign({ salt: 2, a: snowS, b: fin - 90, minLen: 25, maxLen: 55, gapMin: 70, gapMax: 160, colMax: 14, rows: [
       { o0: 7, o1: 12, step: 5, p: 0.6, s0: 1.0, s1: 1.5, sep: 3.4 }, { o0: 13, o1: 24, step: 5, p: 0.55, s0: 1.1, s1: 1.6, sep: 3.8 }] }, lvl));
+    if (ST.id === 'kettle') for (const t of woods.concat(crest)) if (ctxBlocked(t.x, t.z)) t.s = 0.001;       // trees stay off the world's places (own placements: worldPlan)
     conifers(trees.concat(woods, crest), (c, t) => t.snow ? c.setRGB(0.80 + rng() * 0.1, 0.88 + rng() * 0.08, 0.95) : c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
     rocks(rng, roadsideRocks(rng, 320).filter(r => !nearHouse(r.x, r.z)).map(r => ctxBlocked(r.x, r.z) ? Object.assign(r, { size: 0.001, solid: false }) : r));
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
@@ -6727,6 +6739,200 @@ function boot() {
     instanced(postFootGeo(), structMat(), posts, (o, q) => { o.position.set(q.x, q.y0, q.z); o.rotation.set(0, 0, 0); o.scale.setScalar(1); }, { shadow: false });
   }
 
+
+  /* ---------- the world around SS1 Kettle Ridge (docs/decisions.md, 2026-11-24; names and distances from docs/region.md) ----------
+     Birkwen village green at the start (church, inn, shop, cross, bus shelter, letter boxes), the service park on a bench, the Kettle Wold farm
+     (barn, farmhouse, silo, hay, cattle, fences, a power line) along s 140 to 470, two closed side roads with signposts, km posts every 100 m,
+     and the Sawmill Gap timber yard at the finish. All of it is scenery: built from art's settlement kit (art/settlement.js) as ONE merged mesh per place
+     (cullFar hides far places), instanced posts / cattle. Own generator (ST.seed * 211 + 5): no older tree, rock or board moves.
+     worldPlan() runs before the trees (it tells them where not to grow), worldBuild() after the roadside. Everything stands 20 m or more from the road edge
+     unless it is non-solid (letter boxes, signposts, km posts, tape) or in the village street (8.6 m or more from the edge). */
+  let worldData = null;
+  const WORLD_FOOT = {                                                // solid footprint { w across (local x), d deep (local z), dz centre offset }; circles { r }
+    church: { w: 7.2, d: 15, dz: 1.4 }, inn: { w: 12.6, d: 7.8, dz: 0.2 }, shop: { w: 7.4, d: 6.4 }, marketCross: { r: 2.1 }, busShelter: { w: 3.6, d: 1.6 },
+    barn: { w: 9.6, d: 13.6 }, farmhouse: { w: 9.4, d: 8, dz: 0.8 }, teamVan: { w: 2.4, d: 5.9 }, trailer: { w: 2.7, d: 9 , dz: 1.2 }, timingHut: { w: 5.4, d: 3 },
+    logStack: { w: 4.2, d: 9 }, sawChimney: { r: 1.9 },
+  };
+  function worldModels() {                                            // extra models for the kit (same rules as art's: draw into c.m, local frame, front +z)
+    const M = settle.models, here = (c, lx, lz) => { const r = c.o.rot || 0; return [c.o.x + lx * Math.cos(r) + lz * Math.sin(r), c.o.z - lx * Math.sin(r) + lz * Math.cos(r)]; };
+    const gh = (c, lx, lz) => { const [x, z] = here(c, lx, lz); return terrain.heightAt(x, z) - c.o.y; };
+    M.laneStrip = (c) => {                                            // a dirt lane along local +z, hugging the ground
+      const { m, o, low } = c, len = o.len || 20, w = o.w || 3.4, col = o.col || [0.52, 0.44, 0.32], n = Math.max(1, Math.round(len / (low ? 8 : 4)));
+      for (let i = 0; i < n; i++) {
+        const z0 = len * i / n, z1 = len * (i + 1) / n, y = (x, z) => gh(c, x, z) + 0.13;
+        m.quad([-w / 2, y(-w / 2, z0), z0], [w / 2, y(w / 2, z0), z0], [w / 2, y(w / 2, z1), z1], [-w / 2, y(-w / 2, z1), z1], col, { two: true });
+        if (!low) m.quad([-0.12, y(-0.12, z0) + 0.015, z0], [0.12, y(0.12, z0) + 0.015, z0], [0.12, y(0.12, z1) + 0.015, z1], [-0.12, y(-0.12, z1) + 0.015, z1], [col[0] * 0.8, col[1] * 0.8, col[2] * 0.8], { two: true });
+      }
+    };
+    M.fenceRun = (c) => {                                             // a post and rail fence along local +x, hugging the ground
+      const { m, o, low } = c, len = o.len || 40, step = low ? 8 : 5, n = Math.max(1, Math.round(len / step)), wood = [0.50, 0.38, 0.26];
+      let prev = null;
+      for (let i = 0; i <= n; i++) {
+        const x = len * i / n, y = gh(c, x, 0);
+        m.box(x, y + 0.55, 0, 0.13, 1.1, 0.13, wood);
+        if (prev) for (const ry of low ? [0.8] : [0.55, 0.98]) { const dx = x - prev.x, dy = y - prev.y, l = Math.hypot(dx, dy); m.box((x + prev.x) / 2, (y + prev.y) / 2 + ry, 0, l, 0.08, 0.05, [0.62, 0.5, 0.36], { rz: Math.atan2(dy, dx) }); }
+        prev = { x, y };
+      }
+    };
+    M.closedBarrier = (c) => {                                        // red / white bars across a closed road
+      const { m, o, low } = c, w = o.w || 4.4, k = low ? 4 : 8, red = [0.82, 0.14, 0.1], white = [0.94, 0.94, 0.92];
+      for (const sx of [-1, 1]) m.box(sx * (w / 2 + 0.1), 0.65, 0, 0.14, 1.3, 0.14, white);
+      for (const y of [0.62, 1.04]) for (let i = 0; i < k; i++) m.box(-w / 2 + (i + 0.5) * w / k, y, 0, w / k, 0.2, 0.05, (i + (y > 0.8 ? 1 : 0)) % 2 ? white : red);
+    };
+    M.logStack = (c) => {                                             // a pile of logs, length along local x (len), the stack is 3 to 4 layers high
+      const { m, o, low } = c, len = o.len || 8, rows = [6, 5, 4, 3], rr = 0.34, seg = low ? 5 : 6;
+      let k = 0;
+      rows.forEach((n, j) => { for (let i = 0; i < n; i++) {
+        const x = (i - (n - 1) / 2) * rr * 2.05, y = rr + j * rr * 1.8, t = 0.82 + ((k * 37) % 11) / 11 * 0.3; k++;
+        m.cyl([x, y, -len / 2], [x, y, len / 2], rr, rr, seg, [0.50 * t, 0.36 * t, 0.22 * t]);
+      } });
+      m.box(0, 0.12, 0, 4.4, 0.24, len - 0.4, [0.3, 0.22, 0.15]);
+    };
+    M.poleRun = (c) => {                                              // a power line: poles and three sagging wires between them (world points in o.pts)
+      const { m, o, low } = c, P = o.pts, H = 8.3, seg = low ? 5 : 6, wood = [0.46, 0.35, 0.25], dark = [0.3, 0.22, 0.16], wire = [0.1, 0.1, 0.12];
+      const L = (p) => [p.x - o.x, terrain.heightAt(p.x, p.z) - o.y, p.z - o.z];
+      P.forEach((p, i) => {
+        const q = L(p), n = P[Math.min(P.length - 1, i + 1)], pr = P[Math.max(0, i - 1)], yaw = Math.atan2(n.x - pr.x, n.z - pr.z);
+        m.cyl([q[0], q[1], q[2]], [q[0], q[1] + H + 0.6, q[2]], 0.17, 0.11, seg, wood);
+        m.at(q[0], q[1], q[2], yaw, () => m.box(0, H, 0, 1.9, 0.12, 0.12, dark));
+        if (i) {
+          const a = L(pr), l = Math.hypot(q[0] - a[0], q[2] - a[2]) || 1, px = (q[2] - a[2]) / l, pz = -(q[0] - a[0]) / l, k = low ? 3 : 4;
+          for (const off of low ? [-0.8, 0.8] : [-0.8, 0, 0.8]) {
+            let prev = null;
+            for (let j = 0; j <= k; j++) { const t = j / k, pt = [a[0] + (q[0] - a[0]) * t + px * off, a[1] + (q[1] - a[1]) * t + H + 0.15 - 0.8 * Math.sin(t * Math.PI), a[2] + (q[2] - a[2]) * t + pz * off]; if (prev) m.cyl(prev, pt, 0.04, 0.04, 3, wire, { open: true }); prev = pt; }
+          }
+        }
+      });
+    };
+    M.sawChimney = (c) => {                                           // tall brick chimney with smoke
+      const { m, o, low } = c, H = o.h || 26, seg = low ? 6 : 10, brick = [0.58, 0.30, 0.22];
+      m.cyl([0, -0.5, 0], [0, H, 0], 1.5, 0.95, seg, brick);
+      if (!low) for (const y of [H * 0.35, H * 0.7, H - 0.6]) m.cyl([0, y, 0], [0, y + 0.35, 0], 1.5 - y / H * 0.55 + 0.1, 1.5 - y / H * 0.55 + 0.1, seg, [0.4, 0.2, 0.15]);
+      m.cyl([0, H, 0], [0, H + 0.4, 0], 1.12, 1.12, seg, [0.22, 0.22, 0.24]); m.box(0, 0.4, 0, 4.6, 0.8, 4.6, [0.55, 0.53, 0.5]);
+      c.smoke.push([0, H + 0.6, 0]);
+    };
+  }
+  // the places, in road coordinates: s along the road, lat across it (+ right, - left, from the road centre line)
+  function worldPlan() {
+    worldData = null; if (ST.id !== 'kettle') return;
+    const WR = mulberry32(ST.seed * 211 + 5), D = { clusters: [], km: [], cattle: [], pl: [], solids: [], smoke: [] };
+    const outV = (p, side) => side > 0 ? [-Math.cos(p.th), Math.sin(p.th)] : [Math.cos(p.th), -Math.sin(p.th)];       // unit vector pointing away from the road
+    const at = (s, lat) => { const p = sampleV(s), [x, z] = sideXZ(p, lat); return { x, z, p }; };
+    const footY = (x, z, rot, f) => {                                                        // ground under a footprint: level for the floor, and how bumpy it is
+      const c = Math.cos(rot), sn = Math.sin(rot), w = (f && f.w || 2 * (f && f.r || 2)) / 2, d = (f && f.d || 2 * (f && f.r || 2)) / 2; let lo = 1e9, hi = -1e9, sum = 0, n = 0;
+      for (const [a, b] of [[0, 0], [-w, -d], [w, -d], [w, d], [-w, d], [0, -d], [0, d]]) { const h = terrain.heightAt(x + a * c + b * sn, z - a * sn + b * c); lo = Math.min(lo, h); hi = Math.max(hi, h); sum += h; n++; }
+      return { y: (lo + hi) / 2 + (hi - lo > 1.2 ? 0.15 : 0), spread: hi - lo };
+    };
+    const cl = (name) => { const c = { name, items: [], smoke: false }; D.clusters.push(c); return c; };
+    const solid = (it, f) => {
+      if (!f) return; const c = Math.cos(it.rot), sn = Math.sin(it.rot);
+      if (f.r) { D.solids.push({ x: it.x + 0, z: it.z, r: f.r, mu: 0.3 }); return; }
+      const at2 = (lx, lz) => [it.x + lx * c + lz * sn, it.z - lx * sn + lz * c], dz = f.dz || 0, cs = [at2(-f.w / 2, dz + f.d / 2), at2(f.w / 2, dz + f.d / 2), at2(f.w / 2, dz - f.d / 2), at2(-f.w / 2, dz - f.d / 2)];
+      for (let k = 0; k < 4; k++) D.solids.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
+    };
+    // put(cluster, kind, s, lat, opts): faces the road; opts.turn adds a yaw, opts.along = face along the road instead, opts.solid false = no collision
+    const put = (c, kind, s, lat, o = {}) => {
+      const a = at(s, lat), side = lat > 0 ? 1 : -1, f = WORLD_FOOT[kind], rot = (o.rot != null ? o.rot : a.p.th + side * Math.PI / 2) + (o.turn || 0);
+      const it = Object.assign({ kind, x: a.x, z: a.z, rot }, o); delete it.turn; delete it.solid;
+      const fy = footY(a.x, a.z, rot, f || { r: 2 }); it.y = fy.y; if (fy.spread > 2.6) it.bumpy = fy.spread;
+      c.items.push(it); if (o.solid !== false && f) solid(it, f);
+      D.block = D.block || []; D.block.push({ x: a.x, z: a.z, r: Math.max(6, f ? (f.r || Math.hypot(f.w, f.d) / 2 + 3) : 5) });
+      return it;
+    };
+    const lane = (c, s, side, len, w, col) => {                                          // a lane that leaves the road at a right angle
+      const a = at(s, side * (half + 0.5)), o = outV(a.p, side);
+      const it = { kind: 'laneStrip', x: a.x, z: a.z, rot: Math.atan2(o[0], o[1]), len, w, col, r: 1 }; it.y = terrain.heightAt(a.x, a.z); c.items.push(it);
+      for (let d = 0; d < len; d += 8) D.block.push({ x: a.x + o[0] * d, z: a.z + o[1] * d, r: 5 });
+    };
+    const fence = (c, s, side, from, to) => {                                            // a fence that runs away from the road (field boundary)
+      const a = at(s, side * (half + from)), o = outV(a.p, side);
+      c.items.push({ kind: 'fenceRun', x: a.x, z: a.z, rot: Math.atan2(-o[1], o[0]), len: to - from, y: terrain.heightAt(a.x, a.z), r: 1 });
+    };
+    D.block = [];
+    for (let s = -84; s <= 70; s += 14) for (const side of [-1, 1]) { const a = at(s, side * 22); D.block.push({ x: a.x, z: a.z, r: 15 }); }       // the green stays free of trees (the street houses that stood here are gone)
+    const face = (s, side) => sampleV(s).th + side * Math.PI / 2;
+    const COL = { red: [0.80, 0.12, 0.10], blue: [0.14, 0.32, 0.72], yellow: [0.93, 0.74, 0.12], green: [0.14, 0.55, 0.28], orange: [0.93, 0.45, 0.1], teal: [0.1, 0.55, 0.6] };
+
+    // 1. Birkwen village green and the service park
+    const vg = cl('birkwen');
+    put(vg, 'church', 66, 44);
+    put(vg, 'inn', -24, 17, { name: ['THE OLD FORGE'] });
+    put(vg, 'shop', -54, -16.6, { name: ['BIRKWEN STORES'] });
+    put(vg, 'marketCross', -6, 15.5);
+    put(vg, 'busShelter', -46, 14.2);
+    put(vg, 'mailboxes', -36, 7.4, { solid: false }); put(vg, 'mailboxes', -62, -7.6, { solid: false });
+    const sp = vg;
+    [[-30, 'red'], [-16, 'blue'], [-2, 'yellow'], [12, 'green']].forEach(([s, col], i) => {
+      put(sp, 'teamVan', s, -31, { color: COL[col], turn: (WR() - 0.5) * 0.12 });
+      put(sp, 'trailer', s + (i % 2 ? 2 : -1), -46, { color: COL[col], turn: (WR() - 0.5) * 0.1 });
+    });
+    put(sp, 'timingHut', 36, -31);
+    put(sp, 'teamVan', 46, -42, { color: COL.orange, turn: 0.5 }); put(sp, 'teamVan', 52, -48, { color: COL.teal, turn: -0.4 });
+
+    // 2. farmland, s 140 to 470
+    const fm = cl('farm');
+    put(fm, 'farmhouse', 262, -29.5, { col: [0.93, 0.9, 0.8] });
+    put(fm, 'barn', 296, -38);
+    put(fm, 'silo', 274, -47, { twin: true, solid: false });
+    D.solids.push({ x: at(274, -47).x, z: at(274, -47).z, r: 2.5, mu: 0.3 });
+    put(fm, 'hayRolls', 248, -32, { solid: false }); put(fm, 'hayRolls', 320, -36, { solid: false });
+    lane(fm, 279, -1, 26, 3.4); put(fm, 'gate', 279, -(half + 8), { solid: false, w: 3.6, rot: face(279, -1) });
+    fence(fm, 226, -1, 8.6, 62); fence(fm, 342, -1, 8.6, 66); fence(fm, 236, 1, 8.6, 54); fence(fm, 336, 1, 8.6, 54);
+    const cowRow = (s0, s1, side, n, l0, l1) => { for (let i = 0; i < n; i++) { const a = at(s0 + (s1 - s0) * WR(), side * (l0 + (l1 - l0) * WR())); fm.items.push({ kind: 'cow', x: a.x, z: a.z, rot: WR() * 6.28, y: terrain.heightAt(a.x, a.z), r: 1 }); D.block.push({ x: a.x, z: a.z, r: 3 }); } };
+    cowRow(238, 328, 1, 4, 14, 50); cowRow(340, 418, -1, 4, 16, 56); cowRow(250, 300, -1, 2, 20, 28);
+    const pts = [];
+    for (let s = 130; s <= 530; s += 57) { const a = at(s, 66 + Math.sin(s / 90) * 4); pts.push({ x: a.x, z: a.z }); D.block.push({ x: a.x, z: a.z, r: 3 }); }
+    fm.items.push({ kind: 'poleRun', x: pts[0].x, z: pts[0].z, rot: 0, y: terrain.heightAt(pts[0].x, pts[0].z), pts, r: 1 });
+
+    // 3. Sawmill Gap timber yard, beside the finish
+    const fin = track.finishS, ty = cl('timber');
+    put(ty, 'barn', fin + 94, 47, { col: [0.50, 0.40, 0.30], roof: [0.34, 0.36, 0.4], turn: 0 });
+    put(ty, 'farmhouse', fin + 56, 43, { col: [0.86, 0.84, 0.76], roof: [0.4, 0.3, 0.26] });
+    put(ty, 'sawChimney', fin + 112, 49, { h: 28 });
+    [[24, 36], [38, 36], [52, 36], [62, 57], [78, 59], [34, 54]].forEach(([ds, lat]) => put(ty, 'logStack', fin + ds, lat, { len: 8 + WR() * 3, turn: Math.PI / 2 + (WR() - 0.5) * 0.1 }));
+    put(ty, 'barn', fin + 66, 60, { col: [0.42, 0.34, 0.26], roof: [0.30, 0.33, 0.38], turn: 0.12 });         // drying shed behind the stacks
+    [[88, 36], [102, 36], [96, 62]].forEach(([ds, lat]) => put(ty, 'logStack', fin + ds, lat, { len: 8 + WR() * 3, turn: Math.PI / 2 + (WR() - 0.5) * 0.1 }));
+    put(ty, 'hayRolls', fin + 118, 34, { solid: false });
+    put(ty, 'teamVan', fin + 40, 33.5, { color: COL.green, turn: -0.15 }); put(ty, 'trailer', fin + 46, 33.5, { color: COL.green, turn: 0.1 });
+
+    // 4. side roads (closed), signposts, km posts
+    const roadOK = (s) => !track.turns.some(t => s > t.s0 - 45 && s < t.s1 + 45) && !ST.checkpoints.concat([16, track.finishS]).some(g => Math.abs(g - s) < 40) && !ST.jumps.some(j => Math.abs(j[0] - s) < 60);
+    const sideRoad = (name, s, side, col, boards) => {
+      if (!roadOK(s)) { D.warn = (D.warn || []).concat(name + ' blocked'); return; }
+      const c = cl(name); lane(c, s, side, 46, 3.6, col);
+      put(c, 'closedBarrier', s, side * (half + 11), { w: 4.6, solid: false });
+      put(c, 'signpost', s - 9, side * (half + 5.2), { boards: [{ lines: ['ROAD', 'CLOSED'], shape: 'entry' }], solid: false, rot: face(s - 9, side) + 0.3 * side });
+      put(c, 'signpost', s - 20, side * (half + 4.8), { boards, solid: false, rot: sampleV(s - 20).th + Math.PI });
+    };
+    sideRoad('side-a', 850, 1, [0.55, 0.50, 0.42], [{ lines: ['GREYWATER DAM 47'], dir: 1 }, { lines: ['HARL MILL 96'], dir: 1 }]);
+    sideRoad('side-b', 1765, -1, [0.62, 0.55, 0.4], [{ lines: ['SKARNFELL 38'], dir: -1 }, { lines: ['PORT SALLOW 71'], dir: -1 }]);
+    const tc = cl('tsign'), ts = at(-189, 6.2);
+    put(tc, 'signpost', -189, 6.4, { boards: [{ lines: ['SKARNFELL 38'], dir: -1 }, { lines: ['PORT SALLOW 71', 'SALTREACH 98'], dir: 1 }], solid: false, rot: sampleV(-189).th });
+    void ts;
+    const gatesS = [16].concat(ST.checkpoints, [track.finishS]);
+    for (let s = 100; s < track.finishS - 20; s += 100) {
+      if (gatesS.some(g => Math.abs(g - s) < 14) || ST.jumps.some(j => Math.abs(j[0] - s) < 30)) continue;
+      const t = track.turns.find(u => s > u.s0 - 10 && s < u.s1 + 10), side = t ? (t.dir === 'R' ? 1 : -1) : 1;           // inside of corners: the chevrons stay on the outside
+      const a = at(s, side * (half + 1.7)); D.km.push({ x: a.x, z: a.z, yaw: a.p.th + Math.PI - side * 0.6, n: Math.round(s / 100) });
+    }
+    worldData = D;
+    for (const b of D.block) ctxHouses.push({ x: b.x, z: b.z, r: b.r });
+    // the soft ground the service park and the yard stand on is flat, so trees stay off it too
+    for (const c of D.clusters) c.mid = c.items.length ? { x: c.items.reduce((a, b) => a + b.x, 0) / c.items.length, z: c.items.reduce((a, b) => a + b.z, 0) / c.items.length } : null;
+  }
+  function worldBuild() {
+    const D = worldData; if (!D) return;
+    worldModels();
+    for (const c of D.clusters) {
+      if (!c.items.length) continue;
+      const r = settle.cluster(c.items, { smoke: false });
+      r.mesh.castShadow = r.mesh.castShadow && c.name === 'birkwen';           // only the village throws shadows: the car is near it at the start (the shadow map covers 45 m round the car)
+      c.tris = r.tris;
+      if (r.smoke.length && quality !== 'low') { const sm = settle.smoke(r.smoke); sm.frustumCulled = true; }
+    }
+    if (D.km.length) settle.kmPosts(D.km);
+  }
+  function worldSolids() { if (worldData) for (const o of worldData.solids) obstacles.push(o); }       // after eventDetail, so the event props keep their places
   /* ---------- castle look (SS4 Thornwick Keep): meshes made from castleLayout() (src/tracks/castle.js) ----------
      Tracks owns the data and the collision (castleObstacles); this file only decides how it LOOKS (art). No new obstacles, no random draws from the stage generator.
      Everything static is merged per material: stone, slate roofs, clay roofs, thatch, wood, trim (iron, cloth, barrels, hay), unlit glass (windows, slits, torch flames),
@@ -7710,9 +7916,9 @@ function boot() {
     const rng = mulberry32(ST.seed);
     const frng = mulberry32(ST.seed * 977 + 13);        // roadside frame has its own generator, so the old scenery stays where it was
     const crng = mulberry32(ST.seed * 131 + 11);       // run-in / run-out dressing (ST.context) has its own generator too
-    buildGround(rng); buildSkirt(); buildRoad(); planHouses(frng); planContext(crng);
+    buildGround(rng); buildSkirt(); buildRoad(); planHouses(frng); planContext(crng); worldPlan();
     if (ST.theme === 'alpine') sceneryAlpine(rng); else if (ST.theme === 'japan') sceneryJapan(rng); else if (ST.theme === 'castle') sceneryCastle(rng); else if (ST.theme === 'desert') sceneryDesert(rng); else if (ST.theme === 'test') sceneryTest(rng); else sceneryForest(rng);
-    trackside(rng); buildRoadside(frng); buildNature(); contextRoadside(crng); contextProps();
+    trackside(rng); buildRoadside(frng); buildNature(); contextRoadside(crng); contextProps(); worldBuild();
     if (ST.id === 'test') settleDemo();                                    // art's settlement-kit showcase (see art/settlement.js); delete this line to remove it
     for (const g of ST.signs || []) makeGate(g.s, g.text, g.bg, g.fg, false, { kind: 'arch', lights: 'cp' });      // practice stage: a big banner over the road at the start of each section
     makeGate(16, ST.code + '  START', '#1f8a4c', '#ffffff', false, { kind: 'arch', lights: 'start' });
@@ -7720,6 +7926,7 @@ function boot() {
     makeGate(track.finishS, 'FINISH', '#111', '#ffc928', true, { kind: 'arch', lights: 'finish' });
     if (!ST.practice) eventDetail();                                      // own generator: start / finish areas, marshals, photographers, hay
     crowdBuild();
+    worldSolids();
     hashObstacles();
     buildMinimap();
     applyLook(ST.look);

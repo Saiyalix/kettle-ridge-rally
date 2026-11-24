@@ -207,9 +207,11 @@
             const g = terrain.heightAt(q[0], q[1]); y = Math.min(y, g); yMax = Math.max(yMax, g);
           }
           if (!ok || yMax - y > 3.5 || Math.abs(y - p.y) > 3) continue;
-          frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
+          // SS1: past s 262 the street gives way to farmland. Four houses in five are not built, but they stay in frameHouses, so every tree and rock stays where it was
+          const farmland = ST.id === 'kettle' && sc > 262 && hash2(cx, cz) < 0.8;
+          if (!farmland) frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
           frameHouses.push({ x: cx, z: cz, r: Math.hypot(w, d) / 2 + 2.5 });
-          for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
+          if (!farmland) for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
         }
       }
     };
@@ -284,7 +286,7 @@
     if (ST.id === 'kettle') {
       for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, 470, 90, 160, 3, 6).concat(chunksOf(rng, 470, track.finishS - 80, 40, 110, 4, 14))) {
         const village = b <= 470, snow = a > ST.snowFrom - 20, pick = rng();
-        if (village) { stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), Object.assign(wallOpt(), { sink: 1.2 }), 0.33); continue; }
+        if (village) { const wo = Object.assign(wallOpt(), { sink: 1.2 }); if (a < 262) stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), wo, 0.33); continue; }       // SS1: walls end where the farmland begins (same random draws as ever)
         if (pick < 0.15) continue;
         if (pick < 0.4) { const o = wallOpt(); if (snow) o.tint = [0.88, 0.94, 1]; stone(framePath(a, b, side, 2.4, keep), o, 0.33); }
         else fence(framePath(a, b, side, 2.6, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: snow ? [0.92, 0.96, 1.05] : [1, 1, 1] });

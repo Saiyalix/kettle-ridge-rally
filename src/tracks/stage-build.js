@@ -71,6 +71,11 @@
       }
       let sb = 0;
       if (isFinite(snowFrom)) { sb = smoothstep(clamp((s0 - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, [L.snow[0] - n2 * 0.5, L.snow[1] - n2 * 0.5, L.snow[2]], sb); }
+      if (ST.id === 'kettle' && s0 > 130 && s0 < 500 && d > half + 9 && d < 150 && steep < 0.16) {        // SS1 farmland: hay, plough and fresh meadow patches (no random numbers: placed by cell)
+        const fx = Math.floor(x / 26), fz = Math.floor(z / 22), t = (((fx * 73856093) ^ (fz * 19349663)) >>> 0) % 5;
+        const f = t === 0 ? [0.80, 0.72, 0.34] : t === 1 ? [0.52, 0.42, 0.30] : t === 2 ? [0.52, 0.76, 0.30] : null;
+        if (f) c = mixc(c, f, 0.6 * smoothstep(clamp((d - half - 9) / 10, 0, 1)) * (1 - smoothstep(clamp((d - 110) / 40, 0, 1))));
+      }
       let city = false;
       if (japan) {
         if (s0 < 560 && d > half + 6 && d < 170 && steep < 0.14) {           // rice paddies: flooded and planted fields with dikes
