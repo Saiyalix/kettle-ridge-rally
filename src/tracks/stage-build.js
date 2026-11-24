@@ -114,6 +114,61 @@
     }
   }
 
+  /* ---------- outer ground skirt: the terrain ends 200 m (260 m on SS2) from the road; this coarse ring of ground carries the land on to 1000 m ----------
+     One mesh, one draw call, about 4-5k triangles (about 2k on low). The grid lines are close together at the terrain edge and spread out outwards;
+     heights are ST.height, shifted so the ring meets the terrain edge exactly (the shift fades out over 450 m); colours are the ground colours,
+     fading to the haze colour with distance so the end of the ground melts into the fog and the painted ridge. */
+  function buildSkirt() {
+    const low = quality === 'low', L = ST.look, alpine = ST.theme === 'alpine', snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
+    const T = terrain, x0 = T.minX, z0 = T.minZ, x1 = T.minX + (T.nx - 1) * T.cell, z1 = T.minZ + (T.nz - 1) * T.cell, REACH = 1000 - 200;
+    const line = (lo, hi) => {                                                       // grid lines along one axis: spread out going outwards, even over the terrain's own span
+      const xs = [], first = low ? 48 : 26, grow = low ? 1.5 : 1.27; let sum = 0, st = first;
+      while (sum < REACH - 0.5) { st = Math.min(st, REACH - sum); sum += st; xs.push(lo - sum, hi + sum); st *= grow; }
+      const n = Math.max(2, Math.ceil((hi - lo) / clamp((hi - lo) / (low ? 22 : 46), low ? 90 : 28, 400)));
+      for (let i = 0; i <= n; i++) xs.push(lo + (hi - lo) * i / n);
+      return xs.sort((p, q) => p - q);
+    };
+    const xs = line(x0, x1), zs = line(z0, z1), nx = xs.length, nz = zs.length;
+    const ia = xs.indexOf(x0), ib = xs.indexOf(x1), ja = zs.indexOf(z0), jb = zs.indexOf(z1), ring = [];       // ring = the vertices along the seam with the terrain
+    for (let i = ia; i < ib; i++) ring.push(ja * nx + i); for (let j = ja; j < jb; j++) ring.push(j * nx + ib); for (let i = ib; i > ia; i--) ring.push(jb * nx + i); for (let j = jb; j > ja; j--) ring.push(j * nx + ia); ring.push(ring[0]);
+    const NV = nx * nz, hz = new THREE.Color(L.horizon), pos = new Float32Array((NV + ring.length) * 3), col = new Float32Array((NV + ring.length) * 3), uv = new Float32Array((NV + ring.length) * 2), hh = new Float32Array(NV);
+    const hOf = (x, z) => {
+      const cx = clamp(x, x0, x1), cz = clamp(z, z0, z1), d = Math.hypot(x - cx, z - cz);
+      if (d < 0.01) return T.heightAt(cx, cz);
+      return ST.height(x, z) + (T.heightAt(cx, cz) - ST.height(cx, cz)) * (1 - smoothstep(clamp(d / 450, 0, 1)));
+    };
+    for (let j = 0, k = 0; j < nz; j++) for (let i = 0; i < nx; i++, k++) hh[k] = hOf(xs[i], zs[j]);
+    for (let j = 0, k = 0; j < nz; j++) for (let i = 0; i < nx; i++, k++) {
+      const x = xs[i], z = zs[j], h = hh[k], cx = clamp(x, x0, x1), cz = clamp(z, z0, z1), d = Math.hypot(x - cx, z - cz);
+      pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z; uv[k * 2] = x / 11; uv[k * 2 + 1] = z / 11;
+      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0);
+      let c = mixc(L.grassA, L.grassB, n1); c = [c[0] + 0.03, c[1] + 0.03, c[2]];
+      if (alpine) {
+        const i0 = Math.max(0, i - 1), i1 = Math.min(nx - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(nz - 1, j + 1);
+        const steep = Math.hypot((hh[j * nx + i1] - hh[j * nx + i0]) / (xs[i1] - xs[i0]), (hh[j1 * nx + i] - hh[j0 * nx + i]) / (zs[j1] - zs[j0]));
+        const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1)), strata = 0.86 + 0.16 * Math.sign(Math.sin(h * 0.55 + Math.sin(x * 0.02) * 1.5));
+        c = mixc(c, [L.rock[0] * strata, L.rock[1] * strata, L.rock[2] * strata], rockT);
+        c = mixc(c, L.snow, smoothstep(clamp((h - ST.snowLine) / 25, 0, 1)) * (1 - rockT * 0.5));
+      }
+      if (isFinite(snowFrom)) { const sb = smoothstep(clamp((T.sAt(cx, cz) - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, L.snow, sb); }
+      c = mixc(c, [hz.r, hz.g, hz.b], smoothstep(clamp((d - 250) / 550, 0, 1)) * 0.7);       // far ground melts into the haze
+      col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
+    }
+    const idx = [];
+    // a curtain hanging 40 m down from the seam: any crack between the fine terrain and the coarse ring shows ground, never sky
+    ring.forEach((v, t) => { const o = NV + t; pos[o * 3] = pos[v * 3]; pos[o * 3 + 1] = pos[v * 3 + 1] - 40; pos[o * 3 + 2] = pos[v * 3 + 2]; col[o * 3] = col[v * 3]; col[o * 3 + 1] = col[v * 3 + 1]; col[o * 3 + 2] = col[v * 3 + 2]; uv[o * 2] = uv[v * 2]; uv[o * 2 + 1] = uv[v * 2 + 1]; });
+    for (let t = 0; t < ring.length - 1; t++) idx.push(ring[t], NV + t, ring[t + 1], ring[t + 1], NV + t, NV + t + 1);
+    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      if (i >= ia && i < ib && j >= ja && j < jb) continue;                                   // the terrain is already there
+      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx.push(a, c, b, b, c, d);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(idx); geo.computeVertexNormals(); geo.computeBoundingSphere();
+    const gm = groundMaterial(false); gm.side = THREE.DoubleSide; const mesh = new THREE.Mesh(geo, gm); mesh.name = 'skirt'; mesh.position.y = -0.07 - 0.12; mesh.receiveShadow = false;     // 12 cm under the terrain edge: no cracks of sky at the seam, no flicker
+    add(mesh); return mesh;
+  }
+
   /* ---------- road ribbon: one texture per surface (art/textures.js), loose spill past the edge ---------- */
   const ROAD_TINT = { tarmac: 1, gravel: 1, snow: 1, dirt: 1 };      // the textures carry the colour; this only dims or brightens a surface
   function buildRoad() {
