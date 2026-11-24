@@ -44,12 +44,19 @@
     const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
     const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), soil = new Float32Array(nx * nz);
+    // colour noise: the stage generator is drawn once per cell of the grid as it was before run-in / run-out cells were added (same numbers, same later scenery); extra cells use their own generator
+    const noise = new Float32Array(nx * nz), nrng = mulberry32(ST.seed * 131 + 3);
+    for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
+      const inOld = ix >= terrain.ix0 && iz >= terrain.iz0 && ix < terrain.ix0 + terrain.nx0 && iz < terrain.iz0 + terrain.nz0;
+      noise[iz * nx + ix] = inOld ? 0 : nrng() * 0.06;
+    }
+    for (let iz = 0; iz < terrain.nz0; iz++) for (let ix = 0; ix < terrain.nx0; ix++) noise[(iz + terrain.iz0) * nx + ix + terrain.ix0] = rng() * 0.06;
     for (let iz = 0, k = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++, k++) {
       const x = minX + ix * cell, z = minZ + iz * cell, d = dist[k], s0 = nearS[k], dv = terrain.distV[k];
       pos[k * 3] = x; pos[k * 3 + 1] = h[k]; pos[k * 3 + 2] = z;
       const kx0 = ix > 0 ? k - 1 : k, kx1 = ix < nx - 1 ? k + 1 : k, kz0 = iz > 0 ? k - nx : k, kz1 = iz < nz - 1 ? k + nx : k;
       const steep = Math.hypot((h[kx1] - h[kx0]) / (Math.max(1, kx1 - kx0) * cell), (h[kz1] - h[kz0]) / (Math.max(1, (kz1 - kz0) / nx) * cell));
-      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0), n2 = rng() * 0.06;
+      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0), n2 = noise[k];
       let c = mixc(L.grassA, L.grassB, n1); c = [c[0] + n2, c[1] + n2, c[2]];
       if (alpine) {
         const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1));

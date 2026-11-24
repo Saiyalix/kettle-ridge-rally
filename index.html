@@ -1435,6 +1435,8 @@ function buildTerrain(track, ST = CONFIG.stage) {
   }
   const nx = Math.ceil((maxX - minX) / cell) + 1, nz = Math.ceil((maxZ - minZ) / cell) + 1;
   const N = nx * nz;
+  // the grid before any run-in / run-out was added (same origin): the ground colour noise is drawn from the stage generator over this part only
+  const ix0 = Math.round((base.minX - minX) / cell), iz0 = Math.round((base.minZ - minZ) / cell), nx0 = Math.ceil((base.maxX - base.minX) / cell) + 1, nz0 = Math.ceil((base.maxZ - base.minZ) / cell) + 1;
   const h = new Float32Array(N), dist = new Float32Array(N), nearS = new Float32Array(N), distV = new Float32Array(N);
   const natural0 = (x, z) => {
     let v = ST.height(x, z);
@@ -1475,9 +1477,11 @@ function buildTerrain(track, ST = CONFIG.stage) {
   const HC = 20, R = cliff ? 4 : 3, hash = new Map();
   V.forEach((p, i) => { const k = Math.floor(p.x / HC) * 73856 + Math.floor(p.z / HC); if (!hash.has(k)) hash.set(k, []); hash.get(k).push(i); });
   // Coarse nearest-sample grid for far-away points
-  const CG = 10, cnx = Math.ceil(nx / CG) + 1, cnz = Math.ceil(nz / CG) + 1, coarseI = new Int32Array(cnx * cnz), coarseD = new Float32Array(cnx * cnz);
+  // (the coarse points sit on the grid of the ground as it was before any run-in / run-out was added, so far-away dist / nearS values never change)
+  const CG = 10, cOx = Math.ceil(ix0 / CG) + 1, cOz = Math.ceil(iz0 / CG) + 1, cnx = Math.ceil(nx / CG) + cOx + 2, cnz = Math.ceil(nz / CG) + cOz + 2, coarseI = new Int32Array(cnx * cnz), coarseD = new Float32Array(cnx * cnz);
+  const cIx = ix => Math.round((ix - ix0) / CG) + cOx, cIz = iz => Math.round((iz - iz0) / CG) + cOz;
   for (let cz = 0; cz < cnz; cz++) for (let cx = 0; cx < cnx; cx++) {
-    const x = minX + cx * CG * cell, z = minZ + cz * CG * cell;
+    const x = base.minX + (cx - cOx) * CG * cell, z = base.minZ + (cz - cOz) * CG * cell;
     let best = 1e18, bi = 0;
     for (let j = 0; j < P.length; j += 4) { const dx = P[j].x - x, dz = P[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bi = j; } }
     coarseI[cz * cnx + cx] = bi; coarseD[cz * cnx + cx] = Math.sqrt(best);
@@ -1492,7 +1496,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
         for (const j of list) { const dx = V[j].x - x, dz = V[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bi = j; } if (d2 < bestP && !V[j].v) { bestP = d2; bpi = j; } }
       }
       if (bpi < 0) {
-        const ck = Math.round(iz / CG) * cnx + Math.round(ix / CG), ci = coarseI[ck];
+        const ck = cIz(iz) * cnx + cIx(ix), ci = coarseI[ck];
         dist[k] = Math.max(R * HC, coarseD[ck]); nearS[k] = P[ci].s;
         if (bi < 0) { h[k] = cliff ? profile(P[ci], lateral(P[ci], x, z), x, z) : natural(x, z); distV[k] = dist[k]; continue; }
       } else { dist[k] = Math.sqrt(bestP); nearS[k] = V[bpi].s; }
@@ -1528,7 +1532,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
     const ix = clamp(Math.round((x - minX) / cell), 0, nx - 1), iz = clamp(Math.round((z - minZ) / cell), 0, nz - 1);
     return arr[iz * nx + ix];
   }
-  return { minX, minZ, maxX, maxZ, base, nx, nz, cell, h, dist, nearS, distV, benches, heightAt, distAt: (x, z) => gridLookup(dist, x, z), distVAt: (x, z) => gridLookup(distV, x, z), sAt: (x, z) => gridLookup(nearS, x, z) };
+  return { minX, minZ, maxX, maxZ, base, ix0, iz0, nx0, nz0, nx, nz, cell, h, dist, nearS, distV, benches, heightAt, distAt: (x, z) => gridLookup(dist, x, z), distVAt: (x, z) => gridLookup(distV, x, z), sAt: (x, z) => gridLookup(nearS, x, z) };
 }
 
 /* World interface used by the car: ground height, normal and surface */
@@ -3069,12 +3073,19 @@ function boot() {
     const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
     const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), soil = new Float32Array(nx * nz);
+    // colour noise: the stage generator is drawn once per cell of the grid as it was before run-in / run-out cells were added (same numbers, same later scenery); extra cells use their own generator
+    const noise = new Float32Array(nx * nz), nrng = mulberry32(ST.seed * 131 + 3);
+    for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
+      const inOld = ix >= terrain.ix0 && iz >= terrain.iz0 && ix < terrain.ix0 + terrain.nx0 && iz < terrain.iz0 + terrain.nz0;
+      noise[iz * nx + ix] = inOld ? 0 : nrng() * 0.06;
+    }
+    for (let iz = 0; iz < terrain.nz0; iz++) for (let ix = 0; ix < terrain.nx0; ix++) noise[(iz + terrain.iz0) * nx + ix + terrain.ix0] = rng() * 0.06;
     for (let iz = 0, k = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++, k++) {
       const x = minX + ix * cell, z = minZ + iz * cell, d = dist[k], s0 = nearS[k], dv = terrain.distV[k];
       pos[k * 3] = x; pos[k * 3 + 1] = h[k]; pos[k * 3 + 2] = z;
       const kx0 = ix > 0 ? k - 1 : k, kx1 = ix < nx - 1 ? k + 1 : k, kz0 = iz > 0 ? k - nx : k, kz1 = iz < nz - 1 ? k + nx : k;
       const steep = Math.hypot((h[kx1] - h[kx0]) / (Math.max(1, kx1 - kx0) * cell), (h[kz1] - h[kz0]) / (Math.max(1, (kz1 - kz0) / nx) * cell));
-      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0), n2 = rng() * 0.06;
+      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0), n2 = noise[k];
       let c = mixc(L.grassA, L.grassB, n1); c = [c[0] + n2, c[1] + n2, c[2]];
       if (alpine) {
         const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1));
@@ -3254,8 +3265,8 @@ function boot() {
     }
     return out;
   }
-  // Run-in / run-out (ST.context): the stage's own road, houses and fences decide where scenery goes as ever. A spot that falls on the
-  // run-in road or in a run-in house is dropped AFTER it was drawn and counted, so no other tree, rock or board in the stage moves.
+  // Run-in / run-out (ST.context): the stage's own road, houses and fences decide where scenery goes as ever. A tree or rock that falls on the
+  // run-in road or in a run-in house is shrunk to nothing (scale 0.001, no collision) instead of removed: it still costs the same random numbers, so no other tree, rock or board in the stage moves.
   let ctxHouses = [];                                                // [{x, z, r}] run-in / run-out houses (not in frameHouses: that would change which spots pass)
   const ctxBlocked = (x, z) => !!ST.context && ((terrain.distVAt(x, z) < half + 3 && terrain.distVAt(x, z) < terrain.distAt(x, z) - 0.5) || ctxHouses.some(h => (x - h.x) * (x - h.x) + (z - h.z) * (z - h.z) < h.r * h.r));
   function scatter(rng, count, tries, accept) {
@@ -3265,7 +3276,7 @@ function boot() {
       const x = B.minX + rng() * (B.maxX - B.minX), z = B.minZ + rng() * (B.maxZ - B.minZ);
       const d = terrain.distAt(x, z), y = terrain.heightAt(x, z), s0 = terrain.sAt(x, z);
       const t = accept(x, z, d, y, s0);
-      if (t) { const it = Object.assign({ x, z, y, d, s0, r: rng() * 6.28, s: 0.8 + rng() * 0.7 }, t === true ? {} : t); n++; if (!ctxBlocked(x, z)) out.push(it); }
+      if (t) { const it = Object.assign({ x, z, y, d, s0, r: rng() * 6.28, s: 0.8 + rng() * 0.7 }, t === true ? {} : t); n++; if (ctxBlocked(x, z)) it.s = 0.001; out.push(it); }
     }
     return out;
   }
@@ -5531,7 +5542,7 @@ function boot() {
     const crest = woodExtras(trees.concat(woods), Object.assign({ salt: 2, a: snowS, b: fin - 90, minLen: 25, maxLen: 55, gapMin: 70, gapMax: 160, colMax: 14, rows: [
       { o0: 7, o1: 12, step: 5, p: 0.6, s0: 1.0, s1: 1.5, sep: 3.4 }, { o0: 13, o1: 24, step: 5, p: 0.55, s0: 1.1, s1: 1.6, sep: 3.8 }] }, lvl));
     conifers(trees.concat(woods, crest), (c, t) => t.snow ? c.setRGB(0.80 + rng() * 0.1, 0.88 + rng() * 0.08, 0.95) : c.setRGB(0.13 + rng() * 0.06, 0.48 + rng() * 0.12, 0.30 + rng() * 0.06));
-    rocks(rng, roadsideRocks(rng, 320).filter(r => !nearHouse(r.x, r.z) && !ctxBlocked(r.x, r.z)));
+    rocks(rng, roadsideRocks(rng, 320).filter(r => !nearHouse(r.x, r.z)).map(r => ctxBlocked(r.x, r.z) ? Object.assign(r, { size: 0.001, solid: false }) : r));
     cornerRails(t => t.r <= 60, { postColor: 0x6b5238, railColor: 0xff6a1f, solid: true, mu: 0.3 });
   }
 

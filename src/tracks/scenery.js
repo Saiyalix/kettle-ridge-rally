@@ -51,8 +51,8 @@
     }
     return out;
   }
-  // Run-in / run-out (ST.context): the stage's own road, houses and fences decide where scenery goes as ever. A spot that falls on the
-  // run-in road or in a run-in house is dropped AFTER it was drawn and counted, so no other tree, rock or board in the stage moves.
+  // Run-in / run-out (ST.context): the stage's own road, houses and fences decide where scenery goes as ever. A tree or rock that falls on the
+  // run-in road or in a run-in house is shrunk to nothing (scale 0.001, no collision) instead of removed: it still costs the same random numbers, so no other tree, rock or board in the stage moves.
   let ctxHouses = [];                                                // [{x, z, r}] run-in / run-out houses (not in frameHouses: that would change which spots pass)
   const ctxBlocked = (x, z) => !!ST.context && ((terrain.distVAt(x, z) < half + 3 && terrain.distVAt(x, z) < terrain.distAt(x, z) - 0.5) || ctxHouses.some(h => (x - h.x) * (x - h.x) + (z - h.z) * (z - h.z) < h.r * h.r));
   function scatter(rng, count, tries, accept) {
@@ -62,7 +62,7 @@
       const x = B.minX + rng() * (B.maxX - B.minX), z = B.minZ + rng() * (B.maxZ - B.minZ);
       const d = terrain.distAt(x, z), y = terrain.heightAt(x, z), s0 = terrain.sAt(x, z);
       const t = accept(x, z, d, y, s0);
-      if (t) { const it = Object.assign({ x, z, y, d, s0, r: rng() * 6.28, s: 0.8 + rng() * 0.7 }, t === true ? {} : t); n++; if (!ctxBlocked(x, z)) out.push(it); }
+      if (t) { const it = Object.assign({ x, z, y, d, s0, r: rng() * 6.28, s: 0.8 + rng() * 0.7 }, t === true ? {} : t); n++; if (ctxBlocked(x, z)) it.s = 0.001; out.push(it); }
     }
     return out;
   }

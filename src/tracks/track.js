@@ -203,6 +203,8 @@ function buildTerrain(track, ST = CONFIG.stage) {
   }
   const nx = Math.ceil((maxX - minX) / cell) + 1, nz = Math.ceil((maxZ - minZ) / cell) + 1;
   const N = nx * nz;
+  // the grid before any run-in / run-out was added (same origin): the ground colour noise is drawn from the stage generator over this part only
+  const ix0 = Math.round((base.minX - minX) / cell), iz0 = Math.round((base.minZ - minZ) / cell), nx0 = Math.ceil((base.maxX - base.minX) / cell) + 1, nz0 = Math.ceil((base.maxZ - base.minZ) / cell) + 1;
   const h = new Float32Array(N), dist = new Float32Array(N), nearS = new Float32Array(N), distV = new Float32Array(N);
   const natural0 = (x, z) => {
     let v = ST.height(x, z);
@@ -243,9 +245,11 @@ function buildTerrain(track, ST = CONFIG.stage) {
   const HC = 20, R = cliff ? 4 : 3, hash = new Map();
   V.forEach((p, i) => { const k = Math.floor(p.x / HC) * 73856 + Math.floor(p.z / HC); if (!hash.has(k)) hash.set(k, []); hash.get(k).push(i); });
   // Coarse nearest-sample grid for far-away points
-  const CG = 10, cnx = Math.ceil(nx / CG) + 1, cnz = Math.ceil(nz / CG) + 1, coarseI = new Int32Array(cnx * cnz), coarseD = new Float32Array(cnx * cnz);
+  // (the coarse points sit on the grid of the ground as it was before any run-in / run-out was added, so far-away dist / nearS values never change)
+  const CG = 10, cOx = Math.ceil(ix0 / CG) + 1, cOz = Math.ceil(iz0 / CG) + 1, cnx = Math.ceil(nx / CG) + cOx + 2, cnz = Math.ceil(nz / CG) + cOz + 2, coarseI = new Int32Array(cnx * cnz), coarseD = new Float32Array(cnx * cnz);
+  const cIx = ix => Math.round((ix - ix0) / CG) + cOx, cIz = iz => Math.round((iz - iz0) / CG) + cOz;
   for (let cz = 0; cz < cnz; cz++) for (let cx = 0; cx < cnx; cx++) {
-    const x = minX + cx * CG * cell, z = minZ + cz * CG * cell;
+    const x = base.minX + (cx - cOx) * CG * cell, z = base.minZ + (cz - cOz) * CG * cell;
     let best = 1e18, bi = 0;
     for (let j = 0; j < P.length; j += 4) { const dx = P[j].x - x, dz = P[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bi = j; } }
     coarseI[cz * cnx + cx] = bi; coarseD[cz * cnx + cx] = Math.sqrt(best);
@@ -260,7 +264,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
         for (const j of list) { const dx = V[j].x - x, dz = V[j].z - z, d2 = dx * dx + dz * dz; if (d2 < best) { best = d2; bi = j; } if (d2 < bestP && !V[j].v) { bestP = d2; bpi = j; } }
       }
       if (bpi < 0) {
-        const ck = Math.round(iz / CG) * cnx + Math.round(ix / CG), ci = coarseI[ck];
+        const ck = cIz(iz) * cnx + cIx(ix), ci = coarseI[ck];
         dist[k] = Math.max(R * HC, coarseD[ck]); nearS[k] = P[ci].s;
         if (bi < 0) { h[k] = cliff ? profile(P[ci], lateral(P[ci], x, z), x, z) : natural(x, z); distV[k] = dist[k]; continue; }
       } else { dist[k] = Math.sqrt(bestP); nearS[k] = V[bpi].s; }
@@ -296,7 +300,7 @@ function buildTerrain(track, ST = CONFIG.stage) {
     const ix = clamp(Math.round((x - minX) / cell), 0, nx - 1), iz = clamp(Math.round((z - minZ) / cell), 0, nz - 1);
     return arr[iz * nx + ix];
   }
-  return { minX, minZ, maxX, maxZ, base, nx, nz, cell, h, dist, nearS, distV, benches, heightAt, distAt: (x, z) => gridLookup(dist, x, z), distVAt: (x, z) => gridLookup(distV, x, z), sAt: (x, z) => gridLookup(nearS, x, z) };
+  return { minX, minZ, maxX, maxZ, base, ix0, iz0, nx0, nz0, nx, nz, cell, h, dist, nearS, distV, benches, heightAt, distAt: (x, z) => gridLookup(dist, x, z), distVAt: (x, z) => gridLookup(distV, x, z), sAt: (x, z) => gridLookup(nearS, x, z) };
 }
 
 /* World interface used by the car: ground height, normal and surface */
