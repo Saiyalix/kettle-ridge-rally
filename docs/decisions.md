@@ -5,6 +5,19 @@ Values measured from the game on 2026-11-04 (`main` at commit 26e2180, three.js 
 
 ---
 
+### 2026-11-12 · Tracks: SS5 Red Mesa Run (desert canyon at sunset), drivable stage
+**Decision:**
+- New stage `redmesa` (theme `desert`, seed 59), between SS4 and the Test Track, so the championship is now 5 stages. About 2870 m with the run-out (finish at 2723 m).
+- Route: dirt opener with two fast sweepers (R35/260, L60/150, L40/220) and a 90 right (R60); tarmac mining road from 920 m (L25/300, R90/30, L50/70 + R50/70 chicane, L120/28); gravel canyon from 1465 m (R150/20 hairpin, L45/180, R70/90, a 150 m straight with the crest jump at 2000 m, L60/100); dirt finish from 2175 m (R40/240, L100/45, R45/160). No loose corner tighter than radius 20. No snow, no water.
+- Surfaces `[0 dirt, 920 tarmac, 1465 gravel, 2175 dirt]`. Checkpoints 640 / 1180 / 1730 / 2380. Crest jump 1.9 m at 2000 m. Bridge hump: a 0.6 m `bump` at 884 m where the dry wash crosses the road.
+- Ground: `terrain: 'blend'` with `mesaHeight` (rolling hardpan + terraced red mesas + a wide dry wash 4.6 m deep). The road follows `mesaBase` (no mesas, no wash), so the wash and the mesas are only beside the road, like the SS4 moat. Mesas are part of the ground: no extra meshes. The producer's idea of `terrain: 'cliff'` was not used: it puts a wall on one side and a drop on the other, which is the SS2 look, and this stage is meant to be open.
+- Scenery (`sceneryDesert`, themes.js): cacti and dead trees (two merged, instanced meshes of 6-sided prisms), red boulders, red rock-bank faces 9 m out (`rockFace`, tint) on 75% of stretches. Nothing solid within 8.6 m of the road edge. Distant ridges are painted by the sky as on SS2. Rock caps are `none` on this theme (no moss). Ground colour: red rock banded in layers where it is steep or high, sand elsewhere (stage-build.js `desert` branch).
+- Producer's route numbers were about 3370 m long (the opener alone was 1014 m): the plan said about 2300 m, so the straights were cut and the sections moved (see the list above) until the bot ran about 88 s, like SS1 to SS4.
+- Clock: `timeStart` 33, `timeExt` [24, 24, 22, 14] (total 117 s). `refTime` 104 (Kestrel bot 88.3 s, +17.7%).
+**Bot (Kestrel / Strada):** 88.33 s / 87.56 s, off road 0.0 s, 0 spins, 0 rescues. Clock margin at the checkpoints (before each bonus): 11.7 / 20.4 / 23.1 / 26.3 s, finish 28.7 s (tightest 11.7 s at checkpoint 1; Strada 11.9 s). Nightjar KR (cars/nightjar 07c00f1 with this stage patched in): 88.31 s, off road 0.0 s, 0 spins, 0 rescues, tightest margin 11.7 s, finish 28.7 s. The Nightjar row goes into `expected.json` after its PR is merged (only the Kestrel and Strada rows are recorded here).
+**Jump:** crest at 2000 m, bot at about 130 km/h, peak 1.9 m, airborne about 24 m, lands flat (up vector 0.99 on touchdown, no slide).
+**Not done:** the pace notes use the normal wording (no special note for the bridge hump); art redoes the `look` block (a first warm sunset copy of SS2); green bushes and tufts from `buildNature` (art/trees.js) still show on this stage and should be sand/scrub colours.
+
 ### 2026-11-12 · Audio: a bad number can no longer throw inside the sound code
 **Decision:** every value written to an AudioParam now goes through `audFin(x, fallback)` (non-finite becomes the fallback), and `updateAudio` clamps `dt` to 0..0.25 s and resets `boost` / surface weights if they ever turn non-finite.
 **Why:** QA's flow test once logged "Failed to set the 'value' property on 'AudioParam': The provided float value is non-finite" during pause and rescue. It did not repeat, so the exact source was not caught. Suspects: a NaN rpm/speed on the frame after a rescue teleport, or a bad dt after resume. No sound design or volume changed.
@@ -649,6 +662,14 @@ Package 2 "Phone first" (owner: "go on with package 2"). New `tests/phone.test.j
 - `tests/lib/game.js`: every page gets 120 s default timeout (goto, screenshot, click, waits; Playwright's default is 30 s). Startup wait is 180 s. All of these are multiplied by `SLOW` = the 1-minute load average divided by cores, between 1 and 4 (idle box: x1; override with env `SLOW=2`). `patience(ms)` scales a hand-written wait (used in `flow` and `gfx`).
 - `tests/run.js`: the browser is now `resilientBrowser()`: if Chromium died, the next page launches a fresh one; after a group that threw, the browser is killed and restarted so the next group starts clean. The run prints `busy machine: waiting Nx longer` when SLOW > 1.
 - Only waiting changed. No expected value, threshold or pass condition was touched; a real failure still fails (it just takes longer to give up).
+
+## 2026-11-12 · Art: SS5 Red Mesa Run gets its real look (display only)
+**Why:** the first SS5 look was a warmed copy of SS2: orange sky, ground, road and rock all blended, the rock banks were over-saturated, and the roadside tufts and bushes were green.
+- `look` block (`src/tracks/stages.js`): pale-gold low sun (not orange) with cool blue sky fill, so shadows are blue-grey and long (sun 13 degrees up); sky pale blue at the top to amber to pale cream at the horizon; far mesa layers in dusty rose-tan with more mist; grade saturation 1.02 (was 1.18, plus a warm tint). Pale sand and ochre ground colours, dirt road and shoulder dark red-brown, rock red-brown.
+- Ground texture on the desert theme is now sand and pebbles (`sandTex` in `src/art/textures.js`); the grass texture had green blots that tinted the sand olive. Same size and cost as the grass texture; the other stages are untouched.
+- Rock banks (`tint` in `src/tracks/scenery.js`) and boulders / far mesas (`themes.js`) are browner and less saturated so the layered strata read; this was the red streak at the left edge of the first screenshot: a rock bank face, lit side-on by the low sun at full saturation, not a sprite.
+- `buildNature` (`src/art/trees.js`): on the desert theme tufts and bushes are straw, khaki-sage or rust-brown, never green. Cacti are a duller sage. Same count and places.
+- No geometry, placement, collision or clock changed: bot times do not move. No new draw calls.
 
 ## 2026-11-12 · Art: surface trails made stronger (display only)
 **Why:** the dust from #34 was modest: tan gravel dust was the same colour as the gravel road, snow spray vanished on snow, grass clods were tiny and the green ones hid on green grass. Particles were also sliced flat by the ground when the chase camera looked down at them.
