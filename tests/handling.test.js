@@ -2,6 +2,7 @@
 //     held-key slide per surface, first swing-out, spin test, recovery after letting go, steering wind-on time
 //     (and equal on every surface), per-car pairs slide more than each other (Strada > Kestrel, Nightjar > Strada), long drift, handbrake turn.
 //     A car listed in expected.json handling.perCar has its own slide, grass and letting-go targets (CLAUDE.md).
+//     The gas steers a held slide (2026-11-12): full gas slides more than lifted per car, lifting tucks in, never past 45 degrees.
 //     Phone controls: part tilt (proportional, steady), auto gas with a brake tap, handbrake turn on auto gas.
 'use strict';
 const { openGame } = require('./lib/game');
@@ -27,6 +28,10 @@ module.exports = async function handlingTest({ browser, base, expected }) {
       rows.push(await run({ mode: 'tilt', surface, kmh: T.offRoadSurfaces.includes(surface) ? T.offRoadKmh : PH.tiltKmh, carIndex, pct }));
     for (const surface of T.driveSurfaces) for (const tap of [false, true]) rows.push(await run({ mode: 'autogas', surface, kmh: PH.autoGasKmh, carIndex, tap }));
     rows.push(await run({ mode: 'handbrake', surface: T.handbrake.surface, kmh: T.handbrake.kmh, carIndex, autoGas: true }));
+    // the gas steers a held slide: key held, full gas, then full gas vs lifted (gas-control, tuck-in and never-past-45 targets)
+    const GC = T.gasControl;
+    for (const surface of GC.neverPast.surfaces) for (const kmh of GC.neverPast.kmh) for (const gasOn of [true, false])
+      rows.push(await run({ mode: 'gas', surface, kmh, carIndex, gasOn, fullS: GC.fullGasS, testS: GC.testS, windowS: GC.windowS }));
   }
   await g.ctx.close();
   const f = (a, d = 1) => a.toFixed(d), rng = a => `${f(Math.min(...a))}–${f(Math.max(...a))}`;
@@ -98,6 +103,30 @@ module.exports = async function handlingTest({ browser, base, expected }) {
         pass: (!need || yes.turnDeg >= no.turnDeg + PH.brakeTapMinExtraTurnDeg) && [no, yes].every(r => !r.spun && r.maxDeg <= T.spin.maxDeg && r.over45S <= T.spin.over45S),
         detail: `turned ${f(no.turnDeg)}° → ${f(yes.turnDeg)}° with the tap, peak slide ${f(yes.tapPeakDeg)}°, ${f(Math.max(no.over45S, yes.over45S), 2)} s past 45°` });
     }
+  }
+  // the gas steers a held slide (CLAUDE.md: gas control, lifting tucks in, never past 45 degrees)
+  const GC = T.gasControl, gasRows = rows.filter(r => r.mode === 'gas'), gdiff = {};
+  for (const car of cars) {
+    const gr = (surface, kmh, on) => gasRows.find(r => r.car === car && r.surface === surface && r.kmh === kmh && r.gasOn === on);
+    for (const surface of GC.surfaces) {
+      const full = gr(surface, GC.kmh, true), lift = gr(surface, GC.kmh, false), need = GC.minMoreDeg[car];
+      gdiff[car + '/' + surface] = full.endDeg - lift.endDeg;
+      if (need !== undefined) checks.push({ name: `${car} ${surface} ${GC.kmh} km/h: full gas slides ≥ ${need}° more than lifted (key held, last ${GC.windowS} s)`, pass: full.endDeg - lift.endDeg >= need,
+        detail: `${f(full.endDeg)}° full gas vs ${f(lift.endDeg)}° lifted (+${f(full.endDeg - lift.endDeg)}°)` });
+      checks.push({ name: `${car} ${surface} ${GC.kmh} km/h: lifting tucks in ≥ ${GC.tuck.minSmallerDeg}° within ${GC.tuck.afterS} s`, pass: lift.atLiftDeg - lift.after05Deg >= GC.tuck.minSmallerDeg,
+        detail: `${f(lift.atLiftDeg)}° when lifting → ${f(lift.after05Deg)}° ${GC.tuck.afterS} s later (−${f(lift.atLiftDeg - lift.after05Deg)}°)` });
+    }
+    const np = GC.neverPast, mine = gasRows.filter(r => r.car === car);
+    for (const surface of np.surfaces) {
+      const ss = mine.filter(r => r.surface === surface), worst = ss.reduce((a, r) => r.maxAfterDeg > a.maxAfterDeg ? r : a);
+      checks.push({ name: `${car} ${surface}: lifting or full gas in a held slide never past ${np.maxDeg}° (${np.kmh[0]}–${np.kmh[np.kmh.length - 1]} km/h)`, pass: ss.every(r => r.maxAfterDeg <= np.maxDeg && !r.spun),
+        detail: `worst ${f(worst.maxAfterDeg)}° (${worst.gasOn ? 'full gas' : 'lifting'} at ${worst.kmh} km/h)` });
+    }
+  }
+  for (const surface of GC.surfaces) {
+    const ord = GC.order.filter(c => cars.includes(c));
+    if (ord.length > 1) checks.push({ name: `${surface} ${GC.kmh} km/h: the gas matters more in each car in turn (${ord.join(' < ')})`, pass: ord.every((c, i) => i === 0 || gdiff[c + '/' + surface] > gdiff[ord[i - 1] + '/' + surface]),
+      detail: ord.map(c => `${c} +${f(gdiff[c + '/' + surface])}°`).join(' < ') });
   }
   // pairs: one car slides at least so many degrees more than another (average over the speeds), per surface
   for (const pr of T.slideMorePairs) if (cars.includes(pr.more) && cars.includes(pr.less)) for (const surface of pr.surfaces) {

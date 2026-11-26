@@ -3,6 +3,7 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **The gas steers the drift** (2026-11-26, #46, owner: "I want to control the drift based on how much gas I give"): more gas holds the slide wider, lifting tucks the nose in, on all three cars (Kestrel least, Nightjar most). GAS button is the phone default, auto gas is an option in the pause menu. Owner tried it on the test page and approved it ("Go on. Make all your changes live").
 - **Stronger dust** (2026-11-12, #43): lighter tan dust that reads on gravel, blue-white snow spray, bigger darker grass clods.
 - **SS5 Red Mesa Run** (2026-11-24): desert canyon at golden hour, 2.7 km: dirt sweepers, a tarmac mining road, a gravel canyon with a 1.9 m crest jump. All three cars clean on the bot, 11+ s clock margin.
 - **Third car, Nightjar KR** (2026-11-12, owner: "slidey, distinctly different ... built to handle long drifts"): steady 32–34° drift on gravel, dirt and snow, 12–15° on tarmac, never quicker than the other two on the bot. Own long, low body and 4 liveries. Own targets in `CLAUDE.md`; tests check them per car. Owner decided damage stays looks only.
