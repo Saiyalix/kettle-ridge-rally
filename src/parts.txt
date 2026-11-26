@@ -29,6 +29,7 @@ art/modeller.js          # tiny kit: merged, vertex-coloured models from primiti
 art/people.js            # spectators and other little people: 3D models, animation in the shader, level of detail
 art/structures.js        # 3D gates, sign boards, tape lines, guard rails
 art/details.js           # trackside detail builders for tracks: hay bales, marshal post, tents, TV tower, loos, cars, signposts
+art/settlement.js        # settlement kit: farms, villages, lodges, stations, power lines, cattle, trains, smoke, place-name boards (API at the top of the file)
 tracks/themes.js          # forest / alpine / Japan / castle scenery, spectators, boards, corner signs
 tracks/castle-build.js    # castle meshes (walls, towers, gatehouses, keep, well, moat) from castleLayout()
 tracks/event-detail.js    # rally-event props: start / finish areas, marshal posts, photographers, hay rows, extra spectator groups

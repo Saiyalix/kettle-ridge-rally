@@ -114,6 +114,23 @@ const STAGES = [
     checkpoints: [520, 1030, 1520, 2030],
     timeStart: 28, timeExt: [29, 25, 26, 22], refTime: 109,   // refTime: a steady clean run; rival times are spread around it    // arcade clock: seconds at the start, + at each checkpoint
     jumps: [[1450, 2.3]],
+    // context: the world around the stage (docs/decisions.md, 2026-11-24). Visual only: run-in and run-out are not part of the route, the clock or the bot.
+    //   lead / tail: { len m, curve deg (+ = turning left over the whole length), end: 'tee' | 'gate' | 'none', surface (default: the stage's first / last), arm: tee arm length m }
+    //   houses: [{ from, to, gap: [min, max], skip, stone, flat }]   walls: [{ from, to, kind: 'stone' | 'fence', off, any }]   (s may be < 0 or > length)
+    //   signs: [{ s, side, kind: 'entry' | 'direction', lines, off }]   benches: [{ s, side, off, w, d, ramp }]   keep: { start, finishBefore, finishAfter }   margin: m
+    context: {
+      benches: [{ s: 66, side: 1, off: 44, w: 46, d: 28, ramp: 20 }, { s: 8, side: -1, off: 44, w: 110, d: 36, ramp: 22 }, { s: 280, side: -1, off: 38, w: 86, d: 28, ramp: 18 }, { s: 2552, side: 1, off: 48, w: 150, d: 32, ramp: 22 }],
+      lead: { len: 200, curve: 10, end: 'tee' },
+      tail: { len: 220, curve: -15, end: 'gate' },
+      houses: [{ from: -196, to: -72, gap: [3.8, 6.0], skip: 0.12 }, { from: -196, to: -72, gap: [9, 12], skip: 0.35, stone: 0.5 }],
+      walls: [{ from: -196, to: -72, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
+      signs: [
+        { s: -24, side: 1, kind: 'entry', lines: ['BIRKWEN'] },
+        { s: 84, side: 1, kind: 'direction', lines: ['SAWMILL GAP 6 >', 'SKARNFELL 38', 'PORT SALLOW 71'] },
+        { s: 2660, side: 1, kind: 'entry', lines: ['SAWMILL GAP'] },
+        { s: 2730, side: 1, kind: 'direction', lines: ['SALTREACH 98 >', 'SKARNFELL 38'] },
+      ],
+    },
     segments: [
       ['S', 120], ['L', 35, 180], ['S', 80], ['R', 70, 80], ['S', 60], ['L', 90, 40],
       ['S', 140], ['R', 30, 250], ['S', 100], ['L', 60, 60], ['S', 60], ['R', 165, 17],
@@ -127,6 +144,8 @@ const STAGES = [
       hemiSky: 0xcfe6ff, hemiGround: 0x5a6a58, hemi: 1.0, sun: 0xffeccc, sunI: 4.2, exposure: 1.1, sunEl: 52, sunAz: -123,
       ink: 0x1c2440, env: [0x7ab8ff, 0xeaf5ff, 0x5a6a3a],
       sky: { clouds: 'cumulus', seed: 5, sunCol: 0xfffbe8, sunSize: 0.03, glowCol: 0xfff0c0, glowAmt: 0.35, band: 0, shade: 0x9fb8e0, lit: 0xffffff, rim: 0xfff4cc },
+      // far landmarks (compass bearing from the start direction, + = to the left; docs/region.md: Kettle Tower on the ridge to the north-west, Port Sallow far to the south, a village spire in the next valley)
+      landmarks: [{ kind: 'mast', az: 62, dist: 2300, h: 140 }, { kind: 'town', az: 236, dist: 2900, w: 1100, h: 60 }, { kind: 'spire', az: 18, dist: 1900, h: 55 }],
       ridge: [
         { col: 0x9cbbe6, base: 2, amp: 80, per: 5, oct: 4, jag: 1, mist: 0.5, snow: 0xffffff },
         { col: 0x86b2dc, base: -14, amp: 56, per: 7, oct: 4, jag: 0, mist: 0.45 },
