@@ -4,7 +4,13 @@
      painted clouds laid on top (one wide texture covering elevation 0..45 degrees, so clouds are sharp).
      The ring is a cylinder around the camera at 1850 m with the ridge silhouettes. Its foot is the fog colour,
      so the far ground melts into it. Both follow the camera, so they never come closer.
-     Stage looks set it all in `look.sky` and `look.ridge` (see tracks/stages.js). 'low' draws the same pictures at half size. */
+     Stage looks set it all in `look.sky` and `look.ridge` (see tracks/stages.js). 'low' draws the same pictures at half size.
+     Far landmarks: a stage look may list `landmarks: [ { kind, az, dist, ... } ]`, painted on the ring in front of a ridge layer (nothing is drawn if the look has none).
+       kind: 'mast' (lattice radio mast, red lights) | 'dam' (concrete wall) | 'town' (far town: roofs and warm lights) | 'spire' (village church with a spire) |
+             'bridge' (a viaduct on arches) | 'tower' (stone lookout / lit tower; lit: true) | 'mesa' (flat-topped red rock) | 'windfarm' (little turbines)
+       az: compass bearing in degrees from the world's +z axis towards +x (same as sunAz); dist: metres away (default per kind; size is real metres, so a bigger dist makes it smaller);
+       h / w: real height / width in metres (defaults per kind); layer: which ridge layer it stands on (default the nearest, last); col: hex colour; mist: 0..1 haze (default 0.35);
+       lit: lights on (always on when the look is `night`). */
   const DEG = Math.PI / 180, RAW = THREE.LinearSRGBColorSpace;           // RAW: take the hex numbers as they are (no sRGB -> linear): the sky shader works in display colours
   const SKY_EL = 45;                                                   // degrees of sky covered by the painted cloud texture
   const RING_R = 1850, RING_LO = -200, RING_HI = 320;                  // ring: radius and the heights (m, relative to the eye) it spans
@@ -153,6 +159,7 @@
       gr.addColorStop(0, hexCss(ly.col)); gr.addColorStop(kb, hexCss(mixHex(ly.col, haze, ly.mist))); gr.addColorStop(1, hexCss(haze));
       g.fillStyle = gr; g.beginPath(); g.moveTo(0, H); for (const p of pts) g.lineTo(p[0], p[1]); g.lineTo(W, H); g.closePath(); g.fill();
       if (S.city && li === (S.cityAt || 0)) paintCity(g, W, H, L, hz, Y, r);
+      if (L.landmarks) for (const lm of L.landmarks) if ((lm.layer != null ? lm.layer : L.ridge.length - 1) === li) paintLandmark(g, W, H, L, lm, (xx) => base - f(xx / W) * amp, ly.col, hz, haze);
       if (ly.snow) {                                                       // snow caps on the high points
         g.fillStyle = hexCss(ly.snow, 0.9);
         for (let i = 1; i < pts.length - 1; i++) { const p = pts[i], hgt = base - p[1]; if (hgt > amp * 0.62) { g.fillRect(p[0], p[1], 2.4, Math.min((hgt - amp * 0.62) * 0.9, 16 * Y)); } }
@@ -163,6 +170,67 @@
       }
     });
     const low = hz + Math.max(6, ...L.ridge.map(l => 5 - l.base)) * Y; g.fillStyle = hexCss(haze); g.fillRect(0, low, W, H - low);
+  }
+  // one far landmark standing on the ridge (see the header of this file). Sizes are real metres at lm.dist, scaled to the ring (1850 m) and to the picture's own stretch.
+  const LM_DEF = { mast: [3500, 120, 30], dam: [3000, 70, 320], town: [3500, 40, 900], spire: [2500, 45, 40], bridge: [3000, 45, 520], tower: [3000, 60, 22], mesa: [4500, 160, 900], windfarm: [3500, 90, 1200] };
+  const LM_BIG = { mast: [3, 2], spire: [3, 2.2], town: [2.5, 1.3] };   // height / width boost so they read as silhouettes from the road
+  function paintLandmark(g, W, H, L, lm, ridgeY, ridgeCol, hz, haze) {
+    const d = LM_DEF[lm.kind]; if (!d) return;
+    const dist = lm.dist || d[0], bigK = lm.scale != null ? [lm.scale, lm.scale] : (LM_BIG[lm.kind] || [1.5, 1.5]), hM = (lm.h || d[1]) * bigK[0], wM = (lm.w || d[2]) * bigK[1], sc = RING_R / dist, ky = H / (RING_HI - RING_LO), kx = W / (2 * Math.PI * RING_R);
+    const hp = (m) => m * sc * ky, wp = (m) => m * sc * kx, Y = H / 256, night = !!L.night || !!lm.lit, r = mulberry32(Math.floor((lm.az || 0) * 7) + 3);
+    const x0 = (((lm.az || 0) % 360) + 360) % 360 / 360 * W, gy = ridgeY(x0) + 1.5 * Y;
+    const base = lm.col != null ? lm.col : mixHex(ridgeCol, 0x12141a, 0.8), col = hexCss(mixHex(base, haze, lm.mist != null ? lm.mist : 0.12)), dark = hexCss(mixHex(base, haze, (lm.mist != null ? lm.mist : 0.12) + 0.15));
+    const light = (x, y, c, size) => { g.save(); g.shadowColor = c; g.shadowBlur = (night ? 8 : 4) * Y; g.fillStyle = c; g.beginPath(); g.arc(x, y, Math.max(1, size * Y), 0, 7); g.fill(); g.restore(); };
+    const copies = [-W, 0, W];
+    for (const dx of copies) {
+      const x = x0 + dx; if (x + wp(wM) < 0 || x - wp(wM) > W) continue;
+      g.save(); g.translate(x, gy); g.fillStyle = col; g.strokeStyle = col;
+      if (lm.kind === 'mast') {
+        const h = hp(hM), bw = Math.max(2, wp(wM) * 0.5);
+        g.lineWidth = Math.max(2.5, 2.4 * Y); g.beginPath(); g.moveTo(-bw, 0); g.lineTo(-0.5, -h); g.moveTo(bw, 0); g.lineTo(0.5, -h); g.stroke();
+        for (let i = 0; i < 9; i++) { const t0 = i / 9, t1 = (i + 1) / 9, w0 = bw * (1 - t0) + 0.5 * t0, w1 = bw * (1 - t1) + 0.5 * t1; g.beginPath(); g.moveTo(-w0, -h * t0); g.lineTo(w1, -h * t1); g.moveTo(w0, -h * t0); g.lineTo(-w1, -h * t1); g.stroke(); }
+        g.fillRect(-bw * 0.5, -h * 0.72, bw, Math.max(1.5, h * 0.03)); g.fillRect(-0.5, -h - h * 0.12, 1, h * 0.12);
+        light(0, -h - h * 0.12, '#ff3030', 1.6); light(0, -h * 0.55, '#ff4040', 1.1);
+      } else if (lm.kind === 'dam') {
+        const h = hp(hM), w = wp(wM);
+        g.beginPath(); g.moveTo(-w / 2, 4 * Y); g.lineTo(-w / 2 + w * 0.04, -h); g.lineTo(w / 2 - w * 0.04, -h); g.lineTo(w / 2, 4 * Y); g.closePath(); g.fillStyle = hexCss(mixHex(base, 0xdadada, 0.5)); g.globalAlpha = 0.95; g.fill(); g.globalAlpha = 1;
+        g.fillStyle = dark; for (let i = 1; i < 12; i++) g.fillRect(-w / 2 + w * i / 12 - 0.5, -h * 0.95, Math.max(1, w * 0.012), h * 0.9);
+        g.fillRect(-w / 2 + w * 0.04, -h, w * 0.92, Math.max(1, h * 0.07)); g.fillStyle = 'rgba(70,110,150,0.5)'; g.fillRect(w * 0.12, -h * 0.25, w * 0.3, h * 0.25);
+      } else if (lm.kind === 'town') {
+        const w = wp(wM), h = hp(hM), n = Math.max(12, Math.round(w / 2.2));
+        if (night) { const gl = g.createRadialGradient(0, -h * 0.4, 0, 0, -h * 0.4, w * 0.6); gl.addColorStop(0, 'rgba(255,190,110,0.45)'); gl.addColorStop(1, 'rgba(255,190,110,0)'); g.fillStyle = gl; g.fillRect(-w * 0.7, -h * 2, w * 1.4, h * 2.2); }
+        for (let i = 0; i < n; i++) {
+          const bx = (r() - 0.5) * w, k = 1 - Math.abs(bx) / (w / 2), bh = (0.25 + r() * 0.75) * h * (0.35 + 0.65 * k), bwid = Math.max(1.6, (1.2 + r() * 2.2) * Y);
+          g.fillStyle = col; g.fillRect(bx, -bh, bwid, bh + 1);
+          if (r() < 0.3) { g.beginPath(); g.moveTo(bx - 0.5, -bh); g.lineTo(bx + bwid / 2, -bh - bwid * 0.8); g.lineTo(bx + bwid + 0.5, -bh); g.fill(); }
+          for (let yy = 2 * Y; yy < bh - 1; yy += 2.6 * Y) if (r() < (night ? 0.65 : 0.1)) { g.fillStyle = night ? ['#ffd890', '#ffc070', '#fff0c0'][Math.floor(r() * 3)] : 'rgba(255,250,230,0.7)'; g.fillRect(bx + 0.4, -yy - Y, Math.max(1, bwid * 0.5), Math.max(1, Y)); }
+        }
+      } else if (lm.kind === 'spire') {
+        const h = hp(hM), w = wp(wM), nh = h * 0.35;
+        g.fillRect(-w / 2, -nh, w, nh + 1); g.beginPath(); g.moveTo(-w / 2 - 1, -nh); g.lineTo(0, -nh - h * 0.18); g.lineTo(w / 2 + 1, -nh); g.fill();
+        const tw = w * 0.28; g.fillRect(w * 0.2 - tw / 2, -h * 0.62, tw, h * 0.62); g.beginPath(); g.moveTo(w * 0.2 - tw / 2 - 0.6, -h * 0.62); g.lineTo(w * 0.2, -h); g.lineTo(w * 0.2 + tw / 2 + 0.6, -h * 0.62); g.fill(); g.fillStyle = dark; g.fillRect(w * 0.2 - 0.5, -h * 0.5, Math.max(1, tw * 0.2), h * 0.1);
+      } else if (lm.kind === 'bridge') {
+        const w = wp(wM), h = hp(hM), spans = Math.max(4, Math.round(wM / 60)), sw = w / spans, deck = Math.max(1.5, h * 0.12);
+        g.fillRect(-w / 2, -h, w, deck); g.fillStyle = dark;
+        for (let i = 0; i <= spans; i++) g.fillRect(-w / 2 + i * sw - Math.max(1, sw * 0.07), -h + deck, Math.max(1.5, sw * 0.14), h - deck + 2 * Y);
+        g.strokeStyle = col; g.lineWidth = Math.max(1, sw * 0.07); for (let i = 0; i < spans; i++) { g.beginPath(); g.arc(-w / 2 + (i + 0.5) * sw, -h + deck + (h - deck) * 0.62, sw * 0.42, Math.PI, 0); g.stroke(); }
+        if (night) for (let i = 0; i < 9; i++) light(-w / 2 + w * (i + 0.5) / 9, -h - 1, '#ffd890', 0.6);
+      } else if (lm.kind === 'tower') {
+        const h = hp(hM), w = wp(wM);
+        g.beginPath(); g.moveTo(-w / 2, 0); g.lineTo(-w * 0.32, -h * 0.82); g.lineTo(w * 0.32, -h * 0.82); g.lineTo(w / 2, 0); g.closePath(); g.fill();
+        g.fillRect(-w * 0.5, -h * 0.98, w, h * 0.16); for (let i = -2; i <= 2; i++) g.fillRect(i * w * 0.22 - w * 0.06, -h * 1.06, w * 0.12, h * 0.09);
+        if (night) { g.fillStyle = '#ffe9b0'; g.fillRect(-w * 0.34, -h * 0.9, w * 0.68, Math.max(1, h * 0.05)); light(0, -h * 1.1, '#ff5050', 1.2); for (let i = 0; i < 4; i++) light(0, -h * (0.15 + i * 0.18), '#bfe0ff', 0.7); }
+        else { g.fillStyle = dark; g.fillRect(-w * 0.05, -h * 0.9, w * 0.1, h * 0.1); }
+      } else if (lm.kind === 'mesa') {
+        const w = wp(wM), h = hp(hM);
+        g.beginPath(); g.moveTo(-w / 2, 2 * Y); g.lineTo(-w * 0.42, -h * 0.35); g.lineTo(-w * 0.38, -h); g.lineTo(w * 0.34, -h); g.lineTo(w * 0.4, -h * 0.4); g.lineTo(w / 2, 2 * Y); g.closePath(); g.fillStyle = hexCss(mixHex(lm.col != null ? lm.col : 0xa8553a, haze, lm.mist != null ? lm.mist : 0.35)); g.fill();
+        g.fillStyle = 'rgba(0,0,0,0.13)'; for (let i = 0; i < 5; i++) g.fillRect(-w * 0.42 + i * w * 0.18, -h * 0.9, w * 0.07, h * 0.9);
+      } else if (lm.kind === 'windfarm') {
+        const w = wp(wM), h = hp(hM), n = 7; g.lineWidth = Math.max(1, 0.7 * Y);
+        for (let i = 0; i < n; i++) { const tx = (i / (n - 1) - 0.5) * w, th = h * (0.75 + 0.25 * r()), a = r() * 6.28; g.beginPath(); g.moveTo(tx, 0); g.lineTo(tx, -th); for (let b = 0; b < 3; b++) { g.moveTo(tx, -th); g.lineTo(tx + Math.cos(a + b * 2.094) * th * 0.45, -th + Math.sin(a + b * 2.094) * th * 0.45); } g.stroke(); if (night) light(tx, -th, '#ff3030', 0.8); }
+      }
+      g.restore();
+    }
   }
   // a far-off lit city: dark towers with window dots, a few glowing blue outlines and red beacons, with a haze of light behind
   function paintCity(g, W, H, L, hz, Y, r) {

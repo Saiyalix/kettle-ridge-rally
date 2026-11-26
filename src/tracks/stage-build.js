@@ -1,6 +1,14 @@
   /* ---------- stage building helpers ---------- */
   const add = (...objs) => { for (const o of objs) stageGroup.add(o); };
   const sampleAt = s => P[clamp(Math.round(s / track.step), 0, P.length - 1)];
+  // like sampleAt, but also finds the run-in (s < 0) and run-out (s > length): visual road only (track.lead / track.tail)
+  const sampleV = s => {
+    if (s >= 0 && s <= track.length) return sampleAt(s);
+    const arr = s < 0 ? track.lead : track.tail;
+    if (!arr.length) return sampleAt(s);
+    let bi = 0, bd = 1e9; for (let i = 0; i < arr.length; i++) { const d = Math.abs(arr[i].s - s); if (d < bd) { bd = d; bi = i; } }
+    return arr[bi];
+  };
   const sideXZ = (p, off) => [p.x - Math.cos(p.th) * off, p.z + Math.sin(p.th) * off];   // off > 0 = right of the road
   const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const dummy = new THREE.Object3D(), tmpCol = new THREE.Color();
@@ -36,12 +44,19 @@
     const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
     const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), soil = new Float32Array(nx * nz);
+    // colour noise: the stage generator is drawn once per cell of the grid as it was before run-in / run-out cells were added (same numbers, same later scenery); extra cells use their own generator
+    const noise = new Float32Array(nx * nz), nrng = mulberry32(ST.seed * 131 + 3);
+    for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
+      const inOld = ix >= terrain.ix0 && iz >= terrain.iz0 && ix < terrain.ix0 + terrain.nx0 && iz < terrain.iz0 + terrain.nz0;
+      noise[iz * nx + ix] = inOld ? 0 : nrng() * 0.06;
+    }
+    for (let iz = 0; iz < terrain.nz0; iz++) for (let ix = 0; ix < terrain.nx0; ix++) noise[(iz + terrain.iz0) * nx + ix + terrain.ix0] = rng() * 0.06;
     for (let iz = 0, k = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++, k++) {
-      const x = minX + ix * cell, z = minZ + iz * cell, d = dist[k], s0 = nearS[k];
+      const x = minX + ix * cell, z = minZ + iz * cell, d = dist[k], s0 = nearS[k], dv = terrain.distV[k];
       pos[k * 3] = x; pos[k * 3 + 1] = h[k]; pos[k * 3 + 2] = z;
       const kx0 = ix > 0 ? k - 1 : k, kx1 = ix < nx - 1 ? k + 1 : k, kz0 = iz > 0 ? k - nx : k, kz1 = iz < nz - 1 ? k + nx : k;
       const steep = Math.hypot((h[kx1] - h[kx0]) / (Math.max(1, kx1 - kx0) * cell), (h[kz1] - h[kz0]) / (Math.max(1, (kz1 - kz0) / nx) * cell));
-      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0), n2 = rng() * 0.06;
+      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0), n2 = noise[k];
       let c = mixc(L.grassA, L.grassB, n1); c = [c[0] + n2, c[1] + n2, c[2]];
       if (alpine) {
         const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1));
@@ -56,6 +71,11 @@
       }
       let sb = 0;
       if (isFinite(snowFrom)) { sb = smoothstep(clamp((s0 - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, [L.snow[0] - n2 * 0.5, L.snow[1] - n2 * 0.5, L.snow[2]], sb); }
+      if (ST.id === 'kettle' && s0 > 130 && s0 < 500 && d > half + 9 && d < 150 && steep < 0.16) {        // SS1 farmland: hay, plough and fresh meadow patches (no random numbers: placed by cell)
+        const fx = Math.floor(x / 26), fz = Math.floor(z / 22), t = (((fx * 73856093) ^ (fz * 19349663)) >>> 0) % 5;
+        const f = t === 0 ? [0.80, 0.72, 0.34] : t === 1 ? [0.52, 0.42, 0.30] : t === 2 ? [0.52, 0.76, 0.30] : null;
+        if (f) c = mixc(c, f, 0.6 * smoothstep(clamp((d - half - 9) / 10, 0, 1)) * (1 - smoothstep(clamp((d - 110) / 40, 0, 1))));
+      }
       let city = false;
       if (japan) {
         if (s0 < 560 && d > half + 6 && d < 170 && steep < 0.14) {           // rice paddies: flooded and planted fields with dikes
@@ -72,7 +92,7 @@
         }
       }
       if (castleL) { const cm = castleCourt(castleL, x, z); if (cm > 0) c = mixc(c, [0.52, 0.47, 0.39], cm * 0.9); }        // courtyard: trodden earth (blockout colour, art may change it)
-      const shoulder = 1 - smoothstep(clamp((d - half) / 3.5, 0, 1));
+      const shoulder = 1 - smoothstep(clamp((dv - half) / 3.5, 0, 1));
       if (shoulder > 0 && !city) c = mixc(c, sb > 0.5 ? mixc(L.snow, [0, 0, 0], 0.08) : L.dirt, shoulder * 0.8);
       col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
       soil[k] = city ? 0 : shoulder;                                    // how much soil texture to blend in (art/textures.js)
@@ -119,27 +139,94 @@
     }
   }
 
+  /* ---------- outer ground skirt: the terrain ends 200 m (260 m on SS2) from the road; this coarse ring of ground carries the land on to 1000 m ----------
+     One mesh, one draw call, about 4-5k triangles (about 2k on low). The grid lines are close together at the terrain edge and spread out outwards;
+     heights are ST.height, shifted so the ring meets the terrain edge exactly (the shift fades out over 450 m); colours are the ground colours,
+     fading to the haze colour with distance so the end of the ground melts into the fog and the painted ridge. */
+  function buildSkirt() {
+    const low = quality === 'low', L = ST.look, alpine = ST.theme === 'alpine', desert = ST.theme === 'desert', snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
+    const T = terrain, x0 = T.minX, z0 = T.minZ, x1 = T.minX + (T.nx - 1) * T.cell, z1 = T.minZ + (T.nz - 1) * T.cell, REACH = 1000 - 200;
+    const line = (lo, hi) => {                                                       // grid lines along one axis: spread out going outwards, even over the terrain's own span
+      const xs = [], first = low ? 48 : 26, grow = low ? 1.5 : 1.27; let sum = 0, st = first;
+      while (sum < REACH - 0.5) { st = Math.min(st, REACH - sum); sum += st; xs.push(lo - sum, hi + sum); st *= grow; }
+      const n = Math.max(2, Math.ceil((hi - lo) / clamp((hi - lo) / (low ? 22 : 46), low ? 90 : 28, 400)));
+      for (let i = 0; i <= n; i++) xs.push(lo + (hi - lo) * i / n);
+      return xs.sort((p, q) => p - q);
+    };
+    const xs = line(x0, x1), zs = line(z0, z1), nx = xs.length, nz = zs.length;
+    const ia = xs.indexOf(x0), ib = xs.indexOf(x1), ja = zs.indexOf(z0), jb = zs.indexOf(z1), ring = [];       // ring = the vertices along the seam with the terrain
+    for (let i = ia; i < ib; i++) ring.push(ja * nx + i); for (let j = ja; j < jb; j++) ring.push(j * nx + ib); for (let i = ib; i > ia; i--) ring.push(jb * nx + i); for (let j = jb; j > ja; j--) ring.push(j * nx + ia); ring.push(ring[0]);
+    const NV = nx * nz, hz = new THREE.Color(L.horizon), pos = new Float32Array((NV + ring.length) * 3), col = new Float32Array((NV + ring.length) * 3), uv = new Float32Array((NV + ring.length) * 2), hh = new Float32Array(NV);
+    const hOf = (x, z) => {
+      const cx = clamp(x, x0, x1), cz = clamp(z, z0, z1), d = Math.hypot(x - cx, z - cz);
+      if (d < 0.01) return T.heightAt(cx, cz);
+      return ST.height(x, z) + (T.heightAt(cx, cz) - ST.height(cx, cz)) * (1 - smoothstep(clamp(d / 450, 0, 1)));
+    };
+    for (let j = 0, k = 0; j < nz; j++) for (let i = 0; i < nx; i++, k++) hh[k] = hOf(xs[i], zs[j]);
+    for (let j = 0, k = 0; j < nz; j++) for (let i = 0; i < nx; i++, k++) {
+      const x = xs[i], z = zs[j], h = hh[k], cx = clamp(x, x0, x1), cz = clamp(z, z0, z1), d = Math.hypot(x - cx, z - cz);
+      pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z; uv[k * 2] = x / 11; uv[k * 2 + 1] = z / 11;
+      const n1 = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.043) * 2.0);
+      let c = mixc(L.grassA, L.grassB, n1); c = [c[0] + 0.03, c[1] + 0.03, c[2]];
+      if (alpine || desert) {
+        const i0 = Math.max(0, i - 1), i1 = Math.min(nx - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(nz - 1, j + 1);
+        const steep = Math.hypot((hh[j * nx + i1] - hh[j * nx + i0]) / (xs[i1] - xs[i0]), (hh[j1 * nx + i] - hh[j0 * nx + i]) / (zs[j1] - zs[j0]));
+        if (desert) {                                                                // as in buildGround: red banded rock where steep or high
+          const rockT = Math.min(1, smoothstep(clamp((steep - 0.45) / 0.5, 0, 1)) * smoothstep(clamp((h - 3) / 5, 0, 1)) + smoothstep(clamp((h - 14) / 6, 0, 1)) * 0.6), strata = 0.82 + 0.2 * Math.sign(Math.sin(h * 0.9 + Math.sin(x * 0.03) * 1.2));
+          c = mixc(c, [L.rock[0] * strata, L.rock[1] * strata, L.rock[2] * strata], rockT);
+        } else {
+          const rockT = smoothstep(clamp((steep - 0.5) / 0.45, 0, 1)), strata = 0.86 + 0.16 * Math.sign(Math.sin(h * 0.55 + Math.sin(x * 0.02) * 1.5));
+          c = mixc(c, [L.rock[0] * strata, L.rock[1] * strata, L.rock[2] * strata], rockT);
+          c = mixc(c, L.snow, smoothstep(clamp((h - ST.snowLine) / 25, 0, 1)) * (1 - rockT * 0.5));
+        }
+      }
+      if (isFinite(snowFrom)) { const sb = smoothstep(clamp((T.sAt(cx, cz) - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, L.snow, sb); }
+      c = mixc(c, [hz.r, hz.g, hz.b], smoothstep(clamp((d - 250) / 550, 0, 1)) * 0.7);       // far ground melts into the haze
+      col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
+    }
+    const idx = [];
+    // a curtain hanging 40 m down from the seam: any crack between the fine terrain and the coarse ring shows ground, never sky
+    ring.forEach((v, t) => { const o = NV + t; pos[o * 3] = pos[v * 3]; pos[o * 3 + 1] = pos[v * 3 + 1] - 40; pos[o * 3 + 2] = pos[v * 3 + 2]; col[o * 3] = col[v * 3]; col[o * 3 + 1] = col[v * 3 + 1]; col[o * 3 + 2] = col[v * 3 + 2]; uv[o * 2] = uv[v * 2]; uv[o * 2 + 1] = uv[v * 2 + 1]; });
+    for (let t = 0; t < ring.length - 1; t++) idx.push(ring[t], NV + t, ring[t + 1], ring[t + 1], NV + t, NV + t + 1);
+    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      if (i >= ia && i < ib && j >= ja && j < jb) continue;                                   // the terrain is already there
+      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx.push(a, c, b, b, c, d);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(idx); geo.computeVertexNormals(); geo.computeBoundingSphere();
+    const gm = groundMaterial(false); gm.side = THREE.DoubleSide; const mesh = new THREE.Mesh(geo, gm); mesh.name = 'skirt'; mesh.position.y = -0.07 - 0.12; mesh.receiveShadow = false;     // 12 cm under the terrain edge: no cracks of sky at the seam, no flicker
+    add(mesh); return mesh;
+  }
+
   /* ---------- road ribbon: one texture per surface (art/textures.js), loose spill past the edge ---------- */
   const ROAD_TINT = { tarmac: 1, gravel: 1, snow: 1, dirt: 1 };      // the textures carry the colour; this only dims or brightens a surface
   function buildRoad() {
     const across = [-ROAD_EXT, -1, -0.7, -0.35, 0.35, 0.7, 1, ROAD_EXT];
-    const n = P.length, A = across.length;
-    const pos = new Float32Array(n * A * 3), col = new Float32Array(n * A * 3), uv = new Float32Array(n * A * 2);
-    for (let i = 0; i < n; i++) {
-      const p = P[i], tint = ROAD_TINT[p.surface] || 1;
-      for (let j = 0; j < A; j++) {
-        const k = i * A + j, [x, z] = sideXZ(p, across[j] * half), shade = tint * (Math.abs(across[j]) > 1 ? 0.92 : 1);
-        uv[k * 2] = (across[j] + ROAD_EXT) / (2 * ROAD_EXT); uv[k * 2 + 1] = p.s / ROAD_TILE;
-        pos[k * 3] = x; pos[k * 3 + 1] = terrain.heightAt(x, z) + 0.03; pos[k * 3 + 2] = z;
-        col[k * 3] = shade; col[k * 3 + 1] = shade; col[k * 3 + 2] = shade;
-      }
-    }
+    const A = across.length;
+    // the stage road, with the run-in before it and the run-out after it, then the cross roads of any T junction: all one mesh
+    const strips = [track.lead.concat(P, track.tail)].concat(track.tees);
+    const total = strips.reduce((a, st) => a + st.length, 0);
+    const pos = new Float32Array(total * A * 3), col = new Float32Array(total * A * 3), uv = new Float32Array(total * A * 2);
     const idx = [], kinds = [], groups = [];
-    for (let i = 0; i < n - 1; i++) {
-      const kind = P[i].surface;
-      if (!groups.length || groups[groups.length - 1].kind !== kind) groups.push({ kind, start: idx.length, count: 0 });
-      for (let j = 0; j < A - 1; j++) { const a = i * A + j, b = a + 1, c = a + A, d = c + 1; idx.push(a, b, c, b, d, c); }
-      groups[groups.length - 1].count = idx.length - groups[groups.length - 1].start;
+    let base = 0;
+    for (const strip of strips) {
+      for (let i = 0; i < strip.length; i++) {
+        const p = strip[i], tint = ROAD_TINT[p.surface] || 1, vv = (p.t !== undefined ? p.t - 1000 : p.s) / ROAD_TILE;
+        for (let j = 0; j < A; j++) {
+          const k = (base + i) * A + j, [x, z] = sideXZ(p, across[j] * half), shade = tint * (Math.abs(across[j]) > 1 ? 0.92 : 1);
+          uv[k * 2] = (across[j] + ROAD_EXT) / (2 * ROAD_EXT); uv[k * 2 + 1] = vv;
+          pos[k * 3] = x; pos[k * 3 + 1] = terrain.heightAt(x, z) + 0.03; pos[k * 3 + 2] = z;
+          col[k * 3] = shade; col[k * 3 + 1] = shade; col[k * 3 + 2] = shade;
+        }
+      }
+      for (let i = 0; i < strip.length - 1; i++) {
+        const kind = strip[i].surface;
+        if (!groups.length || groups[groups.length - 1].kind !== kind) groups.push({ kind, start: idx.length, count: 0 });
+        for (let j = 0; j < A - 1; j++) { const a = (base + i) * A + j, b = a + 1, c = a + A, d = c + 1; idx.push(a, b, c, b, d, c); }
+        groups[groups.length - 1].count = idx.length - groups[groups.length - 1].start;
+      }
+      base += strip.length;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -156,6 +243,7 @@
     const dashGeo = new THREE.PlaneGeometry(0.16, 3); dashGeo.rotateX(-Math.PI / 2);
     const dashes = [];
     for (let s = 20; s < track.length - 10; s += 9) if (sampleAt(s).surface === 'tarmac') dashes.push(sampleAt(s));
+    for (const [arr, step] of [[track.lead, 12], [track.tail, 12]]) for (let i = 2; i < arr.length - 2; i += Math.round(step / 4)) if (arr[i].surface === 'tarmac') dashes.push(arr[i]);
     instanced(dashGeo, lit({ color: 0xeeeadc, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), dashes,
       (o, p) => { o.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.05, p.z); o.rotation.set(0, p.th, 0); o.scale.setScalar(1); }, { shadow: false });
   }

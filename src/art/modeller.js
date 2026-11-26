@@ -8,7 +8,9 @@
        m.tri(a, b, c, col, o)                        one triangle (same rules)
        m.sweep(profile, x0, x1, col, o)              a profile [[y,z],...] (closed outline, seen from +x) swept along x from x0 to x1 (guardrails, beams); o.open = an open polyline, a thin sheet drawn on both sides
        m.at(x, y, z, ry, fn)                         everything drawn inside fn() is moved and turned (turn about y) first; can be nested
-       m.geo()                                       -> THREE.BufferGeometry with position, normal, color, pt, tw (indexed)
+       m.geo()                                       -> THREE.BufferGeometry with position, normal, color, pt, tw (indexed); plus uv when m.uv0 or o.uv was used
+       o.uv: [u, v] for every vertex of the primitive, or for quad() / tri() 8 numbers [u,v] per corner a,b,c,d. m.uv0 = [u, v]: the uv for primitives that give none
+       (used by art/settlement.js: one atlas for printed boards and a white texel for everything else). Without either, no uv attribute is made (as before).
      col: [r,g,b] 0..1 in display (sRGB looking) numbers, or a function (x, y, z, ny) => [r,g,b] (x,y,z after at()).
      o.part: number used by the people shader (palette slot, see people.js) or a function (x,y,z) => number. Default 4 = "fixed colour".
      o.tw: [lean, arm, flutter, jump] numbers or a function (x,y,z) => 4 numbers. Default 0 0 0 0. In structure materials tw.x = 1 means "multiply
@@ -16,7 +18,7 @@
   const _mdV = new THREE.Vector3(), _mdN = new THREE.Vector3(), _mdUp = new THREE.Vector3(0, 1, 0), _mdQ = new THREE.Quaternion(), _mdE = new THREE.Euler(), _mdS = new THREE.Vector3(1, 1, 1), _mdM = new THREE.Matrix4(), _mdNM = new THREE.Matrix3();
   const MD_ZERO4 = [0, 0, 0, 0];
   function modeller() {
-    const P = [], N = [], C = [], T = [], W = [], I = [];
+    const P = [], N = [], C = [], T = [], W = [], I = [], U = []; let uvOn = false;
     const stack = [new THREE.Matrix4()];
     const top = () => stack[stack.length - 1];
     function push(g, m, col, o) {
@@ -27,6 +29,7 @@
         _mdV.fromBufferAttribute(pos, i).applyMatrix4(M); _mdN.fromBufferAttribute(nor, i).applyMatrix3(_mdNM).normalize();
         P.push(_mdV.x, _mdV.y, _mdV.z); N.push(_mdN.x, _mdN.y, _mdN.z);
         const c = typeof col === 'function' ? col(_mdV.x, _mdV.y, _mdV.z, _mdN.y) : col; C.push(c[0], c[1], c[2]);
+        if (o.uv || api.uv0) { uvOn = true; const u = o.uv || api.uv0, j = o.uv && o.uv.length >= 8 ? (i % 4) * 2 : 0; U[P.length / 3 - 1] = [u[j], u[j + 1]]; }
         T.push(typeof o.part === 'function' ? o.part(_mdV.x, _mdV.y, _mdV.z) : (o.part == null ? 4 : o.part));
         const w = typeof o.tw === 'function' ? o.tw(_mdV.x, _mdV.y, _mdV.z) : (o.tw || MD_ZERO4); W.push(w[0], w[1], w[2], w[3]);
       }
@@ -60,7 +63,12 @@
         const f = mk(1); push(f, null, col, o); f.dispose();
         if (o.two) { const k = mk(-1); push(k, null, col, o); k.dispose(); }
       },
-      tri(a, b, c, col, o = {}) { api.quad(a, b, c, c, col, o); },
+      tri(a, b, c, col, o = {}) {
+        const nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]), l = Math.hypot(nx, ny, nz) || 1;
+        const mk = (s) => { const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute([...a, ...b, ...c], 3)); q.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 2].flatMap(() => [nx / l * s, ny / l * s, nz / l * s]), 3)); q.setIndex(s > 0 ? [0, 1, 2] : [0, 2, 1]); return q; };
+        const f = mk(1); push(f, null, col, o); f.dispose();
+        if (o.two) { const k = mk(-1); push(k, null, col, o); k.dispose(); }
+      },
       sweep(prof, x0, x1, col, o = {}) {
         if (o.open) {                                                                                      // an open polyline: a thin sheet, both sides drawn
           for (let i = 0; i < prof.length - 1; i++) { const [y0, z0] = prof[i], [y1, z1] = prof[i + 1]; api.quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1], col, { part: o.part, tw: o.tw, two: true }); }
@@ -82,8 +90,10 @@
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
         g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setAttribute('pt', new THREE.Float32BufferAttribute(T, 1)); g.setAttribute('tw', new THREE.Float32BufferAttribute(W, 4));
+        if (uvOn) { const uv = new Float32Array(P.length / 3 * 2); for (let i = 0; i < U.length; i++) if (U[i]) { uv[i * 2] = U[i][0]; uv[i * 2 + 1] = U[i][1]; } g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
         g.setIndex(I); g.userData.keep = true; return g;
       },
+      uv0: null,
       get tris() { return I.length / 3; },
     };
     return api;

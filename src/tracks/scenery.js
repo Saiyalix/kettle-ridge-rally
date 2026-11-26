@@ -51,13 +51,18 @@
     }
     return out;
   }
+  // Run-in / run-out (ST.context): the stage's own road, houses and fences decide where scenery goes as ever. A tree or rock that falls on the
+  // run-in road or in a run-in house is shrunk to nothing (scale 0.001, no collision) instead of removed: it still costs the same random numbers, so no other tree, rock or board in the stage moves.
+  let ctxHouses = [];                                                // [{x, z, r}] run-in / run-out houses (not in frameHouses: that would change which spots pass)
+  const ctxBlocked = (x, z) => !!ST.context && ((terrain.distVAt(x, z) < half + 3 && terrain.distVAt(x, z) < terrain.distAt(x, z) - 0.5) || ctxHouses.some(h => (x - h.x) * (x - h.x) + (z - h.z) * (z - h.z) < h.r * h.r));
   function scatter(rng, count, tries, accept) {
-    const out = [];
-    for (let i = 0; i < tries && out.length < count; i++) {
-      const x = terrain.minX + rng() * (terrain.maxX - terrain.minX), z = terrain.minZ + rng() * (terrain.maxZ - terrain.minZ);
+    const out = [], B = terrain.base;
+    let n = 0;
+    for (let i = 0; i < tries && n < count; i++) {
+      const x = B.minX + rng() * (B.maxX - B.minX), z = B.minZ + rng() * (B.maxZ - B.minZ);
       const d = terrain.distAt(x, z), y = terrain.heightAt(x, z), s0 = terrain.sAt(x, z);
       const t = accept(x, z, d, y, s0);
-      if (t) out.push(Object.assign({ x, z, y, d, s0, r: rng() * 6.28, s: 0.8 + rng() * 0.7 }, t === true ? {} : t));
+      if (t) { const it = Object.assign({ x, z, y, d, s0, r: rng() * 6.28, s: 0.8 + rng() * 0.7 }, t === true ? {} : t); n++; if (ctxBlocked(x, z)) it.s = 0.001; out.push(it); }
     }
     return out;
   }
@@ -150,7 +155,12 @@
   const wallSegs = (pts, r, mu, h) => { for (let i = 0; i < pts.length - 1; i++) obstacles.push({ ax: pts[i].x, az: pts[i].z, bx: pts[i + 1].x, bz: pts[i + 1].z, r, mu, h: h || 2.5 }); };
   // all roadside pieces keep away from the gates, boards, jumps, the torii tunnel, and the outside of tight corners (chevrons)
   function frameKeepOut() {
-    const all = [[0, 135], [track.finishS - 78, track.length]];
+    // ST.context.keep = { start: m, finishBefore: m, finishAfter: m }: how far from the start line / finish line the trees, walls and fences keep away
+    // (defaults 135 after the start, 78 before the finish, to the end of the runoff). 0 = no clearing on that side, so a start or finish place can have scenery near it.
+    const kc = (ST.context && ST.context.keep) || {}, kStart = kc.start != null ? kc.start : 135, kFin = kc.finishBefore != null ? kc.finishBefore : 78, kEnd = kc.finishAfter != null ? track.finishS + kc.finishAfter : track.length;
+    const all = [];
+    if (kStart > 0) all.push([0, kStart]);
+    if (kFin > 0 || kEnd > track.finishS) all.push([track.finishS - kFin, kEnd]);
     if (ST.theme === 'alpine') { all.length = 0; all.push([13.5, 18.5], [track.finishS - 2.5, track.finishS + 2.5]); for (const cp of ST.checkpoints) all.push([cp - 2.5, cp + 2.5]); }   // gate posts only
     else for (const cp of ST.checkpoints) all.push([cp - 28, cp + 16]);
     if (ST.theme !== 'alpine') for (const [js] of ST.jumps) all.push([js - 20, js + 30]);
@@ -165,8 +175,8 @@
     const pieces = []; let cur = [];
     const flush = () => { if (cur.length >= (opt.min || 3)) pieces.push(cur); cur = []; };
     for (let s = a; s <= b + 0.01; s += opt.step || 3) {
-      const p = sampleAt(s), [x, z] = sideXZ(p, side * (half + off)), g = terrain.heightAt(x, z);
-      const ok = !keep(s, side) && (opt.any && opt.noDist || terrain.distAt(x, z) > half + off - 0.9) && (opt.any || Math.abs(g - p.y) < (opt.dy || 2.4));
+      const p = sampleV(s), [x, z] = sideXZ(p, side * (half + off)), g = terrain.heightAt(x, z);
+      const ok = !keep(s, side) && (opt.any && opt.noDist || terrain.distVAt(x, z) > half + off - 0.9) && (opt.any || Math.abs(g - p.y) < (opt.dy || 2.4));
       if (!ok) { flush(); continue; }
       cur.push({ x, y: opt.follow ? Math.max(g, p.y - 0.3) : g, z, s });
     }
@@ -197,15 +207,72 @@
             const g = terrain.heightAt(q[0], q[1]); y = Math.min(y, g); yMax = Math.max(yMax, g);
           }
           if (!ok || yMax - y > 3.5 || Math.abs(y - p.y) > 3) continue;
-          frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
+          // SS1: past s 262 the street gives way to farmland. Four houses in five are not built, but they stay in frameHouses, so every tree and rock stays where it was
+          const farmland = ST.id === 'kettle' && sc > 262 && hash2(cx, cz) < 0.8;
+          if (!farmland) frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
           frameHouses.push({ x: cx, z: cz, r: Math.hypot(w, d) / 2 + 2.5 });
-          for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
+          if (!farmland) for (let k = 0; k < 4; k++) obstacles.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
         }
       }
     };
     if (ST.id === 'kettle') { row(150, 455, 3.8, 6.0, 0.12); row(62, 140, 9, 12, 0.35, { stone: 0.5 }); }
     if (ST.id === 'thornwick') { row(150, 455, 3.8, 6.0, 0.12, { stone: 0.6 }); row(60, 140, 10, 13, 0.4, { stone: 0.5 }); }
     if (ST.id === 'sakura') row(1640, track.cityStart - 4, 4.4, 6.5, 0.1, { stone: 0.2, flat: true });
+  }
+
+  /* ---------- run-in / run-out dressing (ST.context.houses / .walls) ----------
+     Own generator (ST.seed * 131 + 11), called after planHouses / buildRoadside: no existing piece moves.
+     houses: [{ from, to, gap: [min, max], skip, stone, flat }]  rows of houses on both sides, s may be < 0 (run-in) or > length (run-out)
+     walls:  [{ from, to, kind: 'stone' | 'fence', off, any }]    walls / fences on both sides at `off` m beyond the road edge
+     Houses go into the same house list as the stage's own (one merged mesh per style). Nothing here is drivable: no obstacles except the
+     house and wall sides (harmless, nobody drives there). */
+  let ctxObs = [];                                                   // run-in / run-out house sides: added to `obstacles` last (contextRoadside), so the order of every older obstacle stays as it was
+  function planContext(crng) {
+    ctxHouses = []; ctxObs = [];
+    const C = ST.context; if (!C) return;
+    const TINTS = [[1, 0.92, 0.78], [1, 0.84, 0.8], [0.88, 0.92, 1], [0.96, 0.96, 0.9], [1, 0.9, 0.7], [0.92, 0.86, 0.8]];
+    for (const o of C.houses || []) {
+      const [gapMin, gapMax] = o.gap || [4, 6];
+      for (const side of [-1, 1]) {
+        let s = o.from;
+        while (s < o.to) {
+          const w = 7 + crng() * 7, d = 6 + crng() * 3, h = 6.5 + crng() * 2.5, sc = s + w / 2, gap = gapMin + crng() * (gapMax - gapMin);
+          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
+          const tint = TINTS[Math.floor(crng() * TINTS.length)], flat = !!o.flat && crng() < 0.4, skipIt = crng() < (o.skip || 0);
+          s += w + 0.8 + crng() * 2.5;
+          if (skipIt || sc > o.to) continue;
+          const p = sampleV(sc), [cx, cz] = sideXZ(p, side * (half + gap + d / 2)), yaw = facingYaw(cx, cz, p.x, p.z);
+          const c = Math.cos(yaw), sn = Math.sin(yaw), at = (lx, lz) => [cx + lx * c + lz * sn, cz - lx * sn + lz * c];
+          const cs = [at(-w / 2, d / 2), at(w / 2, d / 2), at(w / 2, -d / 2), at(-w / 2, -d / 2)];
+          let ok = true, y = 1e9, yMax = -1e9;
+          for (const q of cs.concat([at(0, d / 2), at(0, -d / 2), at(-w / 4, d / 2), at(w / 4, d / 2), at(0, 0)])) {
+            if (terrain.distVAt(q[0], q[1]) < half + gapMin - 0.6) ok = false;
+            const g = terrain.heightAt(q[0], q[1]); y = Math.min(y, g); yMax = Math.max(yMax, g);
+          }
+          if (!ok || yMax - y > 3.5 || Math.abs(y - p.y) > 3) continue;
+          frameHouseList.push({ x: cx, y: y + 0.3, z: cz, yaw, w, d, h, style, tint, roof: flat ? 'flat' : 'hip' });
+          ctxHouses.push({ x: cx, z: cz, r: Math.hypot(w, d) / 2 + 2.5 });
+          for (let k = 0; k < 4; k++) ctxObs.push({ ax: cs[k][0], az: cs[k][1], bx: cs[(k + 1) % 4][0], bz: cs[(k + 1) % 4][1], r: 0.3, mu: 0.3, h: 99 });
+        }
+      }
+    }
+  }
+  function contextRoadside(crng) {
+    const C = ST.context; if (!C) return;
+    for (const o of ctxObs) obstacles.push(o);
+    ctxObs = [];
+    if (!(C.walls || []).length) return;
+    const none = () => false, stoneGrey = [], stoneWarm = [], fences = [];
+    for (const o of C.walls) for (const side of [-1, 1]) for (const [a, b] of chunksOf(crng, o.from, o.to, o.minLen || 60, o.maxLen || 130, o.gapMin != null ? o.gapMin : 3, o.gapMax != null ? o.gapMax : 6)) {
+      if (crng() < (o.skip || 0)) continue;
+      const tint = [0.9 + crng() * 0.1, 0.9 + crng() * 0.1, 0.9 + crng() * 0.1], warm = crng() < 0.45, height = o.kind === 'fence' ? 1.0 + crng() * 0.2 : 0.9 + crng() * 0.4, rails = crng() < 0.5 ? 2 : 3;
+      const village = !!o.any, pieces = framePath(a, b, side, o.off || 2.4, none, village ? { any: true, noDist: true, follow: true } : {});
+      for (const pts of pieces) {
+        if (o.kind === 'fence') { fences.push(woodFence(pts, { height, rails, tint: [1, 1, 1] })); wallSegs(pts, 0.15, 0.2, 2.5); }
+        else { (warm ? stoneWarm : stoneGrey).push(stoneWall(pts, { height, thick: 0.6, warm, tint, sink: village ? 1.2 : undefined })); wallSegs(pts, 0.33, 0.25, 2.5); }
+      }
+    }
+    mergeMeshes(stoneGrey, false); mergeMeshes(stoneWarm, false); mergeMeshes(fences, false);
   }
 
   function buildRoadside(rng) {
@@ -219,7 +286,7 @@
     if (ST.id === 'kettle') {
       for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, 470, 90, 160, 3, 6).concat(chunksOf(rng, 470, track.finishS - 80, 40, 110, 4, 14))) {
         const village = b <= 470, snow = a > ST.snowFrom - 20, pick = rng();
-        if (village) { stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), Object.assign(wallOpt(), { sink: 1.2 }), 0.33); continue; }
+        if (village) { const wo = Object.assign(wallOpt(), { sink: 1.2 }); if (a < 262) stone(framePath(a, b, side, 2.4, keep, { any: true, noDist: true, follow: true }), wo, 0.33); continue; }       // SS1: walls end where the farmland begins (same random draws as ever)
         if (pick < 0.15) continue;
         if (pick < 0.4) { const o = wallOpt(); if (snow) o.tint = [0.88, 0.94, 1]; stone(framePath(a, b, side, 2.4, keep), o, 0.33); }
         else fence(framePath(a, b, side, 2.6, keep), { height: 1.0 + rng() * 0.2, rails: rng() < 0.5 ? 2 : 3, tint: snow ? [0.92, 0.96, 1.05] : [1, 1, 1] });
