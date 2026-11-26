@@ -68,6 +68,11 @@
         const rockT = smoothstep(clamp((steep - 0.45) / 0.5, 0, 1)) * smoothstep(clamp((h[k] - 3) / 5, 0, 1)) + smoothstep(clamp((h[k] - 14) / 6, 0, 1)) * 0.6;
         const strata = 0.82 + 0.2 * Math.sign(Math.sin(h[k] * 0.9 + Math.sin(x * 0.03) * 1.2)), rr = Math.min(1, rockT);
         c = mixc(c, [L.rock[0] * strata + n2, L.rock[1] * strata + n2, L.rock[2] * strata + n2], rr);
+        if (ST.id === 'redmesa' && rr < 0.3) {                              // SS5: the dry river bed (the wash, 884 m): pale pebbly gravel with darker streaks, colour only
+          const W = mesaWash(), u = (x - W.x) * W.sn + (z - W.z) * W.cs, v = (x - W.x) * W.cs - (z - W.z) * W.sn;
+          const wb = (1 - smoothstep(clamp(Math.abs(u - 7 * Math.sin(v * 0.031)) / 38, 0, 1))) * (1 - smoothstep(clamp((Math.abs(v) - 160) / 140, 0, 1)));
+          if (wb > 0.05) { const st = 0.5 + 0.5 * Math.sin(v * 0.21 + Math.sin(u * 0.4) * 2.2), g = [0.90 - 0.16 * st + n2, 0.82 - 0.15 * st + n2, 0.70 - 0.13 * st]; c = mixc(c, g, 0.8 * smoothstep(clamp(wb * 2.2, 0, 1)) * (1 - rr)); }
+        }
       }
       let sb = 0;
       if (isFinite(snowFrom)) { sb = smoothstep(clamp((s0 - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, [L.snow[0] - n2 * 0.5, L.snow[1] - n2 * 0.5, L.snow[2]], sb); }

@@ -299,6 +299,73 @@
     if (!low) { const F = faces(mainVol.x0, mainVol.x1, mainVol.z0, mainVol.z1).front; fbox(tb, F, -0.12, 0.0, 0.2, mainVol.h - 0.1, 0.0, 0.1, [0.5, 0.52, 0.55], 'bu'); }
   }
 
+  /* ---- Adobe house (Cinder Wells, SS5): one or two storeys of rendered earth, flat roofs with parapets, protruding roof beams,
+     small deep windows, a plank door under a beam, sometimes a shade porch of posts and slats and a string of red chillies. No shutters, no brick. ---- */
+  function adobeHouse(K) {
+    const { it, rng, hw, hd, low, tb, gb, fbox, wallHoles, pane, faces, ID, rb } = K;
+    const WALL = [[0.9, 0.7, 0.5], [0.84, 0.6, 0.42], [0.94, 0.78, 0.58], [0.8, 0.54, 0.4], [0.95, 0.83, 0.66], [0.88, 0.64, 0.46]];
+    const col = WALL[Math.floor(rng() * WALL.length)], wood = [0.34, 0.22, 0.14], woodL = [0.5, 0.35, 0.22], cap = bdMul(col, 0.9);
+    const frameCols = [[0.18, 0.52, 0.55], [0.2, 0.4, 0.62], [0.34, 0.22, 0.14], [0.34, 0.22, 0.14]], frameCol = frameCols[Math.floor(rng() * 4)];
+    const H1 = 3.3, two = hd * 2 >= 6.4 && rng() < 0.45, uo = rng(), beamSp = low ? 1.7 : 0.9;
+    const ia = 0.5 + rng() * 0.9, ib = 0.5 + rng() * 0.9, ifr = 1.9 + rng() * 0.9;
+    const vols = [{ x0: -hw, x1: hw, z0: -hd, z1: hd, yb: -1, h: H1, low: true }];
+    if (two) vols.push({ x0: -hw + ia, x1: hw - ib, z0: -hd + 0.7, z1: hd - ifr, yb: H1, h: 6.2 });
+    const di = Math.floor(rng() * 3);
+    vols.forEach((V, vi) => {
+      const Fs = faces(V.x0, V.x1, V.z0, V.z1), fh = V.h - Math.max(V.yb, 0);
+      for (const fname of ['front', 'right', 'back', 'left']) {
+        const F = Fs[fname], L = F.L, isFront = fname === 'front', holes = [], items = [];
+        const n = Math.max(1, Math.round((L - 1.2) / 3.3)), gap = L / n, dI = Math.min(di, n - 1);
+        for (let i = 0; i < n; i++) {
+          const uc = gap * (i + 0.5);
+          if (isFront && V.low && i === dI) { items.push({ kind: 'door', u0: uc - 0.5, u1: uc + 0.5, y0: 0.15, y1: 2.2 }); continue; }
+          if (!isFront && rng() < 0.35) continue;
+          const y0 = Math.max(V.yb, 0) + 1.0, ww = 0.34 + rng() * 0.12;
+          items.push({ kind: 'win', u0: uc - ww, u1: uc + ww, y0, y1: y0 + 0.82 + rng() * 0.2 });
+        }
+        for (const o of items) holes.push({ u0: o.u0, u1: o.u1, y0: o.y0, y1: o.y1 });
+        const rd = 0.42;
+        wallHoles(F, V.yb, V.h, holes, col, { rd, uo: uo + fname.length * 0.37 + vi * 0.2 });
+        // earth plinth, a little darker and thicker, and the parapet round the roof
+        if (V.low) fbox(tb, F, -0.05, L + 0.05, -1, 0.45, 0, 0.08, bdMul(col, 0.8), low ? 'blrtbu' : 'blu');
+        fbox(tb, F, -0.3, L + 0.3, V.h, V.h + 0.55, -0.4, 0.1, cap, 'u');
+        if (!low || isFront) for (let u = 0.55; u < L - 0.3; u += beamSp) fbox(tb, F, u - 0.08, u + 0.08, V.h - 0.42, V.h - 0.26, -0.05, 0.55, wood, 'b');
+        for (const o of items) {
+          const { u0, u1, y0, y1 } = o, uc = (u0 + u1) / 2;
+          if (o.kind === 'win') {
+            pane(F, u0, u1, y0, y1, -rd + 0.03, 'win');
+            fbox(tb, F, u0 - 0.12, u1 + 0.12, y1, y1 + 0.14, -0.15, 0.14, woodL, low ? 'blrbu' : 'bu');
+            fbox(tb, F, u0 - 0.1, u1 + 0.1, y0 - 0.1, y0, -0.1, 0.12, bdMul(col, 1.08), low ? 'blrbu' : 'bu');
+            if (!low) { for (const [a, b] of [[u0, u0 + 0.06], [u1 - 0.06, u1]]) fbox(tb, F, a, b, y0, y1, -rd, -rd + 0.1, frameCol, 'blrbtu'); fbox(tb, F, uc - 0.03, uc + 0.03, y0, y1, -rd, -rd + 0.1, frameCol, 'blrbtu'); }
+          } else {
+            fbox(tb, F, u0 + 0.03, u1 - 0.03, y0, y1, -rd, -rd + 0.08, wood, 'blr');
+            if (!low) for (let yy = y0 + 0.5; yy < y1 - 0.2; yy += 0.5) fbox(tb, F, u0 + 0.05, u1 - 0.05, yy, yy + 0.04, -rd + 0.08, -rd + 0.1, bdMul(wood, 0.7), 'blrbtu');
+            fbox(tb, F, u0 - 0.3, u1 + 0.3, y1, y1 + 0.2, -0.1, 0.2, woodL, low ? 'blrbu' : 'bu');
+            fbox(tb, F, u0 - 0.3, u1 + 0.3, -1, 0.16, 0, 0.6, bdMul(col, 0.75), low ? 'blrbu' : 'bu');
+            if (!low) { for (let k = 0; k < 4; k++) fbox(tb, F, u1 + 0.22 + k * 0.1, u1 + 0.3 + k * 0.1, y1 - 0.9 - (k % 2) * 0.12, y1 - 0.35, 0.02, 0.1, [0.66, 0.1, 0.08], 'bu'); }   // chilli string
+          }
+        }
+      }
+      // roof deck
+      const rp = col2 => [col2[0], col2[1], col2[2]];
+      K.Q(rb, [[V.x0 - 0.3, V.h + 0.02, V.z1 + 0.1], [V.x1 + 0.3, V.h + 0.02, V.z1 + 0.1], [V.x1 + 0.3, V.h + 0.02, V.z0 - 0.1], [V.x0 - 0.3, V.h + 0.02, V.z0 - 0.1]], [[0, 0], [4, 0], [4, 4], [0, 4]], BD_UP, rp(bdMul(col, 0.62)));
+    });
+    // shade porch (ramada) on single-storey fronts: two posts, a beam and a few slats
+    const front = faces(-hw, hw, -hd, hd).front;
+    if (!two && !low && rng() < 0.6) {
+      const a = front.L * (0.1 + rng() * 0.15), b = a + Math.min(front.L * 0.5, 4.6);
+      for (const u of [a, b]) fbox(tb, front, u - 0.09, u + 0.09, -1, 2.55, 1.35, 1.53, wood, 'u');
+      fbox(tb, front, a - 0.2, b + 0.2, 2.55, 2.75, 1.25, 1.65, woodL);
+      for (let w = 0.0; w < 1.6; w += 0.3) fbox(tb, front, a - 0.2, b + 0.2, 2.75, 2.82, w, w + 0.14, wood, 'u');
+    }
+    // roof clutter on the highest roof: a water tank on legs or a small store, and a plain chimney
+    const top = vols[vols.length - 1], hx = top.x0 + 0.8 + rng() * Math.max(0.2, top.x1 - top.x0 - 2.6), hz = top.z0 + 0.8 + rng() * Math.max(0.2, top.z1 - top.z0 - 2.4);
+    fbox(tb, ID, hx, hx + 0.7, top.h, top.h + 1.0, hz, hz + 0.7, bdMul(col, 0.95), 'u');
+    fbox(tb, ID, hx - 0.06, hx + 0.76, top.h + 1.0, top.h + 1.08, hz - 0.06, hz + 0.76, cap, 'u');
+    if (rng() < 0.5) { const q = top.x1 - 0.9; fbox(tb, ID, q, q + 0.45, top.h, top.h + 1.5, top.z0 + 0.4, top.z0 + 0.85, bdMul(col, 0.88), 'u'); }
+    if (two && !low) { const F = faces(vols[0].x0, vols[0].x1, vols[0].z0, vols[0].z1).front, u = F.L - ib - 0.4; for (const d of [-0.2, 0.2]) fbox(tb, F, u + d - 0.04, u + d + 0.04, 0, H1 + 0.9, 0.9, 0.98, wood, 'u'); for (let y = 0.5; y < H1 + 0.6; y += 0.45) fbox(tb, F, u - 0.2, u + 0.2, y, y + 0.05, 0.9, 0.98, wood, 'u'); }
+  }
+
   /* ---- Japanese timber-frame house ---- */
   function japaneseHouse(K) {
     const { it, rng, hw, hd, low, wb, rb, tb, gb, fbox, wallHoles, pane, slab, roofRect, ridgeCap, faces, ID, wf } = K;
@@ -448,7 +515,7 @@
          yaw     rotation.y in radians. The FRONT (windows + door) faces local +z. To face the road use yaw = facingYaw(x, z, roadX, roadZ)
          w, d    width of the front (6..20 m), depth (5..12 m). The house stays inside this footprint (eaves reach 0.5 .. 0.9 m beyond it)
          h       wall height, 6..10 m (european: two storeys; japanese: 7.6 and more = two storeys, below = one storey with a veranda)
-         style   'plaster' (default), 'stone', 'japanese' or 'timber' (SS4: half-timber walls and a thatched roof; stone houses get a slate roof on SS4)
+         style   'plaster' (default), 'stone', 'japanese', 'timber' or 'adobe' (SS5: earth-rendered, flat roofs with parapets and roof beams; ignores tint and roof) (SS4: half-timber walls and a thatched roof; stone houses get a slate roof on SS4)
          tint    [r,g,b] 0..1 multiplier for the wall colour, e.g. [1,0.9,0.75] sand, [1,0.82,0.8] pink, [0.85,0.9,1] pale blue
          roof    'hip' (default: the builder picks hip or gable and the pitch, and also the shape of the house: plain box, front-gable bay with porch, lean-to),
                  'gable', or 'flat' (low parapet). Japanese houses are always a curved-eave hip or gable.
@@ -456,15 +523,15 @@
   function buildings(list, opt = {}) {
     const low = quality === 'low', night = !!(ST.look && ST.look.night), sets = {}, tb = geoBuilder(), gb = geoBuilder(), glows = [], out = [];
     for (const it of list) {
-      const style = it.style === 'stone' || it.style === 'japanese' || it.style === 'timber' ? it.style : 'plaster';
+      const style = it.style === 'stone' || it.style === 'japanese' || it.style === 'timber' || it.style === 'adobe' ? it.style : 'plaster';
       const S = sets[style] || (sets[style] = { wb: geoBuilder(), rb: geoBuilder() });
       const rng = mulberry32((Math.floor(it.x * 10) * 7919 + Math.floor(it.z * 10) * 104729) >>> 0 || 1);
       const K = houseKit(it, S, tb, gb, { low, night, rng, glows, style });
-      if (style === 'japanese') japaneseHouse(K); else europeanHouse(K);
+      if (style === 'japanese') japaneseHouse(K); else if (style === 'adobe') adobeHouse(K); else europeanHouse(K);
     }
     for (const style of Object.keys(sets)) {
       out.push(roadsideMesh(sets[style].wb.build(), style === 'stone' ? stoneWarmTex() : style === 'timber' ? timberTex() : plasterTex()),
-        roadsideMesh(sets[style].rb.build(), style === 'japanese' ? jpRoofTex() : style === 'timber' ? thatchTex() : style === 'stone' && ST.id === 'thornwick' ? slateTex() : roofTex()));
+        roadsideMesh(sets[style].rb.build(), style === 'japanese' ? jpRoofTex() : style === 'adobe' ? plasterTex() : style === 'timber' ? thatchTex() : style === 'stone' && ST.id === 'thornwick' ? slateTex() : roofTex()));
     }
     out.push(roadsideMesh(tb.build(), trimTex(), { shadow: false }));
     const gm = new THREE.Mesh(gb.build(), new THREE.MeshBasicMaterial({ vertexColors: true })); gm.receiveShadow = false; gm.castShadow = false; add(gm); out.push(gm);

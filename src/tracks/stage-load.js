@@ -1,15 +1,15 @@
   /* ---------- gates: start, checkpoints, finish ---------- */
-  function labelTexture(text, bg, fg, checker) {
-    return canvasTex(512, 64, (g) => {
-      if (checker) { for (let x = 0; x < 32; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#f5f5f5'; g.fillRect(x * 16, y * 16, 16, 16); } }
-      else { g.fillStyle = bg; g.fillRect(0, 0, 512, 64); }
-      if (text) {
-        g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        if (checker) { g.fillStyle = 'rgba(0,0,0,.75)'; g.fillRect(150, 6, 212, 52); }
-        g.fillStyle = fg; g.fillText(text, 256, 34);
-      }
-    });
+  // draws one 512 x 64 gate / barrier label at the canvas origin (the caller may translate first)
+  function drawLabel(g, text, bg, fg, checker) {
+    if (checker) { for (let x = 0; x < 32; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#f5f5f5'; g.fillRect(x * 16, y * 16, 16, 16); } }
+    else { g.fillStyle = bg; g.fillRect(0, 0, 512, 64); }
+    if (text) {
+      g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      if (checker) { g.fillStyle = 'rgba(0,0,0,.75)'; g.fillRect(150, 6, 212, 52); }
+      g.fillStyle = fg; g.fillText(text, 256, 34);
+    }
   }
+  function labelTexture(text, bg, fg, checker) { return canvasTex(512, 64, (g) => drawLabel(g, text, bg, fg, checker)); }
   // look = { kind: 'arch' | 'truss', lights: 'start' | 'finish' | 'cp' }: the 3D structure is built in art/structures.js (gateModel)
   function makeGate(s, text, bg, fg, checker, look = { kind: 'arch' }) {
     const p = sampleAt(s), g = new THREE.Group(), w = half * 2 + 3.4;
@@ -28,44 +28,54 @@
   /* ---------- run-in / run-out props (ST.context): ROAD CLOSED barrier, signposts ----------
      Visual only: no collision, nothing the clock or the bot can see. Placeholder look (art may restyle).
      ST.context.signs: [{ s, side, kind: 'entry' | 'direction', lines: ['ALDERBY'], off }]   s may be < 0 or > length; names and km from docs/region.md. */
-  function boardTexture(lines, kind) {
+  // a signboard (blue direction board or black entry board) drawn at the canvas origin, 440 x (56 per line + 24)
+  function drawBoard(g, lines, kind) {
     const rowH = 56, W = 440, H = rowH * lines.length + 24;
-    return canvasTex(W, H, (g) => {
-      g.fillStyle = kind === 'entry' ? '#111' : '#1456a8'; g.fillRect(0, 0, W, H);
-      g.strokeStyle = '#f5f5f5'; g.lineWidth = 6; g.strokeRect(6, 6, W - 12, H - 12);
-      g.fillStyle = '#fff'; g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = kind === 'entry' ? 'center' : 'left'; g.textBaseline = 'middle';
-      lines.forEach((t, i) => g.fillText(t, kind === 'entry' ? W / 2 : 28, 12 + rowH * (i + 0.5)));
-    });
+    g.fillStyle = kind === 'entry' ? '#111' : '#1456a8'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#f5f5f5'; g.lineWidth = 6; g.strokeRect(6, 6, W - 12, H - 12);
+    g.fillStyle = '#fff'; g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = kind === 'entry' ? 'center' : 'left'; g.textBaseline = 'middle';
+    lines.forEach((t, i) => g.fillText(t, kind === 'entry' ? W / 2 : 28, 12 + rowH * (i + 0.5)));
   }
-  function roadSign(sg) {
-    const p = sampleV(sg.s), off = half + (sg.off != null ? sg.off : 5.5), [x, z] = sideXZ(p, (sg.side < 0 ? -1 : 1) * off), y = terrain.heightAt(x, z);
-    const w = sg.kind === 'entry' ? 2.4 : 3.4, h = w * (56 * sg.lines.length + 24) / 440, g = new THREE.Group();
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.6 + h / 2, 0.14), lit({ color: 0x6b6b70 })); post.position.y = (2.6 + h / 2) / 2;
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: boardTexture(sg.lines, sg.kind), fog: true }));
-    board.position.set(0, 2.2 + h / 2, 0.09);
-    g.add(post, board);
-    g.position.set(x, y, z); g.rotation.y = p.th + Math.PI;         // faces back down the road: the driver going forward reads it
-    add(g);
-  }
-  // a barrier across the road end: striped bar on two posts with a ROAD CLOSED board. facing: +1 = seen by a driver going forward (run-out), -1 = seen from the start looking back (run-in)
-  function roadClosed(p, facing) {
-    const hw = half + 0.9, g = new THREE.Group(), stripe = canvasTex(128, 16, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f2f2f2' : '#d02a22'; c.fillRect(i * 16, 0, 16, 16); } });
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.24, 0.1), lit({ map: stripe })); bar.position.y = 1.0;
-    const bar2 = bar.clone(); bar2.position.y = 0.62;
-    const lp = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.3, 0.16), lit({ color: 0xe8e8e8 })); lp.position.set(-hw, 0.65, 0);
-    const rp = lp.clone(); rp.position.x = hw;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.5), new THREE.MeshBasicMaterial({ map: labelTexture('ROAD CLOSED', '#c62828', '#ffffff'), fog: true }));
-    sign.position.set(0, 1.55, 0.07);
-    g.add(bar, bar2, lp, rp, sign);
-    const y = Math.max(terrain.heightAt(p.x, p.z), terrain.heightAt(p.x - Math.cos(p.th) * hw, p.z + Math.sin(p.th) * hw));
-    g.position.set(p.x, y, p.z); g.rotation.y = p.th + (facing > 0 ? Math.PI : 0);
-    add(g);
-  }
+  /* All run-in / run-out props of a stage are merged: ONE unlit mesh for every board and label, post and barrier
+     (one atlas texture with a white corner for the plain colours; the posts and the red / white bar stripes are boxes with vertex colours). One draw call however many signs there are. */
   function contextProps() {
     const C = ST.context; if (!C) return;
-    for (const sg of C.signs || []) roadSign(sg);
-    if (track.ends.lead && track.ends.lead.end === 'gate') roadClosed(track.ends.lead.p, -1);
-    if (track.ends.tail && track.ends.tail.end === 'gate') roadClosed(track.ends.tail.p, 1);
+    const boards = [], plates = geoBuilder(), posts = plates, col = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
+    // a box in a frame placed at (px, py, pz) turned by yaw (same convention as Object3D.rotation.y)
+    const frame = (px, py, pz, yaw) => { const c = Math.cos(yaw), sn = Math.sin(yaw); return { c, sn, T: (x, y, z) => [px + x * c + z * sn, py + y, pz - x * sn + z * c], N: (x, y, z) => [x * c + z * sn, y, -x * sn + z * c] }; };
+    const box = (b, F, x0, x1, y0, y1, z0, z1, cl) => {
+      const f = (pts, n) => b.quad(b.v(...F.T(...pts[0]), 0.99, 0.002, cl), b.v(...F.T(...pts[1]), 0.99, 0.002, cl), b.v(...F.T(...pts[2]), 0.99, 0.002, cl), b.v(...F.T(...pts[3]), 0.99, 0.002, cl), F.N(...n));
+      f([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1]); f([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [0, 0, -1]);
+      f([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [-1, 0, 0]); f([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], [1, 0, 0]);
+      f([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], [0, 1, 0]); f([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0]);
+    };
+    const plate = (F, cx, cy, cz, w, h, board) => { board.F = F; board.q = [cx, cy, cz, w, h]; boards.push(board); };
+    for (const sg of C.signs || []) {                                  // signposts: a grey post and a board facing back down the road
+      const p = sampleV(sg.s), off = half + (sg.off != null ? sg.off : 5.5), [x, z] = sideXZ(p, (sg.side < 0 ? -1 : 1) * off), y = terrain.heightAt(x, z);
+      const w = sg.kind === 'entry' ? 2.4 : 3.4, h = w * (56 * sg.lines.length + 24) / 440, F = frame(x, y, z, p.th + Math.PI), ph = 2.6 + h / 2;
+      box(posts, F, -0.07, 0.07, 0, ph, -0.07, 0.07, col(0x6b6b70));
+      plate(F, 0, 2.2 + h / 2, 0.09, w, h, { lines: sg.lines, kind: sg.kind, px: 440, py: 56 * sg.lines.length + 24 });
+    }
+    // a barrier across the road end: two striped bars on two posts with a ROAD CLOSED board. facing: +1 = seen by a driver going forward (run-out), -1 = seen from the start looking back (run-in)
+    const closed = (p, facing) => {
+      const hw = half + 0.9, y = Math.max(terrain.heightAt(p.x, p.z), terrain.heightAt(p.x - Math.cos(p.th) * hw, p.z + Math.sin(p.th) * hw));
+      const F = frame(p.x, y, p.z, p.th + (facing > 0 ? Math.PI : 0)), red = col('#d02a22'), white = col('#f2f2f2');
+      for (const by of [1.0, 0.62]) for (let i = 0; i < 8; i++) box(posts, F, -hw + hw * 2 * i / 8, -hw + hw * 2 * (i + 1) / 8, by - 0.12, by + 0.12, -0.05, 0.05, i % 2 ? white : red);
+      for (const px of [-hw, hw]) box(posts, F, px - 0.08, px + 0.08, 0, 1.3, -0.08, 0.08, col(0xe8e8e8));
+      plate(F, 0, 1.55, 0.07, 1.9, 0.5, { label: 'ROAD CLOSED', px: 512, py: 64 });
+    };
+    if (track.ends.lead && track.ends.lead.end === 'gate') closed(track.ends.lead.p, -1);
+    if (track.ends.tail && track.ends.tail.end === 'gate') closed(track.ends.tail.p, 1);
+    if (!boards.length) return;
+    // atlas: boards stacked in one 512 px wide canvas, 8 px apart
+    let H = 0; for (const b of boards) { b.y0 = H; H += b.py + 8; }
+    H += 8; let AH = 64; while (AH < H) AH *= 2;
+    const atlas = canvasTex(512, AH, (g) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 512, AH); for (const b of boards) { g.save(); g.translate(0, b.y0); if (b.label) drawLabel(g, b.label, '#c62828', '#ffffff'); else drawBoard(g, b.lines, b.kind); g.restore(); } });
+    for (const b of boards) {
+      const [cx, cy, cz, w, h] = b.q, F = b.F, u1 = b.px / 512, v1 = 1 - b.y0 / AH, v0 = 1 - (b.y0 + b.py) / AH;
+      plates.quad(plates.v(...F.T(cx - w / 2, cy - h / 2, cz), 0, v0), plates.v(...F.T(cx + w / 2, cy - h / 2, cz), u1, v0), plates.v(...F.T(cx + w / 2, cy + h / 2, cz), u1, v1), plates.v(...F.T(cx - w / 2, cy + h / 2, cz), 0, v1), F.N(0, 0, 1));
+    }
+    add(new THREE.Mesh(plates.build(), new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true, fog: true })));
   }
 
   /* ---------- minimap ---------- */

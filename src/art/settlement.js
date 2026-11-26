@@ -15,7 +15,7 @@
          village:    church  inn (name)  shop (name)  marketCross  busShelter  mailboxes
          alpine:     chalet (snow)  hut (snow)  liftPylon  avalancheSign          (snow stakes: settle.snowStakes)
          japan:      restStop  onsen  station  trafficLight (state: 'red' | 'amber' | 'green')  levelCrossing (open)
-         desert:     tradingPost (name)  gasStation  waterTower  headframe  conveyor (len, rise)  windpump  boxcars (count)
+         desert:     tradingPost (name)  gasStation  waterTower  headframe (k = height scale)  oreHopper  minePlant  conveyor (len, rise)  windpump  boxcars (count)
          service:    teamVan (color)  trailer (color)  timingHut
          shared:     signpost { boards: [{ lines: ['SAWMILL GAP 6', 'SKARNFELL 38'], shape: 'direction' | 'entry' | 'route', dir: 1 | -1 }] }  (or lines / shape / dir directly)
          common model options: col (main wall colour [r,g,b] 0..1), roof (roof colour), lit (windows glow, default true), name (printed on shop / inn / post boards)
@@ -323,14 +323,41 @@
     if (!low) { for (const y of [9.8, 12.4]) m.cyl([0, y, 0], [0, y + 0.12, 0], 2.66, 2.66, seg, SP.iron); m.box(0, 11.1, 2.62, 0.3, 4.0, 0.06, SP.iron); }
   };
   MODELS.headframe = (c) => {
-    const { m, low, o } = c, wood = o.col || [0.42, 0.30, 0.2];
-    for (const sz of [-1, 1]) for (const sx of [-1, 1]) m.cyl([sx * 3.4, -0.3, sz * 1.5], [sx * 0.5, 15.6, sz * 0.7], 0.2, 0.15, 4, wood);
-    for (const y of low ? [6] : [3.5, 7.5, 11.5]) { const k = 1 - y / 17; for (const sz of [-1, 1]) m.box(0, y, sz * (0.7 + 0.8 * k), 6.8 * k + 1.0, 0.2, 0.2, wood); for (const sx of [-1, 1]) m.box(sx * (0.5 + 2.9 * k), y, 0, 0.2, 0.2, 3 * k + 1.0, wood); }
-    m.cyl([-0.35, 16.0, 0], [0.35, 16.0, 0], 1.7, 1.7, low ? 8 : 12, SP.iron);
-    if (!low) { for (const a of [0, 0.78, 1.57, 2.36]) m.box(0, 16.0, 0, 0.08, 3.3, 0.08, [0.45, 0.45, 0.48], { rx: a }); }
-    m.cyl([0, 14.4, 0.2], [0, 0.5, 0.2], 0.04, 0.04, 4, SP.iron); m.cyl([0.0, 17.1, 0.0], [0.0, 1.0, 5.5], 0.03, 0.03, 4, SP.iron);
+    // o.k stretches it upwards (1 = the old 17 m frame; SS5 uses a taller one so it reads from the road)
+    const { m, low, o } = c, wood = o.col || [0.42, 0.30, 0.2], k = o.k || 1, H = 17 * k, th = k > 1 ? 0.3 : 0.2;
+    for (const sz of [-1, 1]) for (const sx of [-1, 1]) m.cyl([sx * 3.4, -0.3, sz * 1.5], [sx * 0.5, 15.6 * k, sz * 0.7], th, th * 0.75, 4, wood);
+    for (let y = 3.5 * k; y < H - 3; y += 4 * (k > 1 ? 1.05 : k)) { if (low && y > 7 * k && y < 11 * k) continue; const kk = 1 - y / H; for (const sz of [-1, 1]) m.box(0, y, sz * (0.7 + 0.8 * kk), 6.8 * kk + 1.0, th, th, wood); for (const sx of [-1, 1]) m.box(sx * (0.5 + 2.9 * kk), y, 0, th, th, 3 * kk + 1.0, wood); }
+    if (k > 1 && !low) for (const sz of [-1, 1]) for (const [y0, y1] of [[0.5, 0.3], [0.3, 0.55]]) { const a = y0 * H * 0.5, b = a + H * 0.28; m.cyl([-3.0 * (1 - a / H) - 0.4, a, sz * (0.7 + 0.8 * (1 - a / H))], [3.0 * (1 - b / H) + 0.4, b, sz * (0.7 + 0.8 * (1 - b / H))], 0.07, 0.07, 4, wood); void y1; }
+    const wr = 1.7 * Math.sqrt(k), wy = 16.0 * k;
+    m.cyl([-0.35, wy, 0], [0.35, wy, 0], wr, wr, low ? 8 : 12, k > 1 ? [0.82, 0.8, 0.74] : SP.iron);
+    if (!low) { for (const a of [0, 0.78, 1.57, 2.36]) m.box(0, wy, 0, 0.1, wr * 2 - 0.1, 0.1, [0.45, 0.45, 0.48], { rx: a }); }
+    m.cyl([0, wy - 1.6, 0.2], [0, 0.5, 0.2], 0.04, 0.04, 4, SP.iron); m.cyl([0.0, wy + 1.1, 0.0], [0.0, 1.0, 5.5], 0.03, 0.03, 4, SP.iron);
+    if (k > 1) { m.cyl([0, wy + 1.1, 0], [0, wy + 3.2, 0], 0.06, 0.06, 4, SP.iron); m.box(0.55, wy + 2.8, 0, 1.0, 0.6, 0.05, [0.82, 0.14, 0.1]); }
     m.box(0, 1.8, 8.0, 5.6, 3.6, 4.4, spShade(SP.rust)); spPrism(m, 5.6, 4.4, 3.6, SP_GABLE(1.3), 0.3, spShade(SP.slate), null, low); m.box(0, 1.5, 5.82, 1.0, 1.9, 0.1, SP.dark);
     m.box(-4.8, 1.6, -3, 2.4, 3.2, 2.4, spShade(wood)); m.cyl([-4.8, 3.2, -3], [-4.8, 4.2, -3], 1.4, 0.4, 6, spMul(wood, 0.85));
+  };
+  // an ore hopper: a steel bin on four legs over a heap of ore, with a chute and a ladder (local +z faces the road)
+  MODELS.oreHopper = (c) => {
+    const { m, low } = c, rust = [0.5, 0.28, 0.17], steel = [0.3, 0.3, 0.33];
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.cyl([sx * 2.2, -0.2, sz * 2.0], [sx * 2.0, 5.2, sz * 1.8], 0.14, 0.12, 4, steel);
+    m.box(0, 6.4, 0, 5.4, 2.4, 4.8, spShade(rust));
+    m.cyl([0, 5.2, 0], [0, 3.4, 0], 3.0, 0.55, 4, spShade(rust));
+    m.box(0, 3.1, 0.9, 0.9, 0.5, 1.8, spShade(steel), { rx: -0.5 });
+    for (const sx of [-1, 1]) m.box(sx * 2.2, 3.0, 0, 0.12, 0.12, 4.0, steel);
+    m.sph(0, 0, 3.6, 3.2, 2.0, 3.0, 7, 4, [0.46, 0.34, 0.26], { cap: 1.57 });
+    if (!low) { for (const sx of [-0.25, 0.25]) m.box(2.9 + sx * 0.4, 3.2, 2.0, 0.07, 6.4, 0.07, steel); for (let y = 0.5; y < 6; y += 0.5) m.box(2.9, y, 2.0, 0.6, 0.06, 0.06, steel); m.box(0, 7.7, 0, 5.8, 0.18, 5.2, spMul(rust, 0.7)); }
+  };
+  // rusting mine machinery: a boiler on a brick base with a stack, a big flywheel on a frame, a compressor tank, an ore cart on a short rail
+  MODELS.minePlant = (c) => {
+    const { m, low } = c, rust = [0.5, 0.28, 0.17], dk = [0.27, 0.2, 0.17], steel = [0.3, 0.3, 0.33], seg = low ? 7 : 10;
+    m.box(-3.4, 0.5, 0, 5.4, 1.0, 2.6, spShade(SP.adobe));
+    m.cyl([-5.8, 1.9, 0], [-1.0, 1.9, 0], 1.15, 1.15, seg, spShade(rust)); m.sph(-1.0, 1.9, 0, 0.5, 1.15, 1.15, seg, 4, spMul(rust, 0.85), { cap: 1.57, rz: -1.57 });
+    m.cyl([-5.0, 3.0, 0], [-5.0, 9.0, 0], 0.55, 0.38, 6, spShade(dk)); m.box(-5.0, 9.1, 0, 1.1, 0.14, 1.1, dk);
+    m.box(1.9, 0.7, 0, 3.2, 1.4, 2.2, spShade(steel));
+    m.cyl([1.2, 3.0, -0.2], [1.2, 3.0, 0.2], 2.0, 2.0, low ? 8 : 12, spShade(dk)); m.cyl([1.2, 3.0, -0.12], [1.2, 3.0, 0.12], 2.1, 2.1, low ? 8 : 12, spShade(rust));
+    if (!low) { for (const a of [0, 0.9, 1.8, 2.7]) m.box(1.2, 3.0, 0, 0.12, 3.9, 0.2, dk, { rz: a }); m.cyl([1.2, 0.8, 0], [1.2, 3.0, 0], 0.18, 0.18, 4, dk); }
+    m.cyl([5.4, 0.9, -1.2], [5.4, 0.9, 1.2], 0.8, 0.8, seg, spShade([0.55, 0.35, 0.2])); for (const sz of [-0.8, 0.8]) m.box(5.4, 0.2, sz, 0.3, 0.4, 0.3, dk);
+    if (!low) { m.cyl([-1.0, 2.2, 0.9], [5.4, 1.6, 0.9], 0.07, 0.07, 4, steel); for (const x of [-1, 0.2, 1.4]) m.box(7.3 + x * 0.3, 0.14, 2.8, 4.2, 0.1, 0.12, dk); m.box(7.2, 0.14, 2.3, 4.2, 0.1, 0.12, dk); m.box(7.4, 0.8, 2.55, 1.7, 0.9, 1.1, spShade(rust)); m.sph(7.4, 1.25, 2.55, 0.9, 0.5, 0.6, 5, 3, [0.4, 0.3, 0.24], { cap: 1.57 }); }
   };
   MODELS.conveyor = (c) => {
     const { m, low, o } = c, len = o.len || 36, rise = o.rise || 9, ang = Math.atan2(rise, len), bl = Math.hypot(len, rise), n = Math.max(2, Math.round(len / 7));

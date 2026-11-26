@@ -237,8 +237,8 @@
         let s = o.from;
         while (s < o.to) {
           const w = 7 + crng() * 7, d = 6 + crng() * 3, h = 6.5 + crng() * 2.5, sc = s + w / 2, gap = gapMin + crng() * (gapMax - gapMin);
-          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
-          const tint = TINTS[Math.floor(crng() * TINTS.length)], flat = !!o.flat && crng() < 0.4, skipIt = crng() < (o.skip || 0);
+          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = o.style ? o.style : ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
+          const tint = TINTS[Math.floor(crng() * TINTS.length)], flat = !!o.flat && crng() < (o.flat === true ? 0.4 : o.flat), skipIt = crng() < (o.skip || 0);
           s += w + 0.8 + crng() * 2.5;
           if (skipIt || sc > o.to) continue;
           const p = sampleV(sc), [cx, cz] = sideXZ(p, side * (half + gap + d / 2)), yaw = facingYaw(cx, cz, p.x, p.z);
@@ -320,7 +320,9 @@
       // red rock banks 9 m out from the road edge (look and a wall for anyone far off line); the mesas themselves are the ground (mesaHeight)
       for (const side of [-1, 1]) for (const [a, b] of chunksOf(rng, 140, track.finishS - 80, 60, 130, 50, 140)) {
         if (rng() < 0.25) continue;
-        face(framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.62, 0.44, 0.36] });
+        const bank = framePath(a, b + 6, side, 9, keep, { step: 6, any: true }), bo = { side, height: 7 + rng() * 7, lean: 0.3 + rng() * 0.25, rough: 1.3, rows: 4, seed: seed(), tint: [0.62, 0.44, 0.36] };
+        if (side === 1 && b > 296 && a < 460 && ST.context) continue;                  // the ranch stands here (drawn as ever, only not placed: no random number moves)
+        face(bank, bo);
       }
     } else if (ST.id === 'test') {
       // practice stage: no walls, fences or houses

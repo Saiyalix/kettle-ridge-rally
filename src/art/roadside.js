@@ -9,6 +9,7 @@
     return {
       v(x, y, z, u, v, c) { P.push(x, y, z); U.push(u, v); c = c || [1, 1, 1]; C.push(c[0], c[1], c[2]); return P.length / 3 - 1; },
       tri(a, b, c) { I.push(a, b, c); },
+      count() { return I.length; },
       // quad a,b,c,d (vertex indices); flipped if needed so its front side looks along `out` = [x,y,z]
       quad(a, b, c, d, out) {
         const o = (i) => i * 3, ux = P[o(b)] - P[o(a)], uy = P[o(b) + 1] - P[o(a) + 1], uz = P[o(b) + 2] - P[o(a) + 2];
