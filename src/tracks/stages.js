@@ -123,7 +123,7 @@ const STAGES = [
       lead: { len: 200, curve: 10, end: 'tee' },
       tail: { len: 220, curve: -15, end: 'gate' },
       houses: [{ from: -196, to: -72, gap: [3.8, 6.0], skip: 0.12 }, { from: -196, to: -72, gap: [9, 12], skip: 0.35, stone: 0.5 }],
-      walls: [{ from: -196, to: -72, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
+      walls: [{ from: -196, to: -150, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
       signs: [
         { s: -24, side: 1, kind: 'entry', lines: ['BIRKWEN'] },
         { s: 84, side: 1, kind: 'direction', lines: ['SAWMILL GAP 6 >', 'SKARNFELL 38', 'PORT SALLOW 71'] },
@@ -189,6 +189,8 @@ const STAGES = [
         { col: 0x8f5a9e, base: -22, amp: 66, per: 8, oct: 4, jag: 1, mist: 0.4 },
         { col: 0x5b3d7e, base: -36, amp: 46, per: 10, oct: 3, jag: 0, mist: 0.3, trees: 1 },
       ],
+      // far landmarks: Red Mesa itself (flat-topped rock, ahead of the finish) and a wind farm on the horizon (docs/region.md)
+      landmarks: [{ kind: 'mesa', az: -72, dist: 2300, w: 900, h: 170, mist: 0.2 }, { kind: 'windfarm', az: 38, dist: 2600, w: 1100, h: 90, mist: 0.3 }],
       noPeaks: true,
       grade: { tint: [1.05, 0.98, 0.94], lift: [0.014, 0.0, 0.036], sat: 1.14, con: 1.13, bloom: 0.5, thresh: 0.8, bloom2: 0.2, vig: 0.38 },
       grassA: [0.42, 0.62, 0.30], grassB: [0.56, 0.68, 0.34], dirt: [0.70, 0.56, 0.40], snow: [0.95, 0.97, 1.0], rock: [0.50, 0.43, 0.47],
@@ -266,6 +268,20 @@ const STAGES = [
     checkpoints: [640, 1180, 1730, 2380],
     timeStart: 33, timeExt: [24, 24, 22, 14], refTime: 104,
     jumps: [[2000, 1.9], [MESA_WASH_S, 0.6, 'bump']],
+    // context: the world around the stage (docs/decisions.md, 2026-11-26). Visual only: run-in and run-out are not part of the route, the clock or the bot. Fields: see SS1.
+    context: {
+      benches: [{ s: -50, side: 1, off: 46, w: 60, d: 44, ramp: 16 }, { s: 2790, side: 1, off: 52, w: 140, d: 50, ramp: 20 }],
+      lead: { len: 150, curve: 8, end: 'tee' },
+      tail: { len: 130, curve: -12, end: 'gate' },
+      houses: [{ from: -146, to: -118, gap: [4.5, 7.5], skip: 0.15, flat: 0.85 }, { from: -146, to: -118, gap: [10, 14], skip: 0.4, stone: 0.5, flat: 0.85 }],
+      walls: [{ from: -146, to: -118, kind: 'stone', off: 2.4, any: true, minLen: 60, maxLen: 120 }, { from: 2790, to: 2850, kind: 'fence', off: 2.6, minLen: 40, maxLen: 80 }],
+      signs: [
+        { s: -24, side: 1, kind: 'entry', lines: ['CINDER WELLS'] },
+        { s: -112, side: -1, kind: 'direction', lines: ['CINDER WELLS 1'] },
+        { s: 84, side: 1, kind: 'direction', lines: ['RED MESA 8 >', 'EMBER FORK 15', 'PORT SALLOW 82'] },
+        { s: 2745, side: 1, kind: 'entry', lines: ['RED MESA'] },
+      ],
+    },
     segments: [
       ['S', 90], ['R', 35, 260], ['S', 40], ['L', 60, 150], ['S', 50], ['R', 90, 60], ['S', 90], ['L', 40, 220], ['S', 100],
       ['L', 25, 300], ['S', 60], ['R', 90, 30], ['S', 40], ['L', 50, 70], ['R', 50, 70], ['S', 50], ['L', 120, 28], ['S', 40],
@@ -285,6 +301,8 @@ const STAGES = [
         { col: 0xb87060, base: -10, amp: 74, per: 6, oct: 4, jag: 1, mist: 0.5 },
         { col: 0x8a4e44, base: -22, amp: 56, per: 8, oct: 3, jag: 1, mist: 0.38 },
       ],
+      // far landmarks: Red Mesa itself (flat-topped rock, ahead of the finish) and a wind farm on the horizon (docs/region.md)
+      landmarks: [{ kind: 'mesa', az: -72, dist: 2300, w: 900, h: 170, mist: 0.2 }, { kind: 'windfarm', az: 38, dist: 2600, w: 1100, h: 90, mist: 0.3 }],
       noPeaks: true,
       grade: { tint: [1.03, 1.0, 0.96], lift: [0.008, 0.006, 0.02], sat: 1.02, con: 1.1, bloom: 0.4, thresh: 0.86, bloom2: 0.15, vig: 0.3 },
       grassA: [0.86, 0.76, 0.60], grassB: [0.95, 0.87, 0.69], dirt: [0.50, 0.28, 0.20], snow: [0.95, 0.97, 1.0], rock: [0.47, 0.29, 0.22],

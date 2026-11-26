@@ -119,7 +119,7 @@
     for (const c of cacti) obstacles.push({ x: c.x, z: c.z, r: 0.32 * c.s });
     for (const c of dead) obstacles.push({ x: c.x, z: c.z, r: 0.22 * c.s });
     // red boulders; only the ones 8.6 m or more from the road edge are solid
-    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })), [0.58, 0.34, 0.25]);
+    rocks(rng, roadsideRocks(rng, 260).map(r => Object.assign(r, { size: r.size * 1.2, solid: r.solid && gapOf(r.x, r.z) >= 8.6 + r.size })).map(r => ctxBlocked(r.x, r.z) ? Object.assign(r, { size: 0.001, solid: false }) : r), [0.58, 0.34, 0.25]);   // rocks and trees shrink on the world's places (no random number moves)
     distantPeaks(rng, 20, 0x8a5048, 0xe0b090, { dist: 1350, y: -60, hideRandom: true });
   }
 
@@ -398,6 +398,7 @@
     church: { w: 7.2, d: 15, dz: 1.4 }, inn: { w: 12.6, d: 7.8, dz: 0.2 }, shop: { w: 7.4, d: 6.4 }, marketCross: { r: 2.1 }, busShelter: { w: 3.6, d: 1.6 },
     barn: { w: 9.6, d: 13.6 }, farmhouse: { w: 9.4, d: 8, dz: 0.8 }, teamVan: { w: 2.4, d: 5.9 }, trailer: { w: 2.7, d: 9 , dz: 1.2 }, timingHut: { w: 5.4, d: 3 },
     logStack: { w: 4.2, d: 9 }, sawChimney: { r: 1.9 },
+    tradingPost: { w: 10.4, d: 11.4, dz: 2 }, gasStation: { w: 12.2, d: 14.4, dz: -3.5 }, waterTower: { r: 3.2 }, headframe: { w: 13, d: 17, dz: 3 }, windpump: { r: 2 },
   };
   function worldModels() {                                            // extra models for the kit (same rules as art's: draw into c.m, local frame, front +z)
     const M = settle.models, here = (c, lx, lz) => { const r = c.o.rot || 0; return [c.o.x + lx * Math.cos(r) + lz * Math.sin(r), c.o.z - lx * Math.sin(r) + lz * Math.cos(r)]; };
@@ -460,7 +461,7 @@
   }
   // the places, in road coordinates: s along the road, lat across it (+ right, - left, from the road centre line)
   function worldPlan() {
-    worldData = null; if (ST.id !== 'kettle') return;
+    worldData = null; const K = ST.id === 'kettle'; if (!K && ST.id !== 'redmesa') return;
     const WR = mulberry32(ST.seed * 211 + 5), D = { clusters: [], km: [], cattle: [], pl: [], solids: [], smoke: [] };
     const outV = (p, side) => side > 0 ? [-Math.cos(p.th), Math.sin(p.th)] : [Math.cos(p.th), -Math.sin(p.th)];       // unit vector pointing away from the road
     const at = (s, lat) => { const p = sampleV(s), [x, z] = sideXZ(p, lat); return { x, z, p }; };
@@ -478,8 +479,8 @@
     };
     // put(cluster, kind, s, lat, opts): faces the road; opts.turn adds a yaw, opts.along = face along the road instead, opts.solid false = no collision
     const put = (c, kind, s, lat, o = {}) => {
-      const a = at(s, lat), side = lat > 0 ? 1 : -1, f = WORLD_FOOT[kind], rot = (o.rot != null ? o.rot : a.p.th + side * Math.PI / 2) + (o.turn || 0);
-      const it = Object.assign({ kind, x: a.x, z: a.z, rot }, o); delete it.turn; delete it.solid;
+      const a = at(s, lat), side = lat > 0 ? 1 : -1, f = o.foot || WORLD_FOOT[kind], rot = (o.rot != null ? o.rot : a.p.th + side * Math.PI / 2) + (o.turn || 0);
+      const it = Object.assign({ kind, x: a.x, z: a.z, rot }, o); delete it.turn; delete it.solid; delete it.foot;
       const fy = footY(a.x, a.z, rot, f || { r: 2 }); it.y = fy.y; if (fy.spread > 2.6) it.bumpy = fy.spread;
       c.items.push(it); if (o.solid !== false && f) solid(it, f);
       D.block = D.block || []; D.block.push({ x: a.x, z: a.z, r: Math.max(6, f ? (f.r || Math.hypot(f.w, f.d) / 2 + 3) : 5) });
@@ -495,9 +496,10 @@
       c.items.push({ kind: 'fenceRun', x: a.x, z: a.z, rot: Math.atan2(-o[1], o[0]), len: to - from, y: terrain.heightAt(a.x, a.z), r: 1 });
     };
     D.block = [];
-    for (let s = -84; s <= 70; s += 14) for (const side of [-1, 1]) { const a = at(s, side * 22); D.block.push({ x: a.x, z: a.z, r: 15 }); }       // the green stays free of trees (the street houses that stood here are gone)
     const face = (s, side) => sampleV(s).th + side * Math.PI / 2;
     const COL = { red: [0.80, 0.12, 0.10], blue: [0.14, 0.32, 0.72], yellow: [0.93, 0.74, 0.12], green: [0.14, 0.55, 0.28], orange: [0.93, 0.45, 0.1], teal: [0.1, 0.55, 0.6] };
+    if (K) {
+    for (let s = -84; s <= 70; s += 14) for (const side of [-1, 1]) { const a = at(s, side * 22); D.block.push({ x: a.x, z: a.z, r: 15 }); }       // the green stays free of trees (the street houses that stood here are gone)
 
     // 1. Birkwen village green and the service park
     const vg = cl('birkwen');
@@ -541,8 +543,9 @@
     put(ty, 'hayRolls', fin + 118, 34, { solid: false });
     put(ty, 'teamVan', fin + 40, 33.5, { color: COL.green, turn: -0.15 }); put(ty, 'trailer', fin + 46, 33.5, { color: COL.green, turn: 0.1 });
 
+    }
     // 4. side roads (closed), signposts, km posts
-    const roadOK = (s) => !track.turns.some(t => s > t.s0 - 45 && s < t.s1 + 45) && !ST.checkpoints.concat([16, track.finishS]).some(g => Math.abs(g - s) < 40) && !ST.jumps.some(j => Math.abs(j[0] - s) < 60);
+    const roadOK = (s) => K ? !track.turns.some(t => s > t.s0 - 45 && s < t.s1 + 45) && !ST.checkpoints.concat([16, track.finishS]).some(g => Math.abs(g - s) < 40) && !ST.jumps.some(j => Math.abs(j[0] - s) < 60) : !track.turns.some(t => s > t.s0 - 22 && s < t.s1 + 22) && !ST.checkpoints.concat([16, track.finishS]).some(g => Math.abs(g - s) < 30) && !ST.jumps.some(j => Math.abs(j[0] - s) < 30);
     const sideRoad = (name, s, side, col, boards) => {
       if (!roadOK(s)) { D.warn = (D.warn || []).concat(name + ' blocked'); return; }
       const c = cl(name); lane(c, s, side, 46, 3.6, col);
@@ -550,11 +553,68 @@
       put(c, 'signpost', s - 9, side * (half + 5.2), { boards: [{ lines: ['ROAD', 'CLOSED'], shape: 'entry' }], solid: false, rot: face(s - 9, side) + 0.3 * side });
       put(c, 'signpost', s - 20, side * (half + 4.8), { boards, solid: false, rot: sampleV(s - 20).th + Math.PI });
     };
+    if (K) {
     sideRoad('side-a', 850, 1, [0.55, 0.50, 0.42], [{ lines: ['GREYWATER DAM 47'], dir: 1 }, { lines: ['HARL MILL 96'], dir: 1 }]);
     sideRoad('side-b', 1765, -1, [0.62, 0.55, 0.4], [{ lines: ['SKARNFELL 38'], dir: -1 }, { lines: ['PORT SALLOW 71'], dir: -1 }]);
     const tc = cl('tsign'), ts = at(-189, 6.2);
     put(tc, 'signpost', -189, 6.4, { boards: [{ lines: ['SKARNFELL 38'], dir: -1 }, { lines: ['PORT SALLOW 71', 'SALTREACH 98'], dir: 1 }], solid: false, rot: sampleV(-189).th });
     void ts;
+    } else {
+      // ---- SS5 Red Mesa Run (docs/region.md): Cinder Wells at the start, a cattle ranch, old workings, windmill pumps, side roads, the Red Mesa mine at the finish ----
+      // Left of the run-in the ground is open to s -70, right of it to s 0; from there the canyon walls (mesas) stand 25 m out. Flat open ground: s 300 to 600, 900 to 1200, 1660 on.
+      const RUST = [0.55, 0.30, 0.18], RUST2 = [0.46, 0.34, 0.26], fin = track.finishS, sgn = (x) => x > 0 ? 1 : -1;
+      const along = (s, lat) => { const a = at(s, lat); return a.p.th + sgn(lat) * Math.PI / 2; };
+      const circle = (it, r) => D.solids.push({ x: it.x, z: it.z, r, mu: 0.3 });
+      // a long thing (conveyor) whose local x runs along the item: a footprint of its own, turned a quarter
+      const longSolid = (it, w, len, x0) => solid({ x: it.x, z: it.z, rot: it.rot + Math.PI / 2 }, { w, d: len, dz: x0 + len / 2 });
+      const cows = (c, s0, s1, side, n, l0, l1) => { for (let i = 0; i < n; i++) { const a = at(s0 + (s1 - s0) * WR(), side * (l0 + (l1 - l0) * WR())); c.items.push({ kind: 'cow', x: a.x, z: a.z, rot: WR() * 6.28, y: terrain.heightAt(a.x, a.z), r: 1 }); D.block.push({ x: a.x, z: a.z, r: 3 }); } };
+      const poles = (c, s0, s1, step, lat, wob) => { const pts = []; for (let s = s0; s <= s1; s += step) { const a = at(s, lat + Math.sin(s / 90) * wob); pts.push({ x: a.x, z: a.z }); D.block.push({ x: a.x, z: a.z, r: 3 }); } c.items.push({ kind: 'poleRun', x: pts[0].x, z: pts[0].z, rot: 0, y: terrain.heightAt(pts[0].x, pts[0].z), pts, r: 1 }); };
+      // 1. Cinder Wells: store and gas station on the left of the run-in, water tower and windmill pumps, the service park on the right
+      const cw = cl('cinder');
+      put(cw, 'gasStation', -104, -28); put(cw, 'tradingPost', -84, -23, { name: ['WELLS STORE'] });
+      put(cw, 'waterTower', -118, 32, { col: [0.50, 0.30, 0.2] }); put(cw, 'windpump', -128, -36); put(cw, 'windpump', -134, 40);
+      put(cw, 'busShelter', -78, 14.5); put(cw, 'mailboxes', -90, 7.4, { solid: false });
+      [[-66, 'red'], [-52, 'blue'], [-38, 'yellow'], [-24, 'green']].forEach(([s, col], i) => {
+        put(cw, 'teamVan', s, 26, { color: COL[col], body: true, turn: (WR() - 0.5) * 0.12 });
+        put(cw, 'trailer', s + (i % 2 ? 2 : -1), 41, { color: COL[col], turn: (WR() - 0.5) * 0.1 });
+      });
+      put(cw, 'timingHut', -80, 30); put(cw, 'teamVan', -46, 56, { body: true, color: COL.orange, turn: 0.5 }); put(cw, 'teamVan', -40, 62, { body: true, color: COL.teal, turn: -0.4 });
+      // 2. cattle ranch, s 300 to 450 on the right of the first sweeper
+      const rn = cl('ranch');
+      put(rn, 'farmhouse', 352, 42, { col: [0.90, 0.80, 0.62], roof: [0.55, 0.28, 0.2] });
+      put(rn, 'barn', 392, 52, { col: [0.55, 0.26, 0.2], roof: [0.38, 0.36, 0.36] });
+      put(rn, 'silo', 372, 58, { twin: true, solid: false }); { const a = at(372, 58); D.solids.push({ x: a.x, z: a.z, r: 2.5, mu: 0.3 }); }
+      put(rn, 'windpump', 332, 38); put(rn, 'hayRolls', 316, 32, { solid: false }); put(rn, 'hayRolls', 420, 36, { solid: false });
+      lane(rn, 352, 1, 26, 3.4, [0.56, 0.42, 0.30]); put(rn, 'gate', 352, half + 8, { solid: false, w: 3.6, rot: along(352, 1) });
+      fence(rn, 312, 1, 8.6, 60); fence(rn, 432, 1, 8.6, 64); fence(rn, 322, -1, 8.6, 50);
+      cows(rn, 322, 430, 1, 8, 14, 52); cows(rn, 455, 540, -1, 5, 16, 55);
+      poles(rn, 296, 620, 58, 68, 4);
+      // 3. old workings beside the tarmac mining road (s 940 to 1160): rusting conveyor, two abandoned vans, boxcars, pumps. The dry river bed is the ground itself (884)
+      const ow = cl('workings');
+      { const it = put(ow, 'conveyor', 1010, -36, { len: 34, rise: 8, solid: false }); longSolid(it, 3.4, 34 + 10, -3); }
+      put(ow, 'teamVan', 1056, -34, { body: true, color: RUST, turn: 0.9 }); put(ow, 'trailer', 1062, -45, { color: RUST2, turn: -0.3 }); put(ow, 'teamVan', 1074, -50, { body: true, color: RUST2, turn: 0.2 });
+      { const it = put(ow, 'boxcars', 1112, -62, { count: 2, solid: false, rot: sampleV(1112).th, foot: { w: 3.2, d: 27 } }); solid(it, { w: 3.2, d: 27 }); }
+      put(ow, 'windpump', 912, 34); put(ow, 'windpump', 1150, -42); put(ow, 'windpump', 968, 46);
+      // 4. open country after the crest: pumps, a second herd, three closed side roads and their signposts
+      const rg = cl('range');
+      put(rg, 'windpump', 1830, -40); put(rg, 'windpump', 2250, 45); put(rg, 'windpump', 2540, -50);
+      fence(rg, 2062, -1, 8.6, 70); fence(rg, 2160, -1, 8.6, 70); cows(rg, 2066, 2156, -1, 5, 18, 62);
+      sideRoad('side-a', 1095, 1, [0.58, 0.46, 0.34], [{ lines: ['EMBER FORK 15'], dir: 1 }, { lines: ['PORT SALLOW 82'], dir: 1 }]);
+      sideRoad('side-b', 1761, -1, [0.60, 0.48, 0.36], [{ lines: ['SALTREACH 120'], dir: -1 }, { lines: ['EMBER FORK 15'], dir: -1 }]);
+      sideRoad('side-c', 1930, 1, [0.56, 0.44, 0.32], [{ lines: ['RED MESA 8'], dir: 1 }, { lines: ['PORT SALLOW 82'], dir: 1 }]);
+      const tc = cl('tsign'); put(tc, 'signpost', -143, 6.4, { boards: [{ lines: ['EMBER FORK 15'], dir: -1 }, { lines: ['PORT SALLOW 82', 'SALTREACH 120'], dir: 1 }], solid: false, rot: sampleV(-143).th });
+      // 5. Red Mesa mine head, beside the finish: head frame, mine office, sheds, conveyor into the ore bins, water tower, a rail spur with boxcars, power line
+      const mn = cl('mine');
+      put(mn, 'farmhouse', fin + 24, 38, { col: [0.82, 0.68, 0.48], roof: [0.4, 0.3, 0.26] });
+      put(mn, 'headframe', fin + 70, 48);
+      { const it = put(mn, 'conveyor', fin + 108, 40, { len: 34, rise: 9, rot: along(fin + 108, -1), solid: false }); longSolid(it, 3.4, 34 + 10, -3); }
+      put(mn, 'barn', fin + 34, 62, { col: [0.50, 0.28, 0.2], roof: [0.34, 0.34, 0.36], turn: 0.1 }); put(mn, 'barn', fin + 150, 54, { col: [0.45, 0.36, 0.28], roof: [0.3, 0.32, 0.36], turn: -0.1 });
+      put(mn, 'waterTower', fin + 160, -40, { col: [0.52, 0.32, 0.2] }); put(mn, 'teamVan', fin + 30, -30, { body: true, color: RUST, turn: -0.5 });
+      const sa = at(fin + 12, -58), sb = at(fin + 175, -58);
+      mn.rail = [sa, sb];
+      { const it = put(mn, 'boxcars', fin + 80, -58, { count: 3, solid: false, rot: sampleV(fin + 80).th, foot: { w: 3.2, d: 39 } }); solid(it, { w: 3.2, d: 39 }); mn.cars = it; }
+      poles(mn, fin - 240, fin + 150, 57, 76, 3);
+    }
     const gatesS = [16].concat(ST.checkpoints, [track.finishS]);
     for (let s = 100; s < track.finishS - 20; s += 100) {
       if (gatesS.some(g => Math.abs(g - s) < 14) || ST.jumps.some(j => Math.abs(j[0] - s) < 30)) continue;
@@ -571,8 +631,13 @@
     worldModels();
     for (const c of D.clusters) {
       if (!c.items.length) continue;
+      if (c.rail) {                                                           // the spur: the cars stand on the rails (their height follows the embankment)
+        const [a, b] = c.rail, rw = settle.railway([{ x: a.x, z: a.z }, { x: b.x, z: b.z }], { height: 0.9, grass: [0.74, 0.60, 0.42] });
+        const t = Math.hypot(c.cars.x - a.x, c.cars.z - a.z) / (Math.hypot(b.x - a.x, b.z - a.z) || 1);
+        c.cars.y = rw.a[1] + (rw.b[1] - rw.a[1]) * t + 0.22; c.railTris = rw.tris;
+      }
       const r = settle.cluster(c.items, { smoke: false });
-      r.mesh.castShadow = r.mesh.castShadow && c.name === 'birkwen';           // only the village throws shadows: the car is near it at the start (the shadow map covers 45 m round the car)
+      r.mesh.castShadow = r.mesh.castShadow && (c.name === 'birkwen' || c.name === 'cinder');           // only the village throws shadows: the car is near it at the start (the shadow map covers 45 m round the car)
       c.tris = r.tris;
       if (r.smoke.length && quality !== 'low') { const sm = settle.smoke(r.smoke); sm.frustumCulled = true; }
     }

@@ -41,7 +41,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - Try the Nightjar KR on the test page before it goes live.
 
 ## Next (in this order unless the owner says otherwise)
-1. **Stages in a real world (Rich)**: world context SS1 done (run-in/run-out, Birkwen, farm, Sawmill Gap, landmarks); other stages next, one per PR: SS4, SS2, SS3, SS5; region map in the menu. Region and names in `docs/region.md` (Brindmark). Scenery only, not drivable. (tracks, art, ui-mobile)
+1. **Stages in a real world (Rich)**: world context SS1 and SS5 done (SS1: run-in/run-out, Birkwen, farm, Sawmill Gap, landmarks; SS5: Cinder Wells, service park, cattle ranch, old workings, windmill pumps, dry river bed, Red Mesa mine head, Red Mesa and wind farm on the horizon); other stages next, one per PR: SS4, SS2, SS3; region map in the menu. Region and names in `docs/region.md` (Brindmark). Scenery only, not drivable. (tracks, art, ui-mobile)
 
 ## Settled, no longer open
 - Hay bales you can drive through: solved 2026-11-11, hay is solid and soft (#24).

@@ -56,7 +56,7 @@ Distances are road km as the signs show them. They are fixed: use exactly these 
 - **Land use:** village cottages and walls, small fields with sheep, woodland, chimney smoke at dawn, mist in the low ground. Run-in: the village green and inn. Run-out: mill yard and the mill pond.
 
 ### SS5 Red Mesa Run (Cinder Reach, desert canyon, 2.7 km)
-- **In the game now (tracks, branch tracks/ss5-red-mesa):** dirt sweepers from the start, a dry wash at 884 m, a tarmac mining road from 920 m, a gravel canyon from 1465 m with a crest at 2000 m, dirt again from 2175 m to the finish. There is no town or mine in it yet; the dressing below is the plan.
+- **In the game now (tracks, branch tracks/ss5-red-mesa):** dirt sweepers from the start, a dry wash at 884 m, a tarmac mining road from 920 m, a gravel canyon from 1465 m with a crest at 2000 m, dirt again from 2175 m to the finish. Dressed since 2026-11-26 (branch world/ss5): Cinder Wells, service park, ranch, old workings, pumps, side roads, the mine head, Red Mesa and a wind farm on the horizon. The freight train on the plateau is not in (the kit's train is a passenger train).
 - **Start:** Cinder Wells (dusty oasis town, water tower, a few flat roofs). **Finish:** Red Mesa mine head (head frame, ore bins, rail spur).
 - **Connects:** the town to the abandoned mine across the plateau.
 - **Signs:** Red Mesa 8, Cinder Wells 1 (behind the start), Port Sallow 82, Saltreach 120, Ember Fork 15.
