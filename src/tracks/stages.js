@@ -123,7 +123,7 @@ const STAGES = [
       lead: { len: 200, curve: 10, end: 'tee' },
       tail: { len: 220, curve: -15, end: 'gate' },
       houses: [{ from: -196, to: -72, gap: [3.8, 6.0], skip: 0.12 }, { from: -196, to: -72, gap: [9, 12], skip: 0.35, stone: 0.5 }],
-      walls: [{ from: -196, to: -150, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
+      walls: [{ from: -196, to: -72, kind: 'stone', off: 2.4, any: true, minLen: 90, maxLen: 160 }, { from: 2640, to: 2840, kind: 'fence', off: 2.6, minLen: 60, maxLen: 120 }],
       signs: [
         { s: -24, side: 1, kind: 'entry', lines: ['BIRKWEN'] },
         { s: 84, side: 1, kind: 'direction', lines: ['SAWMILL GAP 6 >', 'SKARNFELL 38', 'PORT SALLOW 71'] },
