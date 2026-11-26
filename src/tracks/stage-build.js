@@ -33,7 +33,7 @@
   /* ---------- ground ---------- */
   function buildGround(rng) {
     const { nx, nz, cell, minX, minZ, h, dist, nearS } = terrain;
-    const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan';
+    const L = ST.look, alpine = ST.theme === 'alpine', japan = ST.theme === 'japan', desert = ST.theme === 'desert';
     const snowFrom = ST.snowFrom != null ? ST.snowFrom : Infinity;
     const pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), soil = new Float32Array(nx * nz);
     for (let iz = 0, k = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++, k++) {
@@ -48,6 +48,11 @@
         const strata = 0.86 + 0.16 * Math.sign(Math.sin(h[k] * 0.55 + Math.sin(x * 0.02) * 1.5));   // layered rock bands
         c = mixc(c, [L.rock[0] * strata + n2, L.rock[1] * strata + n2, L.rock[2] * strata + n2], rockT);
         c = mixc(c, L.snow, smoothstep(clamp((h[k] - ST.snowLine) / 25, 0, 1)) * (1 - rockT * 0.5));
+      }
+      if (desert) {                                                         // red rock where the ground is steep or high, banded in layers; sand and hardpan elsewhere
+        const rockT = smoothstep(clamp((steep - 0.45) / 0.5, 0, 1)) * smoothstep(clamp((h[k] - 3) / 5, 0, 1)) + smoothstep(clamp((h[k] - 14) / 6, 0, 1)) * 0.6;
+        const strata = 0.82 + 0.2 * Math.sign(Math.sin(h[k] * 0.9 + Math.sin(x * 0.03) * 1.2)), rr = Math.min(1, rockT);
+        c = mixc(c, [L.rock[0] * strata + n2, L.rock[1] * strata + n2, L.rock[2] * strata + n2], rr);
       }
       let sb = 0;
       if (isFinite(snowFrom)) { sb = smoothstep(clamp((s0 - (snowFrom - 70)) / 90, 0, 1)); if (sb > 0) c = mixc(c, [L.snow[0] - n2 * 0.5, L.snow[1] - n2 * 0.5, L.snow[2]], sb); }

@@ -9,6 +9,7 @@
        World:    crowd murmur, cheers, whistles and air horns near spectators; echo in castle gatehouses, the torii tunnel and the courtyard;
                  one passing rival with Doppler; engine ducks a little and radio clicks play while the co-driver speaks. */
   let audio = null, muted = false;
+  const audFin = (x, d = 0) => (typeof x === 'number' && isFinite(x) ? x : d);     // a NaN / Infinity must never reach an AudioParam (it throws)
   const impacts = []; let scrapeLevel = 0;
   const AUDIO_PREFS = (() => {
     let p = {}; try { p = JSON.parse(localStorage.getItem('rallyAudio') || '{}') || {}; } catch (e) { /* storage unavailable */ }
@@ -88,15 +89,15 @@
       B.whistle = mk(0.7, (d, n) => { let ph = 0; for (let i = 0; i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (2900 + 140 * Math.sin(2 * Math.PI * 9 * t)) / sr; d[i] = Math.sin(ph) * Math.min(1, t / 0.02) * (t < 0.5 ? 1 : ex(t - 0.5, 0.08)) + (R() - 0.5) * 0.15; } });
       B.horn = mk(1.1, (d, n) => { const lo = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / sr; let s = 0; for (const f of [311, 369, 466]) { const ph = (t * f * (1 + (f === 369 ? 0.004 : 0))) % 1; s += ph * 2 - 1; } lo[i] = s * Math.min(1, t / 0.05) * (t < 0.8 ? 1 : ex(t - 0.8, 0.08)); } const l = lpf(lo, 0.25); for (let i = 0; i < n; i++) d[i] = l[i]; });
       const play = (b, g, rate = 1, dest = fxBus, pan = 0) => {
-        const s = ctx.createBufferSource(), gn = gainNode(g); s.buffer = b; s.playbackRate.value = rate; s.connect(gn);
+        const s = ctx.createBufferSource(), gn = gainNode(audFin(g)); s.buffer = b; s.playbackRate.value = audFin(rate, 1); s.connect(gn);
         let tail = gn;
-        if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; gn.connect(p); tail = p; }
+        if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = audFin(pan); gn.connect(p); tail = p; }
         tail.connect(dest); s.onended = () => { try { tail.disconnect(); gn.disconnect(); } catch (e) { /* already gone */ } };
         s.start();
       };
 
       /* ----- engine ----- */
-      const eng = { node: null, proc: null, P: {}, set(k, v) { if (this.node) this.node.parameters.get(k).value = v; else this.P[k] = v; }, kind: 'none' };
+      const eng = { node: null, proc: null, P: {}, set(k, v) { v = audFin(v, this.P[k]); if (this.node) this.node.parameters.get(k).value = v; else this.P[k] = v; }, kind: 'none' };
       for (const p of ENGINE_PARAMS) eng.P[p[0]] = p[1];
       const engOut = gainNode(1); engOut.connect(engBus);
       const startFallback = () => {
@@ -168,9 +169,9 @@
       function tone(freqs, dur, type = 'square', vol = 0.12, gap = 0) {
         const t0 = ctx.currentTime;
         freqs.forEach((f, k) => {
-          const o = ctx.createOscillator(), g = gainNode(0); o.type = type; o.frequency.value = f;
+          const o = ctx.createOscillator(), g = gainNode(0); o.type = type; o.frequency.value = audFin(f, 440);
           const st = t0 + k * (dur + gap);
-          g.gain.setValueAtTime(vol * 0.8, st); g.gain.exponentialRampToValueAtTime(0.0005, st + dur);
+          g.gain.setValueAtTime(audFin(vol, 0.1) * 0.8, st); g.gain.exponentialRampToValueAtTime(0.0005, st + dur);
           o.connect(g); g.connect(master); o.start(st); o.stop(st + dur + 0.02);
         });
       }
@@ -223,8 +224,11 @@
   }
   function updateAudio(dt) {
     if (!audio) return;
+    dt = clamp(audFin(dt), 0, 0.25);                       // after a pause or a tab switch dt can be huge or bad
+    if (!isFinite(boost)) boost = 0;
+    for (const k in wt) if (!isFinite(wt[k])) wt[k] = 0;
     const A = audio, ctx = A.ctx, t = ctx.currentTime, N = A.N, V = AUDIO_PREFS.vol, lowQ = quality === 'low';
-    const set = (param, v, tc = 0.05) => param.setTargetAtTime(v, t, tc);
+    const set = (param, v, tc = 0.05) => param.setTargetAtTime(audFin(v), t, tc);
     const live = !(muted || state === 'menu' || state === 'paused');
     set(A.master.gain, live ? V.master * 0.9 * (state === 'replay' ? 0.7 : 1) : 0, 0.1);
     if (ctx.state !== 'running' && !A.offline && (resumeCool -= dt) <= 0) { resumeCool = 1; try { ctx.resume(); } catch (e) { /* needs a tap */ } }
@@ -280,7 +284,7 @@
     if (recOn) {                    // Engine B: pitch the two loops so their pulse rate follows rpm/30, cross-fade, open up with throttle
       const S = ENGINE_SAMPLES, fire = rpm / 30, hi = smoothstep(clamp((rpm - 2400) / 1500, 0, 1));
       const rate0 = fire / S.loops[0].f0, rate1 = fire / S.loops[1].f0;
-      RB.srcs[0].playbackRate.setTargetAtTime(rate0, t, 0.03); RB.srcs[1].playbackRate.setTargetAtTime(rate1, t, 0.03);
+      RB.srcs[0].playbackRate.setTargetAtTime(audFin(rate0, 1), t, 0.03); RB.srcs[1].playbackRate.setTargetAtTime(audFin(rate1, 1), t, 0.03);
       set(RB.gains[0].gain, Math.sqrt(1 - hi)); set(RB.gains[1].gain, Math.sqrt(hi));
       set(RB.lp.frequency, (inside ? 0.6 : 1) * (900 + clamp(thr, 0, 1) * 2600 + rpm * 0.35), 0.04);
       set(RB.out.gain, (0.34 + 0.66 * clamp(thr, 0, 1)) * (0.5 + 0.5 * clamp(rpm / 4000, 0, 1)) * 0.55, 0.04);

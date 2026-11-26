@@ -3,6 +3,9 @@
 Kept up to date by the producer department. Newest changes at the top of each section.
 
 ## Done
+- **The gas steers the drift** (2026-11-26, #46, owner: "I want to control the drift based on how much gas I give"): more gas holds the slide wider, lifting tucks the nose in, on all three cars (Kestrel least, Nightjar most). GAS button is the phone default, auto gas is an option in the pause menu. Owner tried it on the test page and approved it ("Go on. Make all your changes live").
+- **Stronger dust** (2026-11-12, #43): lighter tan dust that reads on gravel, blue-white snow spray, bigger darker grass clods.
+- **SS5 Red Mesa Run** (2026-11-24): desert canyon at golden hour, 2.7 km: dirt sweepers, a tarmac mining road, a gravel canyon with a 1.9 m crest jump. All three cars clean on the bot, 11+ s clock margin.
 - **Third car, Nightjar KR** (2026-11-12, owner: "slidey, distinctly different ... built to handle long drifts"): steady 32–34° drift on gravel, dirt and snow, 12–15° on tarmac, never quicker than the other two on the bot. Own long, low body and 4 liveries. Own targets in `CLAUDE.md`; tests check them per car. Owner decided damage stays looks only.
 - **Full-game flow test** (2026-11-12, #40): new `flow` test plays menu → finish → replay, championship, pause, rescue, Test Track. The test kit waits longer on a busy machine.
 - **Earlier corner warnings** (2026-11-12, #39): hairpin and square calls ~60 m earlier with ", brake!", sharp corners +30 m, orange note box for tight corners.
@@ -39,8 +42,7 @@ Kept up to date by the producer department. Newest changes at the top of each se
 - Try the Nightjar KR on the test page before it goes live.
 
 ## Next (in this order unless the owner says otherwise)
-1. **Brighter dust and clearer grass clods**: the dust is modest, and green clods are hard to see on grass. (art)
-2. **Fifth stage**: new route, theme and clock; needs bot times recorded. Route and theme to be picked by the producer plan. (tracks, art)
+1. **Stages in a real world (Rich)**: one stage per PR, SS1 first, then SS4, SS2, SS3, SS5; region map in the menu. Region and names in `docs/region.md` (Brindmark). Scenery only, not drivable. (tracks, art, ui-mobile)
 
 ## Settled, no longer open
 - Hay bales you can drive through: solved 2026-11-11, hay is solid and soft (#24).
