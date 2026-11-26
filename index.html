@@ -1196,7 +1196,7 @@ const STAGES = [
       benches: [{ s: -50, side: 1, off: 46, w: 60, d: 44, ramp: 16 }, { s: 2790, side: 1, off: 52, w: 140, d: 50, ramp: 20 }],
       lead: { len: 150, curve: 8, end: 'tee' },
       tail: { len: 130, curve: -12, end: 'gate' },
-      houses: [{ from: -146, to: -118, gap: [4.5, 7.5], skip: 0.15, flat: 0.85 }, { from: -146, to: -118, gap: [10, 14], skip: 0.4, stone: 0.5, flat: 0.85 }],
+      houses: [{ from: -146, to: -118, gap: [4.5, 7.5], skip: 0.15, flat: 0.85, style: 'adobe' }, { from: -146, to: -118, gap: [10, 14], skip: 0.4, stone: 0.5, flat: 0.85, style: 'adobe' }],
       walls: [{ from: -146, to: -118, kind: 'stone', off: 2.4, any: true, minLen: 60, maxLen: 120 }, { from: 2790, to: 2850, kind: 'fence', off: 2.6, minLen: 40, maxLen: 80 }],
       signs: [
         { s: -24, side: 1, kind: 'entry', lines: ['CINDER WELLS'] },
@@ -3611,7 +3611,7 @@ function boot() {
         let s = o.from;
         while (s < o.to) {
           const w = 7 + crng() * 7, d = 6 + crng() * 3, h = 6.5 + crng() * 2.5, sc = s + w / 2, gap = gapMin + crng() * (gapMax - gapMin);
-          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
+          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = o.style ? o.style : ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
           const tint = TINTS[Math.floor(crng() * TINTS.length)], flat = !!o.flat && crng() < (o.flat === true ? 0.4 : o.flat), skipIt = crng() < (o.skip || 0);
           s += w + 0.8 + crng() * 2.5;
           if (skipIt || sc > o.to) continue;
@@ -4225,6 +4225,7 @@ function boot() {
     return {
       v(x, y, z, u, v, c) { P.push(x, y, z); U.push(u, v); c = c || [1, 1, 1]; C.push(c[0], c[1], c[2]); return P.length / 3 - 1; },
       tri(a, b, c) { I.push(a, b, c); },
+      count() { return I.length; },
       // quad a,b,c,d (vertex indices); flipped if needed so its front side looks along `out` = [x,y,z]
       quad(a, b, c, d, out) {
         const o = (i) => i * 3, ux = P[o(b)] - P[o(a)], uy = P[o(b) + 1] - P[o(a) + 1], uz = P[o(b) + 2] - P[o(a) + 2];
@@ -4653,6 +4654,73 @@ function boot() {
     if (!low) { const F = faces(mainVol.x0, mainVol.x1, mainVol.z0, mainVol.z1).front; fbox(tb, F, -0.12, 0.0, 0.2, mainVol.h - 0.1, 0.0, 0.1, [0.5, 0.52, 0.55], 'bu'); }
   }
 
+  /* ---- Adobe house (Cinder Wells, SS5): one or two storeys of rendered earth, flat roofs with parapets, protruding roof beams,
+     small deep windows, a plank door under a beam, sometimes a shade porch of posts and slats and a string of red chillies. No shutters, no brick. ---- */
+  function adobeHouse(K) {
+    const { it, rng, hw, hd, low, tb, gb, fbox, wallHoles, pane, faces, ID, rb } = K;
+    const WALL = [[0.9, 0.7, 0.5], [0.84, 0.6, 0.42], [0.94, 0.78, 0.58], [0.8, 0.54, 0.4], [0.95, 0.83, 0.66], [0.88, 0.64, 0.46]];
+    const col = WALL[Math.floor(rng() * WALL.length)], wood = [0.34, 0.22, 0.14], woodL = [0.5, 0.35, 0.22], cap = bdMul(col, 0.9);
+    const frameCols = [[0.18, 0.52, 0.55], [0.2, 0.4, 0.62], [0.34, 0.22, 0.14], [0.34, 0.22, 0.14]], frameCol = frameCols[Math.floor(rng() * 4)];
+    const H1 = 3.3, two = hd * 2 >= 6.4 && rng() < 0.45, uo = rng(), beamSp = low ? 1.7 : 0.9;
+    const ia = 0.5 + rng() * 0.9, ib = 0.5 + rng() * 0.9, ifr = 1.9 + rng() * 0.9;
+    const vols = [{ x0: -hw, x1: hw, z0: -hd, z1: hd, yb: -1, h: H1, low: true }];
+    if (two) vols.push({ x0: -hw + ia, x1: hw - ib, z0: -hd + 0.7, z1: hd - ifr, yb: H1, h: 6.2 });
+    const di = Math.floor(rng() * 3);
+    vols.forEach((V, vi) => {
+      const Fs = faces(V.x0, V.x1, V.z0, V.z1), fh = V.h - Math.max(V.yb, 0);
+      for (const fname of ['front', 'right', 'back', 'left']) {
+        const F = Fs[fname], L = F.L, isFront = fname === 'front', holes = [], items = [];
+        const n = Math.max(1, Math.round((L - 1.2) / 3.3)), gap = L / n, dI = Math.min(di, n - 1);
+        for (let i = 0; i < n; i++) {
+          const uc = gap * (i + 0.5);
+          if (isFront && V.low && i === dI) { items.push({ kind: 'door', u0: uc - 0.5, u1: uc + 0.5, y0: 0.15, y1: 2.2 }); continue; }
+          if (!isFront && rng() < 0.35) continue;
+          const y0 = Math.max(V.yb, 0) + 1.0, ww = 0.34 + rng() * 0.12;
+          items.push({ kind: 'win', u0: uc - ww, u1: uc + ww, y0, y1: y0 + 0.82 + rng() * 0.2 });
+        }
+        for (const o of items) holes.push({ u0: o.u0, u1: o.u1, y0: o.y0, y1: o.y1 });
+        const rd = 0.42;
+        wallHoles(F, V.yb, V.h, holes, col, { rd, uo: uo + fname.length * 0.37 + vi * 0.2 });
+        // earth plinth, a little darker and thicker, and the parapet round the roof
+        if (V.low) fbox(tb, F, -0.05, L + 0.05, -1, 0.45, 0, 0.08, bdMul(col, 0.8), low ? 'blrtbu' : 'blu');
+        fbox(tb, F, -0.3, L + 0.3, V.h, V.h + 0.55, -0.4, 0.1, cap, 'u');
+        if (!low || isFront) for (let u = 0.55; u < L - 0.3; u += beamSp) fbox(tb, F, u - 0.08, u + 0.08, V.h - 0.42, V.h - 0.26, -0.05, 0.55, wood, 'b');
+        for (const o of items) {
+          const { u0, u1, y0, y1 } = o, uc = (u0 + u1) / 2;
+          if (o.kind === 'win') {
+            pane(F, u0, u1, y0, y1, -rd + 0.03, 'win');
+            fbox(tb, F, u0 - 0.12, u1 + 0.12, y1, y1 + 0.14, -0.15, 0.14, woodL, low ? 'blrbu' : 'bu');
+            fbox(tb, F, u0 - 0.1, u1 + 0.1, y0 - 0.1, y0, -0.1, 0.12, bdMul(col, 1.08), low ? 'blrbu' : 'bu');
+            if (!low) { for (const [a, b] of [[u0, u0 + 0.06], [u1 - 0.06, u1]]) fbox(tb, F, a, b, y0, y1, -rd, -rd + 0.1, frameCol, 'blrbtu'); fbox(tb, F, uc - 0.03, uc + 0.03, y0, y1, -rd, -rd + 0.1, frameCol, 'blrbtu'); }
+          } else {
+            fbox(tb, F, u0 + 0.03, u1 - 0.03, y0, y1, -rd, -rd + 0.08, wood, 'blr');
+            if (!low) for (let yy = y0 + 0.5; yy < y1 - 0.2; yy += 0.5) fbox(tb, F, u0 + 0.05, u1 - 0.05, yy, yy + 0.04, -rd + 0.08, -rd + 0.1, bdMul(wood, 0.7), 'blrbtu');
+            fbox(tb, F, u0 - 0.3, u1 + 0.3, y1, y1 + 0.2, -0.1, 0.2, woodL, low ? 'blrbu' : 'bu');
+            fbox(tb, F, u0 - 0.3, u1 + 0.3, -1, 0.16, 0, 0.6, bdMul(col, 0.75), low ? 'blrbu' : 'bu');
+            if (!low) { for (let k = 0; k < 4; k++) fbox(tb, F, u1 + 0.22 + k * 0.1, u1 + 0.3 + k * 0.1, y1 - 0.9 - (k % 2) * 0.12, y1 - 0.35, 0.02, 0.1, [0.66, 0.1, 0.08], 'bu'); }   // chilli string
+          }
+        }
+      }
+      // roof deck
+      const rp = col2 => [col2[0], col2[1], col2[2]];
+      K.Q(rb, [[V.x0 - 0.3, V.h + 0.02, V.z1 + 0.1], [V.x1 + 0.3, V.h + 0.02, V.z1 + 0.1], [V.x1 + 0.3, V.h + 0.02, V.z0 - 0.1], [V.x0 - 0.3, V.h + 0.02, V.z0 - 0.1]], [[0, 0], [4, 0], [4, 4], [0, 4]], BD_UP, rp(bdMul(col, 0.62)));
+    });
+    // shade porch (ramada) on single-storey fronts: two posts, a beam and a few slats
+    const front = faces(-hw, hw, -hd, hd).front;
+    if (!two && !low && rng() < 0.6) {
+      const a = front.L * (0.1 + rng() * 0.15), b = a + Math.min(front.L * 0.5, 4.6);
+      for (const u of [a, b]) fbox(tb, front, u - 0.09, u + 0.09, -1, 2.55, 1.35, 1.53, wood, 'u');
+      fbox(tb, front, a - 0.2, b + 0.2, 2.55, 2.75, 1.25, 1.65, woodL);
+      for (let w = 0.0; w < 1.6; w += 0.3) fbox(tb, front, a - 0.2, b + 0.2, 2.75, 2.82, w, w + 0.14, wood, 'u');
+    }
+    // roof clutter on the highest roof: a water tank on legs or a small store, and a plain chimney
+    const top = vols[vols.length - 1], hx = top.x0 + 0.8 + rng() * Math.max(0.2, top.x1 - top.x0 - 2.6), hz = top.z0 + 0.8 + rng() * Math.max(0.2, top.z1 - top.z0 - 2.4);
+    fbox(tb, ID, hx, hx + 0.7, top.h, top.h + 1.0, hz, hz + 0.7, bdMul(col, 0.95), 'u');
+    fbox(tb, ID, hx - 0.06, hx + 0.76, top.h + 1.0, top.h + 1.08, hz - 0.06, hz + 0.76, cap, 'u');
+    if (rng() < 0.5) { const q = top.x1 - 0.9; fbox(tb, ID, q, q + 0.45, top.h, top.h + 1.5, top.z0 + 0.4, top.z0 + 0.85, bdMul(col, 0.88), 'u'); }
+    if (two && !low) { const F = faces(vols[0].x0, vols[0].x1, vols[0].z0, vols[0].z1).front, u = F.L - ib - 0.4; for (const d of [-0.2, 0.2]) fbox(tb, F, u + d - 0.04, u + d + 0.04, 0, H1 + 0.9, 0.9, 0.98, wood, 'u'); for (let y = 0.5; y < H1 + 0.6; y += 0.45) fbox(tb, F, u - 0.2, u + 0.2, y, y + 0.05, 0.9, 0.98, wood, 'u'); }
+  }
+
   /* ---- Japanese timber-frame house ---- */
   function japaneseHouse(K) {
     const { it, rng, hw, hd, low, wb, rb, tb, gb, fbox, wallHoles, pane, slab, roofRect, ridgeCap, faces, ID, wf } = K;
@@ -4802,7 +4870,7 @@ function boot() {
          yaw     rotation.y in radians. The FRONT (windows + door) faces local +z. To face the road use yaw = facingYaw(x, z, roadX, roadZ)
          w, d    width of the front (6..20 m), depth (5..12 m). The house stays inside this footprint (eaves reach 0.5 .. 0.9 m beyond it)
          h       wall height, 6..10 m (european: two storeys; japanese: 7.6 and more = two storeys, below = one storey with a veranda)
-         style   'plaster' (default), 'stone', 'japanese' or 'timber' (SS4: half-timber walls and a thatched roof; stone houses get a slate roof on SS4)
+         style   'plaster' (default), 'stone', 'japanese', 'timber' or 'adobe' (SS5: earth-rendered, flat roofs with parapets and roof beams; ignores tint and roof) (SS4: half-timber walls and a thatched roof; stone houses get a slate roof on SS4)
          tint    [r,g,b] 0..1 multiplier for the wall colour, e.g. [1,0.9,0.75] sand, [1,0.82,0.8] pink, [0.85,0.9,1] pale blue
          roof    'hip' (default: the builder picks hip or gable and the pitch, and also the shape of the house: plain box, front-gable bay with porch, lean-to),
                  'gable', or 'flat' (low parapet). Japanese houses are always a curved-eave hip or gable.
@@ -4810,15 +4878,15 @@ function boot() {
   function buildings(list, opt = {}) {
     const low = quality === 'low', night = !!(ST.look && ST.look.night), sets = {}, tb = geoBuilder(), gb = geoBuilder(), glows = [], out = [];
     for (const it of list) {
-      const style = it.style === 'stone' || it.style === 'japanese' || it.style === 'timber' ? it.style : 'plaster';
+      const style = it.style === 'stone' || it.style === 'japanese' || it.style === 'timber' || it.style === 'adobe' ? it.style : 'plaster';
       const S = sets[style] || (sets[style] = { wb: geoBuilder(), rb: geoBuilder() });
       const rng = mulberry32((Math.floor(it.x * 10) * 7919 + Math.floor(it.z * 10) * 104729) >>> 0 || 1);
       const K = houseKit(it, S, tb, gb, { low, night, rng, glows, style });
-      if (style === 'japanese') japaneseHouse(K); else europeanHouse(K);
+      if (style === 'japanese') japaneseHouse(K); else if (style === 'adobe') adobeHouse(K); else europeanHouse(K);
     }
     for (const style of Object.keys(sets)) {
       out.push(roadsideMesh(sets[style].wb.build(), style === 'stone' ? stoneWarmTex() : style === 'timber' ? timberTex() : plasterTex()),
-        roadsideMesh(sets[style].rb.build(), style === 'japanese' ? jpRoofTex() : style === 'timber' ? thatchTex() : style === 'stone' && ST.id === 'thornwick' ? slateTex() : roofTex()));
+        roadsideMesh(sets[style].rb.build(), style === 'japanese' ? jpRoofTex() : style === 'adobe' ? plasterTex() : style === 'timber' ? thatchTex() : style === 'stone' && ST.id === 'thornwick' ? slateTex() : roofTex()));
     }
     out.push(roadsideMesh(tb.build(), trimTex(), { shadow: false }));
     const gm = new THREE.Mesh(gb.build(), new THREE.MeshBasicMaterial({ vertexColors: true })); gm.receiveShadow = false; gm.castShadow = false; add(gm); out.push(gm);
@@ -5718,7 +5786,7 @@ function boot() {
          village:    church  inn (name)  shop (name)  marketCross  busShelter  mailboxes
          alpine:     chalet (snow)  hut (snow)  liftPylon  avalancheSign          (snow stakes: settle.snowStakes)
          japan:      restStop  onsen  station  trafficLight (state: 'red' | 'amber' | 'green')  levelCrossing (open)
-         desert:     tradingPost (name)  gasStation  waterTower  headframe  conveyor (len, rise)  windpump  boxcars (count)
+         desert:     tradingPost (name)  gasStation  waterTower  headframe (k = height scale)  oreHopper  minePlant  conveyor (len, rise)  windpump  boxcars (count)
          service:    teamVan (color)  trailer (color)  timingHut
          shared:     signpost { boards: [{ lines: ['SAWMILL GAP 6', 'SKARNFELL 38'], shape: 'direction' | 'entry' | 'route', dir: 1 | -1 }] }  (or lines / shape / dir directly)
          common model options: col (main wall colour [r,g,b] 0..1), roof (roof colour), lit (windows glow, default true), name (printed on shop / inn / post boards)
@@ -6026,14 +6094,41 @@ function boot() {
     if (!low) { for (const y of [9.8, 12.4]) m.cyl([0, y, 0], [0, y + 0.12, 0], 2.66, 2.66, seg, SP.iron); m.box(0, 11.1, 2.62, 0.3, 4.0, 0.06, SP.iron); }
   };
   MODELS.headframe = (c) => {
-    const { m, low, o } = c, wood = o.col || [0.42, 0.30, 0.2];
-    for (const sz of [-1, 1]) for (const sx of [-1, 1]) m.cyl([sx * 3.4, -0.3, sz * 1.5], [sx * 0.5, 15.6, sz * 0.7], 0.2, 0.15, 4, wood);
-    for (const y of low ? [6] : [3.5, 7.5, 11.5]) { const k = 1 - y / 17; for (const sz of [-1, 1]) m.box(0, y, sz * (0.7 + 0.8 * k), 6.8 * k + 1.0, 0.2, 0.2, wood); for (const sx of [-1, 1]) m.box(sx * (0.5 + 2.9 * k), y, 0, 0.2, 0.2, 3 * k + 1.0, wood); }
-    m.cyl([-0.35, 16.0, 0], [0.35, 16.0, 0], 1.7, 1.7, low ? 8 : 12, SP.iron);
-    if (!low) { for (const a of [0, 0.78, 1.57, 2.36]) m.box(0, 16.0, 0, 0.08, 3.3, 0.08, [0.45, 0.45, 0.48], { rx: a }); }
-    m.cyl([0, 14.4, 0.2], [0, 0.5, 0.2], 0.04, 0.04, 4, SP.iron); m.cyl([0.0, 17.1, 0.0], [0.0, 1.0, 5.5], 0.03, 0.03, 4, SP.iron);
+    // o.k stretches it upwards (1 = the old 17 m frame; SS5 uses a taller one so it reads from the road)
+    const { m, low, o } = c, wood = o.col || [0.42, 0.30, 0.2], k = o.k || 1, H = 17 * k, th = k > 1 ? 0.3 : 0.2;
+    for (const sz of [-1, 1]) for (const sx of [-1, 1]) m.cyl([sx * 3.4, -0.3, sz * 1.5], [sx * 0.5, 15.6 * k, sz * 0.7], th, th * 0.75, 4, wood);
+    for (let y = 3.5 * k; y < H - 3; y += 4 * (k > 1 ? 1.05 : k)) { if (low && y > 7 * k && y < 11 * k) continue; const kk = 1 - y / H; for (const sz of [-1, 1]) m.box(0, y, sz * (0.7 + 0.8 * kk), 6.8 * kk + 1.0, th, th, wood); for (const sx of [-1, 1]) m.box(sx * (0.5 + 2.9 * kk), y, 0, th, th, 3 * kk + 1.0, wood); }
+    if (k > 1 && !low) for (const sz of [-1, 1]) for (const [y0, y1] of [[0.5, 0.3], [0.3, 0.55]]) { const a = y0 * H * 0.5, b = a + H * 0.28; m.cyl([-3.0 * (1 - a / H) - 0.4, a, sz * (0.7 + 0.8 * (1 - a / H))], [3.0 * (1 - b / H) + 0.4, b, sz * (0.7 + 0.8 * (1 - b / H))], 0.07, 0.07, 4, wood); void y1; }
+    const wr = 1.7 * Math.sqrt(k), wy = 16.0 * k;
+    m.cyl([-0.35, wy, 0], [0.35, wy, 0], wr, wr, low ? 8 : 12, k > 1 ? [0.82, 0.8, 0.74] : SP.iron);
+    if (!low) { for (const a of [0, 0.78, 1.57, 2.36]) m.box(0, wy, 0, 0.1, wr * 2 - 0.1, 0.1, [0.45, 0.45, 0.48], { rx: a }); }
+    m.cyl([0, wy - 1.6, 0.2], [0, 0.5, 0.2], 0.04, 0.04, 4, SP.iron); m.cyl([0.0, wy + 1.1, 0.0], [0.0, 1.0, 5.5], 0.03, 0.03, 4, SP.iron);
+    if (k > 1) { m.cyl([0, wy + 1.1, 0], [0, wy + 3.2, 0], 0.06, 0.06, 4, SP.iron); m.box(0.55, wy + 2.8, 0, 1.0, 0.6, 0.05, [0.82, 0.14, 0.1]); }
     m.box(0, 1.8, 8.0, 5.6, 3.6, 4.4, spShade(SP.rust)); spPrism(m, 5.6, 4.4, 3.6, SP_GABLE(1.3), 0.3, spShade(SP.slate), null, low); m.box(0, 1.5, 5.82, 1.0, 1.9, 0.1, SP.dark);
     m.box(-4.8, 1.6, -3, 2.4, 3.2, 2.4, spShade(wood)); m.cyl([-4.8, 3.2, -3], [-4.8, 4.2, -3], 1.4, 0.4, 6, spMul(wood, 0.85));
+  };
+  // an ore hopper: a steel bin on four legs over a heap of ore, with a chute and a ladder (local +z faces the road)
+  MODELS.oreHopper = (c) => {
+    const { m, low } = c, rust = [0.5, 0.28, 0.17], steel = [0.3, 0.3, 0.33];
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.cyl([sx * 2.2, -0.2, sz * 2.0], [sx * 2.0, 5.2, sz * 1.8], 0.14, 0.12, 4, steel);
+    m.box(0, 6.4, 0, 5.4, 2.4, 4.8, spShade(rust));
+    m.cyl([0, 5.2, 0], [0, 3.4, 0], 3.0, 0.55, 4, spShade(rust));
+    m.box(0, 3.1, 0.9, 0.9, 0.5, 1.8, spShade(steel), { rx: -0.5 });
+    for (const sx of [-1, 1]) m.box(sx * 2.2, 3.0, 0, 0.12, 0.12, 4.0, steel);
+    m.sph(0, 0, 3.6, 3.2, 2.0, 3.0, 7, 4, [0.46, 0.34, 0.26], { cap: 1.57 });
+    if (!low) { for (const sx of [-0.25, 0.25]) m.box(2.9 + sx * 0.4, 3.2, 2.0, 0.07, 6.4, 0.07, steel); for (let y = 0.5; y < 6; y += 0.5) m.box(2.9, y, 2.0, 0.6, 0.06, 0.06, steel); m.box(0, 7.7, 0, 5.8, 0.18, 5.2, spMul(rust, 0.7)); }
+  };
+  // rusting mine machinery: a boiler on a brick base with a stack, a big flywheel on a frame, a compressor tank, an ore cart on a short rail
+  MODELS.minePlant = (c) => {
+    const { m, low } = c, rust = [0.5, 0.28, 0.17], dk = [0.27, 0.2, 0.17], steel = [0.3, 0.3, 0.33], seg = low ? 7 : 10;
+    m.box(-3.4, 0.5, 0, 5.4, 1.0, 2.6, spShade(SP.adobe));
+    m.cyl([-5.8, 1.9, 0], [-1.0, 1.9, 0], 1.15, 1.15, seg, spShade(rust)); m.sph(-1.0, 1.9, 0, 0.5, 1.15, 1.15, seg, 4, spMul(rust, 0.85), { cap: 1.57, rz: -1.57 });
+    m.cyl([-5.0, 3.0, 0], [-5.0, 9.0, 0], 0.55, 0.38, 6, spShade(dk)); m.box(-5.0, 9.1, 0, 1.1, 0.14, 1.1, dk);
+    m.box(1.9, 0.7, 0, 3.2, 1.4, 2.2, spShade(steel));
+    m.cyl([1.2, 3.0, -0.2], [1.2, 3.0, 0.2], 2.0, 2.0, low ? 8 : 12, spShade(dk)); m.cyl([1.2, 3.0, -0.12], [1.2, 3.0, 0.12], 2.1, 2.1, low ? 8 : 12, spShade(rust));
+    if (!low) { for (const a of [0, 0.9, 1.8, 2.7]) m.box(1.2, 3.0, 0, 0.12, 3.9, 0.2, dk, { rz: a }); m.cyl([1.2, 0.8, 0], [1.2, 3.0, 0], 0.18, 0.18, 4, dk); }
+    m.cyl([5.4, 0.9, -1.2], [5.4, 0.9, 1.2], 0.8, 0.8, seg, spShade([0.55, 0.35, 0.2])); for (const sz of [-0.8, 0.8]) m.box(5.4, 0.2, sz, 0.3, 0.4, 0.3, dk);
+    if (!low) { m.cyl([-1.0, 2.2, 0.9], [5.4, 1.6, 0.9], 0.07, 0.07, 4, steel); for (const x of [-1, 0.2, 1.4]) m.box(7.3 + x * 0.3, 0.14, 2.8, 4.2, 0.1, 0.12, dk); m.box(7.2, 0.14, 2.3, 4.2, 0.1, 0.12, dk); m.box(7.4, 0.8, 2.55, 1.7, 0.9, 1.1, spShade(rust)); m.sph(7.4, 1.25, 2.55, 0.9, 0.5, 0.6, 5, 3, [0.4, 0.3, 0.24], { cap: 1.57 }); }
   };
   MODELS.conveyor = (c) => {
     const { m, low, o } = c, len = o.len || 36, rise = o.rise || 9, ang = Math.atan2(rise, len), bl = Math.hypot(len, rise), n = Math.max(2, Math.round(len / 7));
@@ -6779,7 +6874,7 @@ function boot() {
     church: { w: 7.2, d: 15, dz: 1.4 }, inn: { w: 12.6, d: 7.8, dz: 0.2 }, shop: { w: 7.4, d: 6.4 }, marketCross: { r: 2.1 }, busShelter: { w: 3.6, d: 1.6 },
     barn: { w: 9.6, d: 13.6 }, farmhouse: { w: 9.4, d: 8, dz: 0.8 }, teamVan: { w: 2.4, d: 5.9 }, trailer: { w: 2.7, d: 9 , dz: 1.2 }, timingHut: { w: 5.4, d: 3 },
     logStack: { w: 4.2, d: 9 }, sawChimney: { r: 1.9 },
-    tradingPost: { w: 10.4, d: 11.4, dz: 2 }, gasStation: { w: 12.2, d: 14.4, dz: -3.5 }, waterTower: { r: 3.2 }, headframe: { w: 13, d: 17, dz: 3 }, windpump: { r: 2 },
+    tradingPost: { w: 10.4, d: 11.4, dz: 2 }, gasStation: { w: 12.2, d: 14.4, dz: -3.5 }, waterTower: { r: 3.2 }, headframe: { w: 13, d: 17, dz: 3 }, oreHopper: { w: 6, d: 6.4, dz: 1 }, minePlant: { w: 17, d: 6, dz: 0.8 }, windpump: { r: 2 },
   };
   function worldModels() {                                            // extra models for the kit (same rules as art's: draw into c.m, local frame, front +z)
     const M = settle.models, here = (c, lx, lz) => { const r = c.o.rot || 0; return [c.o.x + lx * Math.cos(r) + lz * Math.sin(r), c.o.z - lx * Math.sin(r) + lz * Math.cos(r)]; };
@@ -6987,7 +7082,8 @@ function boot() {
       // 5. Red Mesa mine head, beside the finish: head frame, mine office, sheds, conveyor into the ore bins, water tower, a rail spur with boxcars, power line
       const mn = cl('mine');
       put(mn, 'farmhouse', fin + 24, 38, { col: [0.82, 0.68, 0.48], roof: [0.4, 0.3, 0.26] });
-      put(mn, 'headframe', fin + 70, 48);
+      put(mn, 'headframe', fin + 70, 48, { k: 1.6, col: [0.34, 0.2, 0.14] });
+      put(mn, 'oreHopper', fin + 52, 30, { turn: 0.1 }); put(mn, 'minePlant', fin + 92, 31, { turn: -0.08 });
       { const it = put(mn, 'conveyor', fin + 108, 40, { len: 34, rise: 9, rot: along(fin + 108, -1), solid: false }); longSolid(it, 3.4, 34 + 10, -3); }
       put(mn, 'barn', fin + 34, 62, { col: [0.50, 0.28, 0.2], roof: [0.34, 0.34, 0.36], turn: 0.1 }); put(mn, 'barn', fin + 150, 54, { col: [0.45, 0.36, 0.28], roof: [0.3, 0.32, 0.36], turn: -0.1 });
       put(mn, 'waterTower', fin + 160, -40, { col: [0.52, 0.32, 0.2] }); put(mn, 'teamVan', fin + 30, -30, { body: true, color: RUST, turn: -0.5 });
@@ -7015,9 +7111,21 @@ function boot() {
       if (c.rail) {                                                           // the spur: the cars stand on the rails (their height follows the embankment)
         const [a, b] = c.rail, rw = settle.railway([{ x: a.x, z: a.z }, { x: b.x, z: b.z }], { height: 0.9, grass: [0.74, 0.60, 0.42] });
         const t = Math.hypot(c.cars.x - a.x, c.cars.z - a.z) / (Math.hypot(b.x - a.x, b.z - a.z) || 1);
-        c.cars.y = rw.a[1] + (rw.b[1] - rw.a[1]) * t + 0.22; c.railTris = rw.tris;
+        c.cars.y = rw.a[1] + (rw.b[1] - rw.a[1]) * t + 0.22; c.railTris = rw.tris; c.railMesh = rw.mesh;
       }
       const r = settle.cluster(c.items, { smoke: false });
+      if (c.railMesh) {                                                       // the spur's embankment joins the cluster mesh (same material): one draw call fewer
+        const A = r.mesh.geometry, B = c.railMesh.geometry, off = [c.railMesh.position.x - r.mesh.position.x, c.railMesh.position.y - r.mesh.position.y, c.railMesh.position.z - r.mesh.position.z], na = A.attributes.position.count;
+        for (const name of Object.keys(A.attributes)) {
+          const a = A.attributes[name], b = B.attributes[name]; if (!b) continue;
+          const arr = new Float32Array(a.array.length + b.array.length); arr.set(a.array); arr.set(b.array, a.array.length);
+          if (name === 'position') for (let i = a.array.length; i < arr.length; i += 3) { arr[i] += off[0]; arr[i + 1] += off[1]; arr[i + 2] += off[2]; }
+          A.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize, a.normalized));
+        }
+        const ia = A.index.array, ib = B.index.array, idx = new Uint32Array(ia.length + ib.length); idx.set(ia); for (let i = 0; i < ib.length; i++) idx[ia.length + i] = ib[i] + na;
+        A.setIndex(new THREE.BufferAttribute(idx, 1)); A.computeBoundingSphere();
+        stageGroup.remove(c.railMesh); B.dispose();
+      }
       r.mesh.castShadow = r.mesh.castShadow && (c.name === 'birkwen' || c.name === 'cinder');           // only the village throws shadows: the car is near it at the start (the shadow map covers 45 m round the car)
       c.tris = r.tris;
       if (r.smoke.length && quality !== 'low') { const sm = settle.smoke(r.smoke); sm.frustumCulled = true; }
@@ -7906,17 +8014,17 @@ function boot() {
     return L;
   }
   /* ---------- gates: start, checkpoints, finish ---------- */
-  function labelTexture(text, bg, fg, checker) {
-    return canvasTex(512, 64, (g) => {
-      if (checker) { for (let x = 0; x < 32; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#f5f5f5'; g.fillRect(x * 16, y * 16, 16, 16); } }
-      else { g.fillStyle = bg; g.fillRect(0, 0, 512, 64); }
-      if (text) {
-        g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        if (checker) { g.fillStyle = 'rgba(0,0,0,.75)'; g.fillRect(150, 6, 212, 52); }
-        g.fillStyle = fg; g.fillText(text, 256, 34);
-      }
-    });
+  // draws one 512 x 64 gate / barrier label at the canvas origin (the caller may translate first)
+  function drawLabel(g, text, bg, fg, checker) {
+    if (checker) { for (let x = 0; x < 32; x++) for (let y = 0; y < 4; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#f5f5f5'; g.fillRect(x * 16, y * 16, 16, 16); } }
+    else { g.fillStyle = bg; g.fillRect(0, 0, 512, 64); }
+    if (text) {
+      g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      if (checker) { g.fillStyle = 'rgba(0,0,0,.75)'; g.fillRect(150, 6, 212, 52); }
+      g.fillStyle = fg; g.fillText(text, 256, 34);
+    }
   }
+  function labelTexture(text, bg, fg, checker) { return canvasTex(512, 64, (g) => drawLabel(g, text, bg, fg, checker)); }
   // look = { kind: 'arch' | 'truss', lights: 'start' | 'finish' | 'cp' }: the 3D structure is built in art/structures.js (gateModel)
   function makeGate(s, text, bg, fg, checker, look = { kind: 'arch' }) {
     const p = sampleAt(s), g = new THREE.Group(), w = half * 2 + 3.4;
@@ -7935,44 +8043,54 @@ function boot() {
   /* ---------- run-in / run-out props (ST.context): ROAD CLOSED barrier, signposts ----------
      Visual only: no collision, nothing the clock or the bot can see. Placeholder look (art may restyle).
      ST.context.signs: [{ s, side, kind: 'entry' | 'direction', lines: ['ALDERBY'], off }]   s may be < 0 or > length; names and km from docs/region.md. */
-  function boardTexture(lines, kind) {
+  // a signboard (blue direction board or black entry board) drawn at the canvas origin, 440 x (56 per line + 24)
+  function drawBoard(g, lines, kind) {
     const rowH = 56, W = 440, H = rowH * lines.length + 24;
-    return canvasTex(W, H, (g) => {
-      g.fillStyle = kind === 'entry' ? '#111' : '#1456a8'; g.fillRect(0, 0, W, H);
-      g.strokeStyle = '#f5f5f5'; g.lineWidth = 6; g.strokeRect(6, 6, W - 12, H - 12);
-      g.fillStyle = '#fff'; g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = kind === 'entry' ? 'center' : 'left'; g.textBaseline = 'middle';
-      lines.forEach((t, i) => g.fillText(t, kind === 'entry' ? W / 2 : 28, 12 + rowH * (i + 0.5)));
-    });
+    g.fillStyle = kind === 'entry' ? '#111' : '#1456a8'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#f5f5f5'; g.lineWidth = 6; g.strokeRect(6, 6, W - 12, H - 12);
+    g.fillStyle = '#fff'; g.font = '800 44px "Saira Condensed", "Arial Narrow", sans-serif'; g.textAlign = kind === 'entry' ? 'center' : 'left'; g.textBaseline = 'middle';
+    lines.forEach((t, i) => g.fillText(t, kind === 'entry' ? W / 2 : 28, 12 + rowH * (i + 0.5)));
   }
-  function roadSign(sg) {
-    const p = sampleV(sg.s), off = half + (sg.off != null ? sg.off : 5.5), [x, z] = sideXZ(p, (sg.side < 0 ? -1 : 1) * off), y = terrain.heightAt(x, z);
-    const w = sg.kind === 'entry' ? 2.4 : 3.4, h = w * (56 * sg.lines.length + 24) / 440, g = new THREE.Group();
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.6 + h / 2, 0.14), lit({ color: 0x6b6b70 })); post.position.y = (2.6 + h / 2) / 2;
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: boardTexture(sg.lines, sg.kind), fog: true }));
-    board.position.set(0, 2.2 + h / 2, 0.09);
-    g.add(post, board);
-    g.position.set(x, y, z); g.rotation.y = p.th + Math.PI;         // faces back down the road: the driver going forward reads it
-    add(g);
-  }
-  // a barrier across the road end: striped bar on two posts with a ROAD CLOSED board. facing: +1 = seen by a driver going forward (run-out), -1 = seen from the start looking back (run-in)
-  function roadClosed(p, facing) {
-    const hw = half + 0.9, g = new THREE.Group(), stripe = canvasTex(128, 16, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f2f2f2' : '#d02a22'; c.fillRect(i * 16, 0, 16, 16); } });
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, 0.24, 0.1), lit({ map: stripe })); bar.position.y = 1.0;
-    const bar2 = bar.clone(); bar2.position.y = 0.62;
-    const lp = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.3, 0.16), lit({ color: 0xe8e8e8 })); lp.position.set(-hw, 0.65, 0);
-    const rp = lp.clone(); rp.position.x = hw;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.5), new THREE.MeshBasicMaterial({ map: labelTexture('ROAD CLOSED', '#c62828', '#ffffff'), fog: true }));
-    sign.position.set(0, 1.55, 0.07);
-    g.add(bar, bar2, lp, rp, sign);
-    const y = Math.max(terrain.heightAt(p.x, p.z), terrain.heightAt(p.x - Math.cos(p.th) * hw, p.z + Math.sin(p.th) * hw));
-    g.position.set(p.x, y, p.z); g.rotation.y = p.th + (facing > 0 ? Math.PI : 0);
-    add(g);
-  }
+  /* All run-in / run-out props of a stage are merged: ONE unlit mesh for every board and label, post and barrier
+     (one atlas texture with a white corner for the plain colours; the posts and the red / white bar stripes are boxes with vertex colours). One draw call however many signs there are. */
   function contextProps() {
     const C = ST.context; if (!C) return;
-    for (const sg of C.signs || []) roadSign(sg);
-    if (track.ends.lead && track.ends.lead.end === 'gate') roadClosed(track.ends.lead.p, -1);
-    if (track.ends.tail && track.ends.tail.end === 'gate') roadClosed(track.ends.tail.p, 1);
+    const boards = [], plates = geoBuilder(), posts = plates, col = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
+    // a box in a frame placed at (px, py, pz) turned by yaw (same convention as Object3D.rotation.y)
+    const frame = (px, py, pz, yaw) => { const c = Math.cos(yaw), sn = Math.sin(yaw); return { c, sn, T: (x, y, z) => [px + x * c + z * sn, py + y, pz - x * sn + z * c], N: (x, y, z) => [x * c + z * sn, y, -x * sn + z * c] }; };
+    const box = (b, F, x0, x1, y0, y1, z0, z1, cl) => {
+      const f = (pts, n) => b.quad(b.v(...F.T(...pts[0]), 0.99, 0.002, cl), b.v(...F.T(...pts[1]), 0.99, 0.002, cl), b.v(...F.T(...pts[2]), 0.99, 0.002, cl), b.v(...F.T(...pts[3]), 0.99, 0.002, cl), F.N(...n));
+      f([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1]); f([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [0, 0, -1]);
+      f([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [-1, 0, 0]); f([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], [1, 0, 0]);
+      f([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], [0, 1, 0]); f([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0]);
+    };
+    const plate = (F, cx, cy, cz, w, h, board) => { board.F = F; board.q = [cx, cy, cz, w, h]; boards.push(board); };
+    for (const sg of C.signs || []) {                                  // signposts: a grey post and a board facing back down the road
+      const p = sampleV(sg.s), off = half + (sg.off != null ? sg.off : 5.5), [x, z] = sideXZ(p, (sg.side < 0 ? -1 : 1) * off), y = terrain.heightAt(x, z);
+      const w = sg.kind === 'entry' ? 2.4 : 3.4, h = w * (56 * sg.lines.length + 24) / 440, F = frame(x, y, z, p.th + Math.PI), ph = 2.6 + h / 2;
+      box(posts, F, -0.07, 0.07, 0, ph, -0.07, 0.07, col(0x6b6b70));
+      plate(F, 0, 2.2 + h / 2, 0.09, w, h, { lines: sg.lines, kind: sg.kind, px: 440, py: 56 * sg.lines.length + 24 });
+    }
+    // a barrier across the road end: two striped bars on two posts with a ROAD CLOSED board. facing: +1 = seen by a driver going forward (run-out), -1 = seen from the start looking back (run-in)
+    const closed = (p, facing) => {
+      const hw = half + 0.9, y = Math.max(terrain.heightAt(p.x, p.z), terrain.heightAt(p.x - Math.cos(p.th) * hw, p.z + Math.sin(p.th) * hw));
+      const F = frame(p.x, y, p.z, p.th + (facing > 0 ? Math.PI : 0)), red = col('#d02a22'), white = col('#f2f2f2');
+      for (const by of [1.0, 0.62]) for (let i = 0; i < 8; i++) box(posts, F, -hw + hw * 2 * i / 8, -hw + hw * 2 * (i + 1) / 8, by - 0.12, by + 0.12, -0.05, 0.05, i % 2 ? white : red);
+      for (const px of [-hw, hw]) box(posts, F, px - 0.08, px + 0.08, 0, 1.3, -0.08, 0.08, col(0xe8e8e8));
+      plate(F, 0, 1.55, 0.07, 1.9, 0.5, { label: 'ROAD CLOSED', px: 512, py: 64 });
+    };
+    if (track.ends.lead && track.ends.lead.end === 'gate') closed(track.ends.lead.p, -1);
+    if (track.ends.tail && track.ends.tail.end === 'gate') closed(track.ends.tail.p, 1);
+    if (!boards.length) return;
+    // atlas: boards stacked in one 512 px wide canvas, 8 px apart
+    let H = 0; for (const b of boards) { b.y0 = H; H += b.py + 8; }
+    H += 8; let AH = 64; while (AH < H) AH *= 2;
+    const atlas = canvasTex(512, AH, (g) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 512, AH); for (const b of boards) { g.save(); g.translate(0, b.y0); if (b.label) drawLabel(g, b.label, '#c62828', '#ffffff'); else drawBoard(g, b.lines, b.kind); g.restore(); } });
+    for (const b of boards) {
+      const [cx, cy, cz, w, h] = b.q, F = b.F, u1 = b.px / 512, v1 = 1 - b.y0 / AH, v0 = 1 - (b.y0 + b.py) / AH;
+      plates.quad(plates.v(...F.T(cx - w / 2, cy - h / 2, cz), 0, v0), plates.v(...F.T(cx + w / 2, cy - h / 2, cz), u1, v0), plates.v(...F.T(cx + w / 2, cy + h / 2, cz), u1, v1), plates.v(...F.T(cx - w / 2, cy + h / 2, cz), 0, v1), F.N(0, 0, 1));
+    }
+    add(new THREE.Mesh(plates.build(), new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true, fog: true })));
   }
 
   /* ---------- minimap ---------- */

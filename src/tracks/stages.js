@@ -273,7 +273,7 @@ const STAGES = [
       benches: [{ s: -50, side: 1, off: 46, w: 60, d: 44, ramp: 16 }, { s: 2790, side: 1, off: 52, w: 140, d: 50, ramp: 20 }],
       lead: { len: 150, curve: 8, end: 'tee' },
       tail: { len: 130, curve: -12, end: 'gate' },
-      houses: [{ from: -146, to: -118, gap: [4.5, 7.5], skip: 0.15, flat: 0.85 }, { from: -146, to: -118, gap: [10, 14], skip: 0.4, stone: 0.5, flat: 0.85 }],
+      houses: [{ from: -146, to: -118, gap: [4.5, 7.5], skip: 0.15, flat: 0.85, style: 'adobe' }, { from: -146, to: -118, gap: [10, 14], skip: 0.4, stone: 0.5, flat: 0.85, style: 'adobe' }],
       walls: [{ from: -146, to: -118, kind: 'stone', off: 2.4, any: true, minLen: 60, maxLen: 120 }, { from: 2790, to: 2850, kind: 'fence', off: 2.6, minLen: 40, maxLen: 80 }],
       signs: [
         { s: -24, side: 1, kind: 'entry', lines: ['CINDER WELLS'] },

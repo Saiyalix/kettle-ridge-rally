@@ -237,7 +237,7 @@
         let s = o.from;
         while (s < o.to) {
           const w = 7 + crng() * 7, d = 6 + crng() * 3, h = 6.5 + crng() * 2.5, sc = s + w / 2, gap = gapMin + crng() * (gapMax - gapMin);
-          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
+          const styleRoll = crng() < (o.stone != null ? o.stone : 0.35), style = o.style ? o.style : ST.id === 'sakura' ? 'japanese' : ST.id === 'thornwick' ? (styleRoll ? 'stone' : 'timber') : styleRoll ? 'stone' : 'plaster';
           const tint = TINTS[Math.floor(crng() * TINTS.length)], flat = !!o.flat && crng() < (o.flat === true ? 0.4 : o.flat), skipIt = crng() < (o.skip || 0);
           s += w + 0.8 + crng() * 2.5;
           if (skipIt || sc > o.to) continue;

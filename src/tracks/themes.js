@@ -398,7 +398,7 @@
     church: { w: 7.2, d: 15, dz: 1.4 }, inn: { w: 12.6, d: 7.8, dz: 0.2 }, shop: { w: 7.4, d: 6.4 }, marketCross: { r: 2.1 }, busShelter: { w: 3.6, d: 1.6 },
     barn: { w: 9.6, d: 13.6 }, farmhouse: { w: 9.4, d: 8, dz: 0.8 }, teamVan: { w: 2.4, d: 5.9 }, trailer: { w: 2.7, d: 9 , dz: 1.2 }, timingHut: { w: 5.4, d: 3 },
     logStack: { w: 4.2, d: 9 }, sawChimney: { r: 1.9 },
-    tradingPost: { w: 10.4, d: 11.4, dz: 2 }, gasStation: { w: 12.2, d: 14.4, dz: -3.5 }, waterTower: { r: 3.2 }, headframe: { w: 13, d: 17, dz: 3 }, windpump: { r: 2 },
+    tradingPost: { w: 10.4, d: 11.4, dz: 2 }, gasStation: { w: 12.2, d: 14.4, dz: -3.5 }, waterTower: { r: 3.2 }, headframe: { w: 13, d: 17, dz: 3 }, oreHopper: { w: 6, d: 6.4, dz: 1 }, minePlant: { w: 17, d: 6, dz: 0.8 }, windpump: { r: 2 },
   };
   function worldModels() {                                            // extra models for the kit (same rules as art's: draw into c.m, local frame, front +z)
     const M = settle.models, here = (c, lx, lz) => { const r = c.o.rot || 0; return [c.o.x + lx * Math.cos(r) + lz * Math.sin(r), c.o.z - lx * Math.sin(r) + lz * Math.cos(r)]; };
@@ -606,7 +606,8 @@
       // 5. Red Mesa mine head, beside the finish: head frame, mine office, sheds, conveyor into the ore bins, water tower, a rail spur with boxcars, power line
       const mn = cl('mine');
       put(mn, 'farmhouse', fin + 24, 38, { col: [0.82, 0.68, 0.48], roof: [0.4, 0.3, 0.26] });
-      put(mn, 'headframe', fin + 70, 48);
+      put(mn, 'headframe', fin + 70, 48, { k: 1.6, col: [0.34, 0.2, 0.14] });
+      put(mn, 'oreHopper', fin + 52, 30, { turn: 0.1 }); put(mn, 'minePlant', fin + 92, 31, { turn: -0.08 });
       { const it = put(mn, 'conveyor', fin + 108, 40, { len: 34, rise: 9, rot: along(fin + 108, -1), solid: false }); longSolid(it, 3.4, 34 + 10, -3); }
       put(mn, 'barn', fin + 34, 62, { col: [0.50, 0.28, 0.2], roof: [0.34, 0.34, 0.36], turn: 0.1 }); put(mn, 'barn', fin + 150, 54, { col: [0.45, 0.36, 0.28], roof: [0.3, 0.32, 0.36], turn: -0.1 });
       put(mn, 'waterTower', fin + 160, -40, { col: [0.52, 0.32, 0.2] }); put(mn, 'teamVan', fin + 30, -30, { body: true, color: RUST, turn: -0.5 });
@@ -634,9 +635,21 @@
       if (c.rail) {                                                           // the spur: the cars stand on the rails (their height follows the embankment)
         const [a, b] = c.rail, rw = settle.railway([{ x: a.x, z: a.z }, { x: b.x, z: b.z }], { height: 0.9, grass: [0.74, 0.60, 0.42] });
         const t = Math.hypot(c.cars.x - a.x, c.cars.z - a.z) / (Math.hypot(b.x - a.x, b.z - a.z) || 1);
-        c.cars.y = rw.a[1] + (rw.b[1] - rw.a[1]) * t + 0.22; c.railTris = rw.tris;
+        c.cars.y = rw.a[1] + (rw.b[1] - rw.a[1]) * t + 0.22; c.railTris = rw.tris; c.railMesh = rw.mesh;
       }
       const r = settle.cluster(c.items, { smoke: false });
+      if (c.railMesh) {                                                       // the spur's embankment joins the cluster mesh (same material): one draw call fewer
+        const A = r.mesh.geometry, B = c.railMesh.geometry, off = [c.railMesh.position.x - r.mesh.position.x, c.railMesh.position.y - r.mesh.position.y, c.railMesh.position.z - r.mesh.position.z], na = A.attributes.position.count;
+        for (const name of Object.keys(A.attributes)) {
+          const a = A.attributes[name], b = B.attributes[name]; if (!b) continue;
+          const arr = new Float32Array(a.array.length + b.array.length); arr.set(a.array); arr.set(b.array, a.array.length);
+          if (name === 'position') for (let i = a.array.length; i < arr.length; i += 3) { arr[i] += off[0]; arr[i + 1] += off[1]; arr[i + 2] += off[2]; }
+          A.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize, a.normalized));
+        }
+        const ia = A.index.array, ib = B.index.array, idx = new Uint32Array(ia.length + ib.length); idx.set(ia); for (let i = 0; i < ib.length; i++) idx[ia.length + i] = ib[i] + na;
+        A.setIndex(new THREE.BufferAttribute(idx, 1)); A.computeBoundingSphere();
+        stageGroup.remove(c.railMesh); B.dispose();
+      }
       r.mesh.castShadow = r.mesh.castShadow && (c.name === 'birkwen' || c.name === 'cinder');           // only the village throws shadows: the car is near it at the start (the shadow map covers 45 m round the car)
       c.tris = r.tris;
       if (r.smoke.length && quality !== 'low') { const sm = settle.smoke(r.smoke); sm.frustumCulled = true; }
