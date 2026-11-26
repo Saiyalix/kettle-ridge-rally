@@ -79,6 +79,7 @@
       return out;
     }
     // Phone tests (tests/phone.test.js): read the controls' state and run the real physics step synchronously.
+    let padWorld = null;
     const phone = {
       read: () => ({ state, keys: { ...keys }, tiltMode, tiltDeg, tiltZero, steer: inp.steer, throttle: inp.throttle, brake: inp.brake, handbrake: inp.handbrake,
         beta: car.beta / D2R, heading: Math.atan2(car.fwd.x, car.fwd.z) / D2R, kmh: car.speed * 3.6, autoGas, isTouch, pedalLift: pedals.lift }),
@@ -86,6 +87,14 @@
       go: () => { state = 'running'; countdown = -1; timeLeft = 1e9; },       // skip the 3-2-1 (the real countdown is wall-clock time)
       step: n => { for (let i = 0; i < n; i++) physicsStep(); },
       setKeys: o => { for (const k in o) keys[k] = o[k]; },
+      // flat endless pad of one surface for the car (far from the stage), so a gas / drift check measures the car and not the road; padEnd() puts the stage back
+      pad: (surface, kmh) => {
+        padWorld = world; world = { groundAt(x, z, o) { o.h = 0; o.n.set(0, 1, 0); }, surfaceAt() { return surface; } };
+        car.reset(4000, 0.75, 4000, 0); for (let i = 0; i < 120; i++) physicsStep();
+        car.vel.set(car.fwd.x * kmh / 3.6, 0, car.fwd.z * kmh / 3.6); for (const w of car.wheels) w.omega = kmh / 3.6 / CONFIG.wheels.radius;
+      },
+      padEnd: () => { if (padWorld) world = padWorld; padWorld = null; },
+      setCar: i => { const p = CONFIG.carIndex; CONFIG.carIndex = i; return p; },
       resetCar: kmh => { car.vel.set(car.fwd.x * kmh / 3.6, car.vel.y, car.fwd.z * kmh / 3.6); },
     };
     // Full-game flow test (tests/flow.test.js): read the game's state, and drive on in the real game (no goMenu at the end)

@@ -30,14 +30,17 @@ Every department (subagent) follows this file. If a department file and this fil
 
 Approved by the owner 2026-11-10 ("Driving is fine for now. Make that live"). Details: `docs/decisions.md`, 2026-11-07.
 Rule 5 changed 2026-11-11 at the owner's request ("as soon as you drift the car goes a lot quicker … adjust that"); see `docs/decisions.md`, 2026-11-11 ("Handling: in a drift the tyres decide where the car goes").
+Rules 2 and 4 changed 2026-11-12 at the owner's request ("I want to control the drift based on how much gas I give"; answers: more gas =
+wider, all three cars, clear but forgiving); see `docs/decisions.md`, 2026-11-12 ("the gas steers the drift").
 
 1. Steering asks the front tyres for grip towards the key, measured from where the car is going. With no key the front
    wheels follow the slide (automatic countersteer), so letting go always straightens the car.
 2. The rear can let go before the front. On loose surfaces at speed the tail swings out by itself; throttle, a brake tap,
-   lifting off and the handbrake swing it out more. Holding a key settles the slide at an angle set by surface and car.
+   lifting off on the way into a corner and the handbrake swing it out more. Holding a key settles the slide at an angle set
+   by surface, car and gas: more gas holds it wider, lifting tucks the nose in.
 3. Surfaces change grip and how easily the rear lets go, never how fast the steering winds on.
-4. The car never spins by itself: past 42° of slide it resists the slide growing, and a caught or released slide does
-   not swing back the other way.
+4. The car never spins by itself: past 42° of slide it resists the slide growing, a caught or released slide does
+   not swing back the other way, and neither full gas nor lifting in a held slide swings it past 45°.
 5. A held slide corners almost as hard as gripping and is the stylish way round a loose corner, but it costs a little
    speed: it is never faster than a clean line. On the throttle the tyres pull the car where the nose points.
 6. The body shows weight (lean, dive, squat, bounce) from the car's real accelerations; it is drawn only and never changes the physics.
@@ -50,12 +53,16 @@ Measured targets (flat skid pad per surface, every car, 50–140 km/h; checked b
 - Steering wound on (key press → full): 67–100 ms up to 80 km/h, the same on every surface at every speed.
 - Strada vs Kestrel: the Strada's held-key slide on gravel and dirt is at least 4° bigger on average.
 - Handbrake: at 55 km/h on gravel, 0.4 s of handbrake with full lock turns the car 90° within 1.2 s, without spinning.
+- Gas control (gravel and dirt, 80 km/h, key held, full gas 1.5 s, then 2 s of full gas vs no gas, angle over the last 0.5 s): full gas
+  slides at least Kestrel 4°, Strada 6°, Nightjar 9° more than lifted, and Kestrel < Strada < Nightjar.
+- Lifting tucks in: 0.5 s after lifting in a held slide, the slide is at least 4° smaller.
+- Lifting or full gas in a held slide (gravel, dirt, snow, 60–120 km/h): never past 45°.
 - Bot: finishes every stage with every car, 0 spins, 0 rescues, off-road at most 8 s per stage, the clock holds at every checkpoint.
 - Nightjar KR, the drift car (owner 2026-11-12: "slidey, distinctly different ... built to handle long drifts"). These replace the
   held-key slide, letting-go and Strada-vs-Kestrel lines above for this car only; every other line above applies to it unchanged:
   - Held-key slide (keys and full phone tilt): tarmac 8–24° and at least 10° from 80 km/h up; gravel, dirt and snow 26–38°; grass at most 42°.
   - Nightjar vs Strada: the Nightjar's held-key slide on gravel and dirt is at least 7° bigger on average.
-  - Long drift: on gravel at 80 km/h, a held key with the gas off for 4 s stays within ±4° of its average angle (from 1.5 s on) and
+  - Long drift: on gravel at 80 km/h, a held key with the gas off for 4 s (the gas sets its angle) stays within ±4° of its average angle (from 1.5 s on) and
     keeps at least 4 percentage points more of its speed than the better of Kestrel and Strada.
   - Letting go: back under 5° within 1.0 s (grass 1.8 s), at most 3° past straight.
   - Rule 5: on the bot it is never faster on any stage than the faster of Kestrel and Strada.

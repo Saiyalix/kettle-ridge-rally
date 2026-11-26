@@ -122,6 +122,16 @@ const CONFIG = {
                                   // Higher = bigger, longer slides from steering alone
     partHold: 1.0,                // part steering (phone tilt): a held part key settles the slide at (share ^ partHold) × the full
                                   // key's hold angle. 1 = in proportion; higher = small tilts slide even less. Keys are always full
+    // The gas steers a held slide (owner 2026-11-12: "control the drift based on how much gas I give"). It moves the angle where a held
+    // key stops adding rotation, × the car's gasDrift (CONFIG.cars), fading in with speed like the rear's looseness; not on grass.
+    gasWide: 0.3,                 // full gas: that angle × (1 + gasWide), never past guard.from − 6. Higher = full gas swings the tail out further
+    gasTuck: 0.3,                 // gas off: that angle × (1 − gasTuck), so the nose tucks in. Higher = lifting tucks in more; 0 = lifting does nothing
+    gasLow: 0.3,                  // share of gas below which lifting starts to tuck in (fully at no gas)...
+    gasHigh: 0.7,                 // ...and above which the slide starts to widen (fully at full gas). In between the angle stays as it is
+    gasLag: 0.1,                  // s: how smoothly a gas change reaches the drift. Higher = calmer but slower to answer the pedal
+    gasKick: 0.4,                 // s after a handbrake pull or brake tap before lifting tucks in and overHold works (they would fight the swing)
+    overHold: 0.3,                // past the hold angle the front tyres stop pulling the nose further in (fully once the key asks for this much
+                                  // countersteer, × the grip angle). Lower = big slides and lifts in a big slide stop growing sooner
     slideCatch: 0.18,             // s: a held key also eases off by how fast the slide is growing (looks this far ahead).
                                   // Higher = the first swing-out is smaller and calmer; 0 = big pendulum swings
     slideFrom: 7,                 // m/s (25 km/h): below this the rear grips like the front (no slides at a crawl)...
@@ -193,7 +203,7 @@ const CONFIG = {
       gravel: { maxG: 1.3,  top: 0.96, drag: 0.04, rear: 0.6,  peak: 9,   slide: 30 },
       dirt:   { maxG: 1.24, top: 0.95, drag: 0.05, rear: 0.58, peak: 10,  slide: 32 },
       snow:   { maxG: 1.08, top: 0.92, drag: 0.05, rear: 0.56, peak: 10,  slide: 34 },
-      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28, bite: 0 },
+      grass:  { maxG: 0.85, top: 0.55, drag: 0.6,  rear: 0.7,  peak: 11,  slide: 28, bite: 0, gas: 0 },
     },
   },
   // Car colours (art owns paint / stripe / skirt / number and `liveries`): paint/stripe/skirt/number = the default
@@ -201,7 +211,9 @@ const CONFIG = {
   //   base = body, a / b = accents, c = dark trim, wheel = rim colour, numBg / numFg = number panel, plate = invented plate text,
   //   design = which painter function, pod = rally light bar on the nose, wing = wing / roof spoiler colour.
   cars: [
-    { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.85, turn: 1.0, rear: 1.0, rearDrive: 0.85,
+    // gasDrift (any car, default 1): × gasWide and gasTuck, how much the gas steers this car's drift. The Kestrel's grip already holds it
+    // in on the gas (its weight goes to the rear), so at 1 it still reacts the least; Strada 0.6 sits in the middle; Nightjar 1.2 the most
+    { id: 'kestrel', name: 'Kestrel GT4', blurb: 'Planted and precise. Grips hard and turns in sharply.', accel: 1.0, top: 1.0, grip: 1.06, drift: 0.85, turn: 1.0, rear: 1.0, rearDrive: 0.85, gasDrift: 1.0,
       paint: 0xf4f6f8, stripe: 0xffc928, skirt: 0x1f4fa3, number: '7',
       liveries: [
         { id: 'ridgeline', name: 'Ridgeline',   design: 'ridgeline', base: 0xf4f6f8, a: 0xffc928, b: 0x1f4fa3, c: 0x14213f, wheel: 0xd9dde2, numBg: 0xffc928, numFg: 0x101820, plate: 'KR 07-GT', wing: 0x14213f, spons: ['ROTOR OIL', 'NORTHGATE', 'BRINDLE'] },
@@ -209,7 +221,7 @@ const CONFIG = {
         { id: 'magma',     name: 'Magma',       design: 'magma',     base: 0x17181c, a: 0xff4a12, b: 0xffb81c, c: 0x2a1208, wheel: 0xff4a12, numBg: 0xffb81c, numFg: 0x17181c, plate: 'MG 66-HT', pod: true, wing: 0xff4a12, spons: ['TAMARACK', 'NORTHGATE', 'ROTOR OIL'], number: '66' },
         { id: 'mint',      name: 'Alpine Mint', design: 'mint',      base: 0x35d6a4, a: 0x3a1a6b, b: 0xf4f6f8, c: 0x1a0d36, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x3a1a6b, plate: 'AM 12-IN', wing: 0x3a1a6b, spons: ['BRINDLE BANK', 'HALCYON', 'PIKE RACING'], number: '12' },
       ] },
-    { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.05, turn: 1.12, rear: 0.95, rearDrive: 1.15,
+    { id: 'strada', name: 'Strada HF', blurb: 'Light and punchy. Quicker away and loves a long slide.', accel: 1.06, top: 1.02, grip: 0.97, drift: 1.05, turn: 1.12, rear: 0.95, rearDrive: 1.15, gasDrift: 0.6,
       paint: 0xd8342c, stripe: 0xf4f6f8, skirt: 0x1b1d20, number: '4',
       liveries: [
         { id: 'signal',  name: 'Signal Red',   design: 'signal', base: 0xd8342c, a: 0xf4f6f8, b: 0x1b1d20, c: 0x1b1d20, wheel: 0xf4f6f8, numBg: 0xf4f6f8, numFg: 0x1b1d20, plate: 'SR 04-HF', wing: 0x1b1d20, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'BRINDLE'] },
@@ -228,7 +240,7 @@ const CONFIG = {
     //   slideKeep   its own CONFIG.arcade.slideKeep (higher = a drift loses less speed; still slower than a clean line, rule 5)
     //   slideFrom / slideFull   its own speeds (m/s) where the rear's looseness fades in (here: fully loose from 54 km/h)
     { id: 'nightjar', name: 'Nightjar KR', blurb: 'Long, loose and happiest sideways. Throws its tail out early and holds a drift all the way round.', accel: 1.0, top: 1.0, grip: 1.0, drift: 1.04, turn: 1.05, rear: 0.85, rearDrive: 1.15,
-      slideBite: 4, biteAfter: 0.6, biteRamp: 0.6, slideCatch: 0.4, slideKeep: 0.9, slideFrom: 8, slideFull: 15,
+      slideBite: 4, biteAfter: 0.6, biteRamp: 0.6, slideCatch: 0.4, slideKeep: 0.9, slideFrom: 8, slideFull: 15, gasDrift: 1.2,
       paint: 0x14161c, stripe: 0xff8a1e, skirt: 0x14161c, number: '9',
       liveries: [
         { id: 'nj-dusk',  name: 'Dusk',      design: 'dusk',    base: 0x14161c, a: 0xff8a1e, b: 0xf4f6f8, c: 0x14161c, wheel: 0xff8a1e, numBg: 0xff8a1e, numFg: 0x14161c, plate: 'NJ 09-KR', wing: 0xff8a1e, spons: ['ROTOR OIL', 'KETTLE CO-OP', 'HALCYON'], number: '9' },
